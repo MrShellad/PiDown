@@ -3,7 +3,29 @@ import { useDownloadStore } from "../store/useDownloadStore";
 import type { DownloadSpeedPayload } from "../store/useDownloadStore";
 import { useThemeStore } from "../store/useThemeStore";
 
+interface TaskUpdatedPayload {
+  gid: string;
+}
+
+const TASK_REFRESH_DEBOUNCE_MS = 120;
+const TASK_REFRESH_FALLBACK_MS = 5_000;
+
 export async function setupTauriEvents() {
+  let refreshTimer: number | undefined;
+
+  const refreshTasksSoon = () => {
+    if (refreshTimer != null) {
+      window.clearTimeout(refreshTimer);
+    }
+
+    refreshTimer = window.setTimeout(() => {
+      refreshTimer = undefined;
+      useDownloadStore.getState().fetchTasks().catch((err) => {
+        console.error("Failed to refresh tasks after backend event", err);
+      });
+    }, TASK_REFRESH_DEBOUNCE_MS);
+  };
+
   // 1. Listen for download speed and task progress updates
   const unlistenSpeed = await listen<DownloadSpeedPayload>(
     "download-cluster-status",
@@ -12,7 +34,24 @@ export async function setupTauriEvents() {
     }
   );
 
-  // 2. Listen for sound playing triggers from the backend
+  // 2. Listen for task lifecycle changes. Final states leave the active ticker,
+  // so this event pulls the database truth immediately.
+  const unlistenTaskUpdated = await listen<TaskUpdatedPayload>(
+    "download-task-updated",
+    () => {
+      refreshTasksSoon();
+    }
+  );
+
+  // 3. Keep a low-frequency fallback in case an event is dropped or a window
+  // subscribes after the backend already emitted the final state.
+  const fallbackRefresh = window.setInterval(() => {
+    useDownloadStore.getState().fetchTasks().catch((err) => {
+      console.error("Failed to refresh tasks from fallback poll", err);
+    });
+  }, TASK_REFRESH_FALLBACK_MS);
+
+  // 4. Listen for sound playing triggers from the backend
   const unlistenSound = await listen<string>("play-sound", (event) => {
     const { soundEnabled, theme } = useThemeStore.getState();
     if (!soundEnabled) return;
@@ -22,7 +61,12 @@ export async function setupTauriEvents() {
   });
 
   return () => {
+    if (refreshTimer != null) {
+      window.clearTimeout(refreshTimer);
+    }
+    window.clearInterval(fallbackRefresh);
     unlistenSpeed();
+    unlistenTaskUpdated();
     unlistenSound();
   };
 }
@@ -32,75 +76,32 @@ function playThemeSound(theme: string, type: string) {
   const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
   const context = new AudioContextCtor();
   
-  // We will generate simple synth frequencies dynamically to avoid loading missing audio assets 
-  // and ensuring we have zero asset loading errors. This gives a very cool retro/synth vibe!
+  // Generate simple synth frequencies dynamically to avoid loading missing audio assets.
   const osc = context.createOscillator();
   const gain = context.createGain();
   
   osc.connect(gain);
   gain.connect(context.destination);
 
-  if (theme === "cyberpunk") {
-    if (type === "warning" || type === "error") {
-      // Harsh warning sound (low frequency alert)
-      osc.type = "sawtooth";
-      osc.frequency.setValueAtTime(150, context.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(80, context.currentTime + 0.3);
-      gain.gain.setValueAtTime(0.15, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.3);
-      osc.start();
-      osc.stop(context.currentTime + 0.35);
-    } else {
-      // Futuristic click / beep
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(880, context.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(1200, context.currentTime + 0.08);
-      gain.gain.setValueAtTime(0.1, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.08);
-      osc.start();
-      osc.stop(context.currentTime + 0.1);
-    }
-  } else if (theme === "retro") {
-    // 8-bit sound
-    osc.type = "square";
-    if (type === "success") {
-      // Arpeggio up
-      osc.frequency.setValueAtTime(523.25, context.currentTime); // C5
-      osc.frequency.setValueAtTime(659.25, context.currentTime + 0.1); // E5
-      osc.frequency.setValueAtTime(783.99, context.currentTime + 0.2); // G5
-      osc.frequency.setValueAtTime(1046.50, context.currentTime + 0.3); // C6
-      gain.gain.setValueAtTime(0.1, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.4);
-      osc.start();
-      osc.stop(context.currentTime + 0.45);
-    } else {
-      // 8-bit coin click
-      osc.frequency.setValueAtTime(987.77, context.currentTime); // B5
-      osc.frequency.setValueAtTime(1318.51, context.currentTime + 0.08); // E6
-      gain.gain.setValueAtTime(0.1, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.01, context.currentTime + 0.15);
-      osc.start();
-      osc.stop(context.currentTime + 0.2);
-    }
+  void theme;
+
+  // Modern fluid - clean subtle sound
+  osc.type = "sine";
+  if (type === "success") {
+    // Soft chime
+    osc.frequency.setValueAtTime(659.25, context.currentTime); // E5
+    osc.frequency.exponentialRampToValueAtTime(880, context.currentTime + 0.15); // A5
+    gain.gain.setValueAtTime(0.08, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.4);
+    osc.start();
+    osc.stop(context.currentTime + 0.4);
   } else {
-    // Modern fluid - clean subtle sound
-    osc.type = "sine";
-    if (type === "success") {
-      // Soft chime
-      osc.frequency.setValueAtTime(659.25, context.currentTime); // E5
-      osc.frequency.exponentialRampToValueAtTime(880, context.currentTime + 0.15); // A5
-      gain.gain.setValueAtTime(0.08, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.4);
-      osc.start();
-      osc.stop(context.currentTime + 0.4);
-    } else {
-      // Subtle click
-      osc.frequency.setValueAtTime(600, context.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(400, context.currentTime + 0.05);
-      gain.gain.setValueAtTime(0.05, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.05);
-      osc.start();
-      osc.stop(context.currentTime + 0.06);
-    }
+    // Subtle click
+    osc.frequency.setValueAtTime(600, context.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(400, context.currentTime + 0.05);
+    gain.gain.setValueAtTime(0.05, context.currentTime);
+    gain.gain.linearRampToValueAtTime(0.001, context.currentTime + 0.05);
+    osc.start();
+    osc.stop(context.currentTime + 0.06);
   }
 }

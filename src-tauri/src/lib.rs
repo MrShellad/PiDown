@@ -4,6 +4,7 @@ mod download;
 mod events;
 
 use core::state::AppState;
+use core::window_state::setup_main_window_state;
 use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -32,6 +33,8 @@ pub fn run() {
             let state =
                 tauri::async_runtime::block_on(AppState::new(&app_data_dir, &default_save_dir))
                     .map_err(std::io::Error::other)?;
+
+            setup_main_window_state(&app_handle, &app_data_dir).map_err(std::io::Error::other)?;
 
             app.manage(state.clone());
             events::start_global_event_ticker(app_handle.clone(), state.clone());
@@ -70,6 +73,7 @@ pub fn run() {
             commands::delete_tag,
             commands::get_app_settings,
             commands::update_app_settings,
+            commands::list_system_fonts,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

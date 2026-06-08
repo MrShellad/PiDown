@@ -51,6 +51,7 @@ impl AppState {
         state.persist_settings()?;
         state.apply_transfer_settings()?;
         state.ensure_default_save_dir()?;
+        state.ensure_default_category_configs(None)?;
         state.sync_on_startup();
 
         Ok(state)

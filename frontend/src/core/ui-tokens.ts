@@ -3,8 +3,6 @@ export const UI_TOKENS = {
   settingsSidebarWidth: "240px",
   frameHeights: {
     modern: "44px",
-    cyberpunk: "40px",
-    retro: "36px",
   },
   icon: {
     xs: "0.75rem",

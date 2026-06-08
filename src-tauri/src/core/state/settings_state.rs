@@ -1,5 +1,6 @@
 use crate::core::settings::{AppSettings, AppSettingsDocument, CloseAction, APP_SETTINGS_VERSION};
 use crate::download::DownloadManager;
+use std::path::PathBuf;
 
 impl super::AppState {
     pub(super) fn persist_settings(&self) -> Result<(), String> {
@@ -54,6 +55,7 @@ impl super::AppState {
 
     pub fn update_settings(&self, mut settings: AppSettings) -> Result<AppSettings, String> {
         let current = self.settings.read().unwrap().clone();
+        let previous_default_save_dir = PathBuf::from(&current.download.default_save_dir);
 
         settings.download.default_save_dir = if settings.download.default_save_dir.trim().is_empty()
         {
@@ -73,6 +75,7 @@ impl super::AppState {
 
         self.persist_settings()?;
         self.apply_transfer_settings()?;
+        self.ensure_default_category_configs(Some(&previous_default_save_dir))?;
 
         Ok(settings)
     }

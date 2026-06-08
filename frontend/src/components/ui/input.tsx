@@ -9,9 +9,9 @@ const inputVariants = cva(
   {
     variants: {
       size: {
-        sm: "h-8 rounded-[var(--radius-md)] px-3 text-xs",
-        default: "h-10 rounded-[var(--radius-lg)] px-3 text-sm",
-        lg: "h-11 rounded-[var(--radius-lg)] px-4 text-base",
+        sm: "h-8 rounded-md px-3 text-xs",
+        default: "h-10 rounded-lg px-3 text-sm",
+        lg: "h-11 rounded-lg px-4 text-base",
       },
     },
     defaultVariants: {
@@ -21,7 +21,7 @@ const inputVariants = cva(
 )
 
 const actionInputVariants = cva(
-  "group flex w-full items-stretch overflow-hidden rounded-[var(--radius-lg)] border bg-background/90 text-foreground shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] transition focus-within:ring-2 disabled:pointer-events-none data-[disabled=true]:opacity-60 data-[invalid=true]:border-destructive data-[invalid=true]:ring-2 data-[invalid=true]:ring-destructive/20",
+  "group flex w-full items-stretch overflow-hidden rounded-lg border bg-background/90 text-foreground shadow-surface-inset transition focus-within:ring-2 disabled:pointer-events-none data-[disabled=true]:opacity-60 data-[invalid=true]:border-destructive data-[invalid=true]:ring-2 data-[invalid=true]:ring-destructive/20",
   {
     variants: {
       size: {

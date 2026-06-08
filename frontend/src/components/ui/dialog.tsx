@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion"
+import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { XIcon } from "lucide-react"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
@@ -15,7 +15,7 @@ const DialogSurfaceContext = React.createContext<DialogSurfaceVariant>("modal")
 const DialogOpenContext = React.createContext<boolean | null>(null)
 
 const dialogContentVariants = cva(
-  "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] overflow-hidden rounded-[var(--radius-lg)] bg-popover text-sm text-popover-foreground shadow-2xl shadow-black/15 ring-1 ring-foreground/10 outline-none",
+  "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] overflow-hidden rounded-lg bg-popover text-sm text-popover-foreground shadow-2xl shadow-black/15 ring-1 ring-foreground/10 outline-none",
   {
     variants: {
       variant: {
@@ -204,7 +204,7 @@ function DialogHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="dialog-header"
       className={cn(
-        "relative z-10 flex flex-col items-center gap-2 border-b border-border/60 bg-[color-mix(in_oklch,var(--popover),transparent_5%)] px-4 py-4 text-center shadow-[0_10px_24px_rgba(0,0,0,0.08)] sm:px-5",
+        "relative z-10 flex flex-col items-center gap-2 border-b border-border/60 bg-popover-soft px-4 py-4 text-center shadow-dialog-header sm:px-5",
         variant === "alert" && "px-5 py-4",
         className
       )}
@@ -245,7 +245,7 @@ function DialogFooter({
     <div
       data-slot="dialog-footer"
       className={cn(
-        "relative z-10 flex flex-col-reverse items-center justify-center gap-2 border-t border-border/60 bg-[color-mix(in_oklch,var(--muted),transparent_35%)] px-4 py-4 shadow-[0_-10px_24px_rgba(0,0,0,0.08)] sm:flex-row sm:gap-3 sm:px-5",
+        "relative z-10 flex flex-col-reverse items-center justify-center gap-2 border-t border-border/60 bg-muted-soft px-4 py-4 shadow-dialog-footer sm:flex-row sm:gap-3 sm:px-5",
         "[&_[data-slot=button]]:h-10 [&_[data-slot=button]]:w-full [&_[data-slot=button]]:px-4 sm:[&_[data-slot=button]]:w-28",
         variant === "alert" && "sm:[&_[data-slot=button]]:w-28",
         className

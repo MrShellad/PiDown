@@ -31,7 +31,7 @@ export function SettingsSectionCard({
   return (
     <section
       className={cn(
-        "rounded-[var(--radius-xl)] border border-border bg-card/75 p-6 backdrop-blur-xl",
+        "rounded-xl border border-border bg-card/75 p-6 backdrop-blur-xl",
         className
       )}
     >
@@ -92,7 +92,7 @@ export function SettingsInput(props: React.InputHTMLAttributes<HTMLInputElement>
     <input
       {...props}
       className={cn(
-        "h-10 w-full rounded-[var(--radius-lg)] border border-border bg-background/70 px-4 text-sm leading-5 text-foreground outline-none transition",
+        "h-10 w-full rounded-lg border border-border bg-background/70 px-4 text-sm leading-5 text-foreground outline-none transition",
         "placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20",
         props.className
       )}
@@ -107,7 +107,7 @@ export function SettingsList({
   return (
     <div
       className={cn(
-        "divide-y divide-border rounded-[var(--radius-lg)] border border-border bg-secondary/20",
+        "divide-y divide-border rounded-lg border border-border bg-secondary/20",
         className
       )}
     >

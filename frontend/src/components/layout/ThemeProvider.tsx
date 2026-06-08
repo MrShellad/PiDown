@@ -4,6 +4,7 @@ import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { setupTauriEvents } from "@/core/bridge/tauri-events";
 import { ToastViewport } from "@/components/ui/toast";
+import { getThemeFontOption } from "@/themes/fonts";
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -12,19 +13,27 @@ interface ThemeProviderProps {
 
 export default function ThemeProvider({ children, taskRuntime = false }: ThemeProviderProps) {
   const theme = useThemeStore((state) => state.theme);
+  const colorMode = useThemeStore((state) => state.colorMode);
+  const fontId = useThemeStore((state) => state.fontId);
 
   // Sync theme attribute on document root
   useEffect(() => {
     const root = window.document.documentElement;
+    const font = getThemeFontOption(fontId);
+
     root.setAttribute("data-theme", theme);
+    root.setAttribute("data-color-mode", colorMode);
+    root.setAttribute("data-font", font.id);
+    root.style.setProperty("--font-ui", font.stack);
+    root.style.setProperty("--font-heading", font.stack);
     
-    // Toggle dark class depending on theme type
-    if (theme === "modern" || theme === "cyberpunk") {
+    // Toggle dark class depending on color mode.
+    if (colorMode === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
-  }, [theme]);
+  }, [colorMode, fontId, theme]);
 
   // Hook up Tauri event listener and fetch initial task list
   useEffect(() => {

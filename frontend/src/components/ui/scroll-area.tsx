@@ -5,8 +5,8 @@ import { cn } from "@/lib/utils";
 const scrollAreaVariants = cva("relative min-h-0 overflow-hidden", {
   variants: {
     variant: {
-      default: "rounded-[var(--radius-lg)]",
-      inset: "rounded-[var(--radius-lg)] border border-border bg-secondary/20",
+      default: "rounded-lg",
+      inset: "rounded-lg border border-border bg-secondary/20",
       ghost: "rounded-none",
     },
   },

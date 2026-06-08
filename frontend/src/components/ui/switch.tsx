@@ -1,11 +1,11 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "motion/react";
 import { Switch as SwitchPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 const switchTrackVariants = cva(
-  "relative inline-flex shrink-0 cursor-pointer items-center overflow-hidden rounded-full border border-transparent bg-[#D1D5DB]",
+  "relative inline-flex shrink-0 cursor-pointer items-center overflow-hidden rounded-full border border-transparent bg-muted",
   {
     variants: {
       size: {
@@ -21,7 +21,7 @@ const switchTrackVariants = cva(
 );
 
 const switchThumbVariants = cva(
-  "pointer-events-none relative z-10 block rounded-full bg-white shadow-sm",
+  "pointer-events-none relative z-10 block rounded-full bg-switch-thumb shadow-sm",
   {
     variants: {
       size: {
@@ -82,8 +82,15 @@ export function Switch({
     ? { duration: 0 }
     : { type: "spring" as const, stiffness: 520, damping: 32, mass: 0.75 };
   const colorTransition = prefersReducedMotion ? { duration: 0 } : { duration: 0.16 };
-  const trackColor = resolvedChecked ? "#22C55E" : "#D1D5DB";
-  const hoverTrackColor = resolvedChecked ? "#16A34A" : "#BDC4CF";
+  const trackColor = resolvedChecked ? "var(--switch-track-on)" : "var(--switch-track-off)";
+  const hoverTrackColor = resolvedChecked
+    ? "var(--switch-track-on-hover)"
+    : "var(--switch-track-off-hover)";
+  const pressRing = "0 0 0 4px var(--switch-press-ring)";
+  const hoverRing = "0 0 0 3px var(--switch-press-ring)";
+  const thumbShadow = resolvedChecked
+    ? "var(--switch-thumb-shadow-on)"
+    : "var(--switch-thumb-shadow-off)";
 
   const handleCheckedChange = (nextChecked: boolean) => {
     if (!isControlled) {
@@ -118,7 +125,7 @@ export function Switch({
         onPointerLeave?.(event);
       }}
       className={cn(
-        "group/switch inline-flex items-center gap-3 rounded-full text-left outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45",
+        "group/switch inline-flex items-center gap-3 rounded-full text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45",
         className
       )}
       {...props}
@@ -128,33 +135,36 @@ export function Switch({
         data-slot="switch-track"
         data-state={state}
         className={cn(switchTrackVariants({ size }))}
+        initial={false}
         animate={{
           backgroundColor: trackColor,
           boxShadow:
             !disabled && pressed
-              ? "0 0 0 4px rgba(34, 197, 94, 0.18)"
-              : "0 0 0 0 rgba(34, 197, 94, 0)",
+              ? pressRing
+              : "0 0 0 0 transparent",
         }}
         whileHover={
           disabled
             ? undefined
             : {
                 backgroundColor: hoverTrackColor,
-                boxShadow: "0 0 0 3px rgba(34, 197, 94, 0.14)",
+                boxShadow: hoverRing,
               }
         }
         whileTap={disabled || prefersReducedMotion ? undefined : { scale: 0.98 }}
         transition={colorTransition}
       >
         <motion.span
-          className="pointer-events-none absolute left-1.5 text-[10px] font-bold leading-none text-white/90"
+          className="pointer-events-none absolute left-1.5 text-[10px] font-bold leading-none text-primary-foreground/90"
+          initial={false}
           animate={{ opacity: resolvedChecked ? 1 : 0, scale: resolvedChecked ? 1 : 0.85 }}
           transition={springTransition}
         >
           |
         </motion.span>
         <motion.span
-          className="pointer-events-none absolute right-1.5 text-[10px] font-bold leading-none text-slate-500/80"
+          className="pointer-events-none absolute right-1.5 text-[10px] font-bold leading-none text-switch-icon-off/80"
+          initial={false}
           animate={{ opacity: resolvedChecked ? 0 : 1, scale: resolvedChecked ? 0.85 : 1 }}
           transition={springTransition}
         >
@@ -165,12 +175,11 @@ export function Switch({
             data-slot="switch-thumb"
             data-state={state}
             className={cn(switchThumbVariants({ size }))}
+            initial={false}
             animate={{
               x: thumbX,
               width: pressed ? metrics.pressed : metrics.thumb,
-              boxShadow: resolvedChecked
-                ? "0 3px 10px rgba(15, 23, 42, 0.18)"
-                : "0 1px 4px rgba(15, 23, 42, 0.16)",
+              boxShadow: thumbShadow,
             }}
             transition={springTransition}
           />

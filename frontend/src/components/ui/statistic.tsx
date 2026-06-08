@@ -21,7 +21,7 @@ function Statistic({
   return (
     <div
       data-slot="statistic"
-      className={cn("rounded-[var(--radius-lg)] border border-border bg-card p-4", className)}
+      className={cn("rounded-lg border border-border bg-card p-4", className)}
       {...props}
     >
       <div className="text-sm leading-5 text-muted-foreground">{label}</div>

@@ -8,7 +8,7 @@ function Toolbar({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="toolbar"
       role="toolbar"
       className={cn(
-        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-[var(--radius)] bg-card text-card-foreground shadow-[0_14px_32px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.05)]",
+        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-card text-card-foreground shadow-surface-raised",
         className
       )}
       {...props}
@@ -31,7 +31,7 @@ function ToolbarSeparator({ className, ...props }: React.ComponentProps<"div">) 
     <div
       data-slot="toolbar-separator"
       aria-hidden="true"
-      className={cn("flex w-px items-center self-stretch py-3 before:block before:h-full before:w-px before:bg-border/80 before:shadow-[0_0_8px_rgba(255,255,255,0.08)]", className)}
+      className={cn("flex w-px items-center self-stretch py-3 before:block before:h-full before:w-px before:bg-border/80 before:shadow-divider-glow", className)}
       {...props}
     />
   )
@@ -108,7 +108,7 @@ function ToolbarPrimaryButton({
       {actionIcon ? (
         <span
           data-slot="toolbar-primary-action"
-          className="grid size-8 shrink-0 place-items-center rounded-[var(--radius)] bg-primary text-primary-foreground shadow-[var(--button-glow)] [&_svg]:size-4"
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-button-glow [&_svg]:size-4"
           aria-hidden="true"
         >
           {actionIcon}

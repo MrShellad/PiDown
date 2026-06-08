@@ -1,74 +1,156 @@
-use crate::core::models::{DbCategory, DbTag, MatchRules};
+use crate::core::models::{CategoryInput, DbCategory, DbTag, MatchRules};
+use std::path::Path;
 
 pub const CATEGORY_VIDEO: &str = "视频";
 pub const CATEGORY_AUDIO: &str = "音频";
 pub const CATEGORY_IMAGE: &str = "图片";
+pub const CATEGORY_DOCUMENT: &str = "文档";
 pub const CATEGORY_ARCHIVE: &str = "压缩包";
 pub const CATEGORY_PROGRAM: &str = "程序";
 pub const CATEGORY_AI_MODEL: &str = "AI模型";
 pub const CATEGORY_OTHER: &str = "其他";
 
-const DEFAULT_CATEGORIES: [(&str, &str, i32); 7] = [
-    (CATEGORY_VIDEO, "film", 1),
-    (CATEGORY_AUDIO, "music", 2),
-    (CATEGORY_IMAGE, "image", 3),
-    (CATEGORY_ARCHIVE, "archive", 4),
-    (CATEGORY_PROGRAM, "cpu", 5),
-    (CATEGORY_AI_MODEL, "box", 6),
-    (CATEGORY_OTHER, "file", 7),
+const VIDEO_EXTENSIONS: &[&str] = &[
+    "mp4", "mkv", "avi", "mov", "flv", "wmv", "webm", "m4v", "ts",
+];
+const AUDIO_EXTENSIONS: &[&str] = &["mp3", "wav", "flac", "ogg", "m4a", "wma", "aac", "opus"];
+const IMAGE_EXTENSIONS: &[&str] = &[
+    "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "avif", "heic",
+];
+const DOCUMENT_EXTENSIONS: &[&str] = &[
+    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "epub",
+];
+const ARCHIVE_EXTENSIONS: &[&str] = &["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso"];
+const PROGRAM_EXTENSIONS: &[&str] = &[
+    "exe", "msi", "dmg", "pkg", "sh", "bat", "app", "deb", "rpm", "apk",
+];
+const AI_MODEL_EXTENSIONS: &[&str] = &["safetensors", "ckpt", "pt", "pth", "onnx", "gguf"];
+
+#[derive(Debug, Clone, Copy)]
+pub struct DefaultCategory {
+    pub name: &'static str,
+    pub icon: &'static str,
+    pub sort_order: i32,
+    pub directory: &'static str,
+    pub extensions: &'static [&'static str],
+}
+
+impl DefaultCategory {
+    pub fn rules(&self) -> MatchRules {
+        MatchRules {
+            extensions: self
+                .extensions
+                .iter()
+                .map(|extension| (*extension).to_string())
+                .collect(),
+            ..MatchRules::default()
+        }
+    }
+
+    pub fn save_path(&self, default_save_dir: &Path) -> String {
+        default_save_dir
+            .join(self.directory)
+            .to_string_lossy()
+            .to_string()
+    }
+
+    pub fn input(&self, default_save_dir: &Path) -> CategoryInput {
+        CategoryInput {
+            name: self.name.to_string(),
+            icon: Some(self.icon.to_string()),
+            color: None,
+            sort_order: self.sort_order,
+            rules: self.rules(),
+            save_path: Some(self.save_path(default_save_dir)),
+        }
+    }
+}
+
+const DEFAULT_CATEGORIES: [DefaultCategory; 8] = [
+    DefaultCategory {
+        name: CATEGORY_VIDEO,
+        icon: "film",
+        sort_order: 1,
+        directory: "Videos",
+        extensions: VIDEO_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_AUDIO,
+        icon: "music",
+        sort_order: 2,
+        directory: "Audio",
+        extensions: AUDIO_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_IMAGE,
+        icon: "image",
+        sort_order: 3,
+        directory: "Images",
+        extensions: IMAGE_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_DOCUMENT,
+        icon: "file-text",
+        sort_order: 4,
+        directory: "Documents",
+        extensions: DOCUMENT_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_ARCHIVE,
+        icon: "archive",
+        sort_order: 5,
+        directory: "Archives",
+        extensions: ARCHIVE_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_PROGRAM,
+        icon: "cpu",
+        sort_order: 6,
+        directory: "Programs",
+        extensions: PROGRAM_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_AI_MODEL,
+        icon: "box",
+        sort_order: 7,
+        directory: "AI-Models",
+        extensions: AI_MODEL_EXTENSIONS,
+    },
+    DefaultCategory {
+        name: CATEGORY_OTHER,
+        icon: "file",
+        sort_order: 8,
+        directory: "Others",
+        extensions: &[],
+    },
 ];
 
-pub fn default_categories() -> &'static [(&'static str, &'static str, i32)] {
+pub fn default_categories() -> &'static [DefaultCategory] {
     &DEFAULT_CATEGORIES
+}
+
+fn has_known_extension(filename_lower: &str, extensions: &[&str]) -> bool {
+    extensions
+        .iter()
+        .any(|extension| filename_lower.ends_with(&format!(".{extension}")))
 }
 
 pub fn infer_category_name(filename: &str) -> &'static str {
     let name_lower = filename.to_lowercase();
 
-    if name_lower.ends_with(".mp4")
-        || name_lower.ends_with(".mkv")
-        || name_lower.ends_with(".avi")
-        || name_lower.ends_with(".mov")
-        || name_lower.ends_with(".flv")
-        || name_lower.ends_with(".wmv")
-        || name_lower.ends_with(".webm")
-    {
+    if has_known_extension(&name_lower, VIDEO_EXTENSIONS) {
         CATEGORY_VIDEO
-    } else if name_lower.ends_with(".mp3")
-        || name_lower.ends_with(".wav")
-        || name_lower.ends_with(".flac")
-        || name_lower.ends_with(".ogg")
-        || name_lower.ends_with(".m4a")
-        || name_lower.ends_with(".wma")
-    {
+    } else if has_known_extension(&name_lower, AUDIO_EXTENSIONS) {
         CATEGORY_AUDIO
-    } else if name_lower.ends_with(".jpg")
-        || name_lower.ends_with(".jpeg")
-        || name_lower.ends_with(".png")
-        || name_lower.ends_with(".gif")
-        || name_lower.ends_with(".bmp")
-        || name_lower.ends_with(".webp")
-        || name_lower.ends_with(".svg")
-    {
+    } else if has_known_extension(&name_lower, IMAGE_EXTENSIONS) {
         CATEGORY_IMAGE
-    } else if name_lower.ends_with(".zip")
-        || name_lower.ends_with(".rar")
-        || name_lower.ends_with(".7z")
-        || name_lower.ends_with(".tar")
-        || name_lower.ends_with(".gz")
-        || name_lower.ends_with(".tgz")
-    {
+    } else if has_known_extension(&name_lower, DOCUMENT_EXTENSIONS) {
+        CATEGORY_DOCUMENT
+    } else if has_known_extension(&name_lower, ARCHIVE_EXTENSIONS) {
         CATEGORY_ARCHIVE
-    } else if name_lower.ends_with(".exe")
-        || name_lower.ends_with(".msi")
-        || name_lower.ends_with(".dmg")
-        || name_lower.ends_with(".pkg")
-        || name_lower.ends_with(".sh")
-        || name_lower.ends_with(".bat")
-        || name_lower.ends_with(".app")
-    {
+    } else if has_known_extension(&name_lower, PROGRAM_EXTENSIONS) {
         CATEGORY_PROGRAM
-    } else if name_lower.ends_with(".safetensors") {
+    } else if has_known_extension(&name_lower, AI_MODEL_EXTENSIONS) {
         CATEGORY_AI_MODEL
     } else {
         CATEGORY_OTHER
@@ -163,16 +245,31 @@ pub fn infer_tags<'a>(
 
 #[cfg(test)]
 mod tests {
-    use super::{infer_category_name, CATEGORY_ARCHIVE, CATEGORY_OTHER, CATEGORY_VIDEO};
+    use super::{
+        default_categories, infer_category_name, CATEGORY_ARCHIVE, CATEGORY_DOCUMENT,
+        CATEGORY_OTHER, CATEGORY_VIDEO,
+    };
 
     #[test]
     fn infers_known_category_by_extension() {
         assert_eq!(infer_category_name("movie.mp4"), CATEGORY_VIDEO);
         assert_eq!(infer_category_name("bundle.zip"), CATEGORY_ARCHIVE);
+        assert_eq!(infer_category_name("report.pdf"), CATEGORY_DOCUMENT);
     }
 
     #[test]
     fn falls_back_to_other_for_unknown_extensions() {
         assert_eq!(infer_category_name("notes.unknown"), CATEGORY_OTHER);
+    }
+
+    #[test]
+    fn default_categories_include_rules_and_directories() {
+        let document = default_categories()
+            .iter()
+            .find(|category| category.name == CATEGORY_DOCUMENT)
+            .unwrap();
+
+        assert_eq!(document.directory, "Documents");
+        assert!(document.extensions.contains(&"pdf"));
     }
 }

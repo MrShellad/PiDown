@@ -54,7 +54,7 @@ function RadioField({
     <label
       data-slot="radio-field"
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-[var(--radius-lg)] text-left has-disabled:cursor-not-allowed has-disabled:opacity-60",
+        "flex cursor-pointer items-start gap-3 rounded-lg text-left has-disabled:cursor-not-allowed has-disabled:opacity-60",
         className
       )}
       {...props}

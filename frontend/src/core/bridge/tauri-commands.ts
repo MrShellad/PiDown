@@ -241,6 +241,10 @@ export async function getAppSettings(): Promise<AppSettings> {
   return invoke<AppSettings>("get_app_settings");
 }
 
+export async function listSystemFonts(): Promise<string[]> {
+  return invoke<string[]>("list_system_fonts");
+}
+
 export async function getDefaultAppSettings(): Promise<AppSettings> {
   return {
     download: {

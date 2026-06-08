@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   Cable,
@@ -7,9 +8,9 @@ import {
   Gauge,
   MonitorCog,
   Paintbrush,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { OptionDropdown } from "@/components/common";
 import {
   Dialog,
   DialogBody,
@@ -23,8 +24,8 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import {
-  closeSettingsWindow,
   getDefaultAppSettings,
+  listSystemFonts,
   type AppSettings,
   type SpeedDisplayUnit,
 } from "@/core/bridge/tauri-commands";
@@ -34,6 +35,7 @@ import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useThemeStore } from "@/core/store/useThemeStore";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { THEME_REGISTRY } from "@/themes/config";
+import { createFontOptions, getThemeFontOption } from "@/themes/fonts";
 import {
   SettingsInput,
   SettingsList,
@@ -70,6 +72,39 @@ const SPEED_DISPLAY_UNIT_OPTIONS: { value: SpeedDisplayUnit; label: string }[] =
   { value: "mb", label: "MB/s" },
 ];
 
+function FontDropdownSkeleton() {
+  return (
+    <div className="space-y-2 p-2">
+      {[0, 1, 2, 3, 4].map((index) => (
+        <motion.div
+          key={index}
+          className="h-8 overflow-hidden rounded-md bg-muted/70"
+          initial={{ opacity: 0.45, x: -4 }}
+          animate={{ opacity: [0.45, 0.9, 0.45], x: 0 }}
+          transition={{
+            duration: 1.1,
+            repeat: Infinity,
+            delay: index * 0.08,
+            ease: "easeInOut",
+          }}
+        >
+          <motion.div
+            className="h-full w-1/2 bg-gradient-to-r from-transparent via-primary/18 to-transparent"
+            initial={{ x: "-120%" }}
+            animate={{ x: "240%" }}
+            transition={{
+              duration: 1.15,
+              repeat: Infinity,
+              delay: index * 0.08,
+              ease: "easeInOut",
+            }}
+          />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
 function ResetSettingsButton({ onClick }: { onClick: () => void }) {
   return (
     <Button variant="destructive" onClick={onClick}>
@@ -79,20 +114,23 @@ function ResetSettingsButton({ onClick }: { onClick: () => void }) {
 }
 
 export default function SettingsWindow() {
+  const prefersReducedMotion = useReducedMotion();
   const {
     settings,
     loading,
-    saving,
     activeSection,
     setActiveSection,
     load,
     save,
     lastError,
-    lastSavedAt,
   } = useAppSettingsStore();
 
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const colorMode = useThemeStore((state) => state.colorMode);
+  const setColorMode = useThemeStore((state) => state.setColorMode);
+  const fontId = useThemeStore((state) => state.fontId);
+  const setFontId = useThemeStore((state) => state.setFontId);
   const effectsEnabled = useThemeStore((state) => state.effectsEnabled);
   const setEffectsEnabled = useThemeStore((state) => state.setEffectsEnabled);
   const soundEnabled = useThemeStore((state) => state.soundEnabled);
@@ -106,6 +144,12 @@ export default function SettingsWindow() {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [systemFonts, setSystemFonts] = useState<string[]>([]);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [fontsLoading, setFontsLoading] = useState(false);
+  const [fontLoadError, setFontLoadError] = useState<string | null>(null);
+  const fontOptions = useMemo(() => createFontOptions(systemFonts), [systemFonts]);
+  const selectedFont = getThemeFontOption(fontId, fontOptions);
 
   useEffect(() => {
     load().catch(console.error);
@@ -152,6 +196,22 @@ export default function SettingsWindow() {
     setFeedback(null);
   };
 
+  const ensureSystemFontsLoaded = () => {
+    if (fontsLoaded || fontsLoading) return;
+
+    setFontsLoading(true);
+    listSystemFonts()
+      .then((fonts) => {
+        setSystemFonts(fonts);
+        setFontsLoaded(true);
+        setFontLoadError(null);
+      })
+      .catch((error) => {
+        setFontLoadError(error instanceof Error ? error.message : String(error));
+      })
+      .finally(() => setFontsLoading(false));
+  };
+
   const resetToDefaults = async () => {
     setResetting(true);
     try {
@@ -174,49 +234,36 @@ export default function SettingsWindow() {
 
     const timer = window.setTimeout(() => {
       save(normalizedDraft)
-        .then(() => setFeedback(UI_TEXT.settings.saved))
+        .then(async () => {
+          await fetchCategories();
+          setFeedback(UI_TEXT.settings.saved);
+        })
         .catch((error) =>
           setFeedback(error instanceof Error ? error.message : String(error))
         );
     }, 450);
 
     return () => window.clearTimeout(timer);
-  }, [normalizedDraft, settings, save]);
+  }, [fetchCategories, normalizedDraft, settings, save]);
 
   if (loading || !draft) {
     return (
       <div className="flex h-screen items-center justify-center bg-transparent text-foreground select-none">
-        <div className="rounded-[var(--radius-xl)] border border-border bg-card/90 px-6 py-5 text-sm font-medium shadow-[var(--glow-effect)] backdrop-blur-xl">
+        <div className="rounded-xl border border-border bg-card/90 px-6 py-5 text-sm font-medium shadow-glow-effect backdrop-blur-xl">
           {UI_TEXT.settings.loading}
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="flex h-screen flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text">
-      <div
-        data-tauri-drag-region="true"
-        className="flex h-11 items-center justify-between border-b border-border bg-card/80 px-4 backdrop-blur-xl"
-        style={{ cursor: "move" }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="size-2.5 rounded-full bg-primary" />
-          <span className="text-sm font-semibold tracking-tight leading-none">
-            {UI_TEXT.settings.title}
-          </span>
-        </div>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          onClick={() => closeSettingsWindow().catch(console.error)}
-          className="text-muted-foreground hover:text-foreground"
-          data-tauri-drag-region={false as unknown as undefined}
-        >
-          <X className="size-4" />
-        </Button>
-      </div>
+  const visibleError =
+    lastError || (feedback && feedback !== UI_TEXT.settings.saved ? feedback : null);
+  const tabMotionTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const };
 
+  return (
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text">
       <div className="flex min-h-0 flex-1">
         <aside
           className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
@@ -229,14 +276,14 @@ export default function SettingsWindow() {
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
-                  className={`w-full rounded-[var(--radius-lg)] border px-3 py-3 text-left transition-colors ${
+                  className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
                     active
                       ? "border-primary/50 bg-primary/12 text-foreground"
                       : "border-transparent text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-[var(--radius-md)] bg-secondary/80 text-foreground">
+                    <div className="flex size-9 items-center justify-center rounded-md bg-secondary/80 text-foreground">
                       {item.icon}
                     </div>
                     <div className="min-w-0">
@@ -250,29 +297,25 @@ export default function SettingsWindow() {
         </aside>
 
         <main className="min-w-0 flex-1">
-          <ScrollArea className="h-full" gutter="stable" safePadding viewportClassName="px-6 py-6">
+          <ScrollArea className="h-full" gutter="stable" safePadding viewportClassName="px-6 pt-4 pb-6">
             <div className="mx-auto flex max-w-5xl flex-col gap-6">
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
-                <span>
-                  {saving
-                    ? UI_TEXT.settings.saving
-                    : feedback || (lastSavedAt ? UI_TEXT.settings.autosaveIdle : "")}
-                </span>
-                {lastSavedAt ? (
-                  <span className="text-xs tabular-nums">
-                    {new Date(lastSavedAt).toLocaleTimeString()}
-                  </span>
-                ) : null}
-              </div>
-
-              {lastError && !saving ? (
-                <div className="rounded-[var(--radius-md)] border border-border bg-secondary/60 px-3 py-2 text-sm leading-6 text-muted-foreground">
-                  {lastError}
+              {visibleError ? (
+                <div className="rounded-md border border-border bg-secondary/60 px-3 py-2 text-sm leading-6 text-muted-foreground">
+                  {visibleError}
                 </div>
               ) : null}
 
-              {activeSection === "download" ? (
-                <SettingsSectionCard>
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key={activeSection}
+                  layout="position"
+                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  transition={tabMotionTransition}
+                >
+                  {activeSection === "download" ? (
+                    <SettingsSectionCard>
                   <SettingsSectionHeader
                     icon={<FolderOpen className="size-5" />}
                     title={UI_TEXT.settings.navDownload}
@@ -396,28 +439,20 @@ export default function SettingsWindow() {
                         title={UI_TEXT.settings.speedDisplayUnit}
                         description={UI_TEXT.settings.speedDisplayUnitDesc}
                       >
-                        <select
+                        <OptionDropdown
                           value={draft.transfer.speed_display_unit}
-                          onChange={(event) => {
-                            const nextUnit = event.target.value as SpeedDisplayUnit;
-
+                          options={SPEED_DISPLAY_UNIT_OPTIONS}
+                          onValueChange={(nextUnit) =>
                             updateDraft((prev) => ({
                               ...prev,
                               transfer: {
                                 ...prev.transfer,
                                 speed_display_unit: nextUnit,
                               },
-                            }));
-                          }}
-                          className="h-10 w-full rounded-[var(--radius-lg)] border border-border bg-background/70 px-4 text-sm leading-5 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-                          aria-label={UI_TEXT.settings.speedDisplayUnit}
-                        >
-                          {SPEED_DISPLAY_UNIT_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                            }))
+                          }
+                          ariaLabel={UI_TEXT.settings.speedDisplayUnit}
+                        />
                       </SettingsListItem>
                       <SettingsListItem
                         title="单任务线程数"
@@ -593,23 +628,120 @@ export default function SettingsWindow() {
                     <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                       {UI_TEXT.settings.groupTheme}
                     </div>
+                    <div className="flex flex-wrap gap-4">
+                      {THEME_REGISTRY.map((item) => {
+                        const active = theme === item.id;
+
+                        return (
+                          <article
+                            key={item.id}
+                            className={`group/theme-card flex h-96 w-72 shrink-0 flex-col overflow-hidden rounded-xl border bg-card/82 shadow-surface-raised transition-all ${
+                              active
+                                ? "border-primary ring-2 ring-primary/25"
+                                : "border-border hover:border-primary/45 hover:bg-card"
+                            }`}
+                          >
+                            <div className={`relative h-28 overflow-hidden ${item.previewClassName}`}>
+                              <div className="absolute inset-x-4 top-4 h-6 rounded-t-lg border border-primary-foreground/30 bg-primary/85 shadow-surface-raised" />
+                              <div className="absolute inset-x-4 bottom-4 h-14 rounded-b-lg border border-border/70 bg-card/82 shadow-surface-strong backdrop-blur-sm" />
+                              <div className="absolute bottom-6 left-7 h-2 w-16 rounded-full bg-primary/70" />
+                              <div className="absolute bottom-6 right-7 h-2 w-8 rounded-full bg-accent/70" />
+                              <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
+                                {item.accent}
+                              </div>
+                            </div>
+
+                            <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between gap-3">
+                                  <h3 className="text-base font-bold leading-6 text-foreground">
+                                    {item.name}
+                                  </h3>
+                                  {active ? (
+                                    <span className="rounded-full bg-primary/12 px-2.5 py-1 text-xs font-semibold text-primary">
+                                      {UI_TEXT.settings.active}
+                                    </span>
+                                  ) : null}
+                                </div>
+                                <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">
+                                  {item.description}
+                                </p>
+                              </div>
+
+                              <div className="flex flex-wrap gap-2">
+                                <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                  {item.hasCanvasBg ? "动态背景" : "静态背景"}
+                                </span>
+                                <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                  {item.hasSpecialSound ? "主题音效" : "默认音效"}
+                                </span>
+                              </div>
+
+                              <Button
+                                variant={active ? "default" : "outline"}
+                                size="sm"
+                                className="mt-auto w-full"
+                                onClick={() => setTheme(item.id)}
+                              >
+                                {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
+                              </Button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      {UI_TEXT.settings.groupColorMode}
+                    </div>
                     <SettingsList>
-                      {THEME_REGISTRY.map((item) => (
-                        <SettingsListItem
-                          key={item.id}
-                          title={item.name}
-                          description={item.description}
-                          action={
-                            <Button
-                              variant={theme === item.id ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => setTheme(item.id)}
-                            >
-                              {theme === item.id ? UI_TEXT.settings.active : UI_TEXT.settings.select}
-                            </Button>
-                          }
-                        />
-                      ))}
+                      <SettingsListItem
+                        title={UI_TEXT.settings.lightModeToggle}
+                        description={UI_TEXT.settings.lightModeToggleDesc}
+                        action={
+                          <Switch
+                            checked={colorMode === "light"}
+                            onCheckedChange={(checked) =>
+                              setColorMode(checked ? "light" : "dark")
+                            }
+                          />
+                        }
+                      />
+                    </SettingsList>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      {UI_TEXT.settings.groupTypography}
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.fontFamily}
+                        description={UI_TEXT.settings.fontFamilyDesc}
+                      >
+                        <div className="space-y-2">
+                          <OptionDropdown
+                            value={fontId}
+                            options={fontOptions.map((option) => ({
+                              value: option.id,
+                              label: option.label,
+                            }))}
+                            onValueChange={setFontId}
+                            onOpenChange={(open) => {
+                              if (open) ensureSystemFontsLoaded();
+                            }}
+                            contentFooter={fontsLoading ? <FontDropdownSkeleton /> : null}
+                            ariaLabel={UI_TEXT.settings.fontFamily}
+                          />
+                          <p className="text-sm leading-6 text-muted-foreground">
+                            {fontLoadError
+                              ? `${selectedFont.description} ${UI_TEXT.settings.fontLoadFallback}`
+                              : fontsLoading
+                                ? UI_TEXT.settings.fontLoading
+                                : fontsLoaded
+                                  ? selectedFont.description
+                                  : UI_TEXT.settings.fontLazyLoadHint}
+                          </p>
+                        </div>
+                      </SettingsListItem>
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -640,6 +772,8 @@ export default function SettingsWindow() {
                   </div>
                 </SettingsSectionCard>
               ) : null}
+                </motion.div>
+              </AnimatePresence>
             </div>
           </ScrollArea>
         </main>
@@ -648,7 +782,7 @@ export default function SettingsWindow() {
       <Dialog open={resetOpen} onOpenChange={setResetOpen}>
         <DialogContent size="sm" variant="alert">
           <DialogHeader>
-            <div className="flex size-10 items-center justify-center rounded-[var(--radius-lg)] bg-destructive/10 text-destructive">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
               <AlertTriangle className="size-5" />
             </div>
             <DialogTitle>恢复默认设置</DialogTitle>

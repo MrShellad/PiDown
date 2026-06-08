@@ -65,8 +65,16 @@ export default function App() {
   if (path === "/settings") {
     return (
       <ThemeProvider>
-        <ActiveBackground />
-        <SettingsWindow />
+        <div className="flex h-screen flex-col overflow-hidden bg-transparent">
+          <ActiveBackground />
+          <WindowFrame
+            title="设置"
+            showMenu={false}
+            showSettingsButton={false}
+            closeAction="settings"
+          />
+          <SettingsWindow />
+        </div>
       </ThemeProvider>
     );
   }

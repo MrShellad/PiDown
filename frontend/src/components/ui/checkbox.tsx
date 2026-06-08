@@ -12,7 +12,7 @@ function Checkbox({
     <CheckboxPrimitive.Root
       data-slot="checkbox"
       className={cn(
-        "peer size-5 shrink-0 rounded-[var(--radius-sm)] border border-input bg-background outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
+        "peer size-5 shrink-0 rounded-sm border border-input bg-background outline-none transition focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground",
         className
       )}
       {...props}
@@ -41,7 +41,7 @@ function CheckboxField({
     <label
       data-slot="checkbox-field"
       className={cn(
-        "flex cursor-pointer items-start gap-3 rounded-[var(--radius-lg)] text-left has-disabled:cursor-not-allowed has-disabled:opacity-60",
+        "flex cursor-pointer items-start gap-3 rounded-lg text-left has-disabled:cursor-not-allowed has-disabled:opacity-60",
         className
       )}
       {...props}

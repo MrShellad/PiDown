@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle } from "lucide-react";
 
+import { CategoryDropdown } from "@/components/common/CategoryDropdown";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { IconPreview } from "@/components/ui/icon-picker";
 import { ActionInput, Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import {
   createTask,
   inspectDownloadMetadata,
@@ -22,8 +22,6 @@ interface NewTaskModalProps {
 }
 
 type NewTaskStep = "link" | "details";
-
-const NO_CATEGORY_VALUE = "none";
 
 function inferFileName(url: string) {
   try {
@@ -185,9 +183,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     inspectMetadata(trimmedUrl, fallbackFilename).catch(console.error);
   };
 
-  const handleCategoryChange = (value: string) => {
-    const nextCategoryId = value === NO_CATEGORY_VALUE ? null : Number(value);
-
+  const handleCategoryChange = (nextCategoryId: number | null) => {
     setCategoryId(nextCategoryId);
     setCategoryTouched(true);
     applyClassificationPreview(
@@ -240,11 +236,11 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : closeModal())}>
       <DialogContent
         variant="modal"
-        className="border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)] sm:max-w-[46rem]"
+        className="border-border bg-card text-card-foreground sm:max-w-[46rem]"
       >
         <DialogHeader>
           <DialogTitle className="flex items-center justify-center gap-2 text-lg font-bold tracking-tight">
-            <Link2 className="size-5 text-[var(--primary)]" />
+            <Link2 className="size-5 text-primary" />
             {UI_TEXT.newTask.title}
           </DialogTitle>
         </DialogHeader>
@@ -297,33 +293,14 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
                     <label className="flex h-10 items-center text-sm font-medium text-foreground">
                       分类到
                     </label>
-                    <Select
-                      value={categoryId == null ? NO_CATEGORY_VALUE : String(categoryId)}
+                    <CategoryDropdown
+                      categories={categories}
+                      value={categoryId}
                       onValueChange={handleCategoryChange}
-                    >
-                      <SelectTrigger className="bg-background/70">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <RuleIconPreview category={selectedCategory} />
-                          <span className="truncate">{selectedCategory?.name ?? "不分类"}</span>
-                        </span>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={NO_CATEGORY_VALUE}>
-                          <span className="flex min-w-0 items-center gap-2">
-                            <FolderOpen className="size-4 text-muted-foreground" />
-                            <span className="truncate">不分类</span>
-                          </span>
-                        </SelectItem>
-                        {categories.map((category) => (
-                          <SelectItem key={category.id} value={String(category.id)}>
-                            <span className="flex min-w-0 items-center gap-2">
-                              <IconPreview value={category.icon} color={category.color} className="size-4" />
-                              <span className="truncate">{category.name}</span>
-                            </span>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      disabled={loading}
+                      noCategoryLabel="不分类"
+                      triggerClassName="bg-background/70"
+                    />
                   </div>
 
                   <ActionInput
@@ -344,12 +321,12 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
                     onChange={(event) => setFilename(event.target.value)}
                     disabled={loading}
                     placeholder="文件名"
-                    className="h-12 rounded-[var(--radius-lg)] bg-background/70 px-4 text-base"
+                    className="h-12 rounded-lg bg-background/70 px-4 text-base"
                   />
                 </div>
 
-                <aside className="flex min-w-32 flex-col items-center justify-center gap-4 rounded-[var(--radius-lg)] bg-background/35 px-4 py-4 text-sm text-muted-foreground">
-                  <div className="grid size-14 place-items-center rounded-[var(--radius-lg)] bg-muted/70">
+                <aside className="flex min-w-32 flex-col items-center justify-center gap-4 rounded-lg bg-background/35 px-4 py-4 text-sm text-muted-foreground">
+                  <div className="grid size-14 place-items-center rounded-lg bg-muted/70">
                     <RuleIconPreview category={selectedCategory} tag={matchedTag} />
                   </div>
                   <div className="max-w-28 truncate text-center text-sm font-medium text-foreground">

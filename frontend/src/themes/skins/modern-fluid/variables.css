@@ -24,10 +24,113 @@
     --border: oklch(0.25 0.04 280 / 0.5);
     --input: oklch(0.25 0.04 280 / 0.5);
     --ring: oklch(0.65 0.22 290);
+    --theme-static-background: oklch(0.08 0.02 280);
+    --aurora-blob-primary: oklch(0.65 0.22 290 / 0.58);
+    --aurora-blob-secondary: oklch(0.78 0.14 210 / 0.4);
+    --aurora-blob-tertiary: oklch(0.7 0.22 350 / 0.32);
     
     --radius: 12px;
     
     /* Custom Glow effect */
     --glow-effect: 0 0 20px oklch(0.65 0.22 290 / 0.45);
     --button-glow: 0 4px 14px oklch(0.65 0.22 290 / 0.4);
+    --surface-shadow-raised: 0 14px 32px oklch(0 0 0 / 0.24), inset 0 1px 0 oklch(1 0 0 / 0.06);
+    --surface-shadow-strong: 0 18px 42px oklch(0 0 0 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.08);
+    --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.05);
+    --surface-shadow-divider: 0 0 8px oklch(1 0 0 / 0.08);
+    --dialog-header-shadow: 0 10px 24px oklch(0 0 0 / 0.12);
+    --dialog-footer-shadow: 0 -10px 24px oklch(0 0 0 / 0.12);
+    --switch-track-off: var(--muted);
+    --switch-track-off-hover: color-mix(in oklch, var(--muted), var(--foreground) 10%);
+    --switch-track-on: var(--primary);
+    --switch-track-on-hover: color-mix(in oklch, var(--primary), var(--foreground) 10%);
+    --switch-thumb: var(--foreground);
+    --switch-icon-off: var(--muted-foreground);
+    --switch-press-ring: color-mix(in oklch, var(--primary), transparent 78%);
+    --switch-thumb-shadow-on: 0 3px 10px oklch(0 0 0 / 0.22);
+    --switch-thumb-shadow-off: 0 1px 4px oklch(0 0 0 / 0.18);
+    --status-success: oklch(0.72 0.18 155);
+    --status-warning: oklch(0.78 0.16 80);
+    --status-danger: var(--destructive);
+    --task-progress-active: color-mix(in oklab, var(--primary) 22%, transparent);
+    --task-progress-paused: color-mix(in oklab, var(--status-warning) 24%, transparent);
+    --task-progress-failed: color-mix(in oklab, var(--status-danger) 22%, transparent);
+    --float-disc-background: oklch(0.12 0.02 280 / 0.75);
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid oklch(0.65 0.22 290 / 0.3);
+    --float-disc-shadow: 0 8px 32px 0 oklch(0.65 0.22 290 / 0.2);
+    --float-disc-color: var(--foreground);
+    --float-disc-drag-border: 1px solid var(--primary);
+    --float-disc-drag-shadow: var(--button-glow);
+    --float-disc-wave-accent: oklch(0.78 0.14 210 / 0.2);
+    --float-disc-scanline: var(--primary);
+    --float-disc-ring-track: oklch(0.65 0.22 290 / 0.1);
+    --float-disc-ring-progress: var(--primary);
+}
+
+[data-theme="modern"][data-color-mode="light"] {
+    --background: oklch(0.985 0.014 235 / 0.92);
+    --foreground: oklch(0.2 0.055 255);
+    --card: oklch(0.995 0.008 235 / 0.88);
+    --card-foreground: oklch(0.2 0.055 255);
+    --popover: oklch(0.995 0.008 235 / 0.96);
+    --popover-foreground: oklch(0.2 0.055 255);
+
+    --primary: oklch(0.58 0.2 252);
+    --primary-foreground: oklch(0.99 0.01 245);
+
+    --secondary: oklch(0.93 0.025 240 / 0.78);
+    --secondary-foreground: oklch(0.24 0.06 250);
+
+    --muted: oklch(0.93 0.022 240 / 0.72);
+    --muted-foreground: oklch(0.5 0.055 252);
+
+    --accent: oklch(0.7 0.16 220 / 0.18);
+    --accent-foreground: oklch(0.42 0.16 245);
+
+    --destructive: oklch(0.58 0.21 25);
+    --destructive-foreground: oklch(0.99 0.01 25);
+
+    --border: oklch(0.78 0.045 240 / 0.62);
+    --input: oklch(0.82 0.04 240 / 0.62);
+    --ring: oklch(0.58 0.2 252);
+    --theme-static-background: oklch(0.965 0.025 238);
+    --aurora-blob-primary: oklch(0.58 0.2 252 / 0.24);
+    --aurora-blob-secondary: oklch(0.76 0.14 220 / 0.2);
+    --aurora-blob-tertiary: oklch(0.7 0.16 200 / 0.16);
+
+    --glow-effect: 0 0 24px oklch(0.58 0.2 252 / 0.28);
+    --button-glow: 0 8px 22px oklch(0.58 0.2 252 / 0.25);
+    --surface-shadow-raised: 0 14px 34px oklch(0.42 0.08 252 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.75);
+    --surface-shadow-strong: 0 18px 42px oklch(0.38 0.08 252 / 0.2), inset 0 1px 0 oklch(1 0 0 / 0.82);
+    --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.85);
+    --surface-shadow-divider: 0 0 8px oklch(0.58 0.2 252 / 0.16);
+    --dialog-header-shadow: 0 10px 24px oklch(0.42 0.08 252 / 0.1);
+    --dialog-footer-shadow: 0 -10px 24px oklch(0.42 0.08 252 / 0.1);
+    --switch-track-off: var(--muted);
+    --switch-track-off-hover: color-mix(in oklch, var(--muted), var(--foreground) 8%);
+    --switch-track-on: var(--primary);
+    --switch-track-on-hover: color-mix(in oklch, var(--primary), var(--foreground) 8%);
+    --switch-thumb: var(--background);
+    --switch-icon-off: var(--muted-foreground);
+    --switch-press-ring: color-mix(in oklch, var(--primary), transparent 78%);
+    --switch-thumb-shadow-on: 0 3px 10px oklch(0.32 0.08 252 / 0.2);
+    --switch-thumb-shadow-off: 0 1px 4px oklch(0.32 0.08 252 / 0.16);
+    --status-success: oklch(0.58 0.16 155);
+    --status-warning: oklch(0.68 0.16 78);
+    --status-danger: var(--destructive);
+    --task-progress-active: color-mix(in oklab, var(--primary) 20%, transparent);
+    --task-progress-paused: color-mix(in oklab, var(--status-warning) 20%, transparent);
+    --task-progress-failed: color-mix(in oklab, var(--status-danger) 18%, transparent);
+    --float-disc-background: oklch(0.995 0.008 235 / 0.78);
+    --float-disc-backdrop: blur(14px);
+    --float-disc-border: 1px solid oklch(0.58 0.2 252 / 0.22);
+    --float-disc-shadow: 0 10px 34px oklch(0.58 0.2 252 / 0.18);
+    --float-disc-color: var(--foreground);
+    --float-disc-drag-border: 1px solid var(--primary);
+    --float-disc-drag-shadow: var(--button-glow);
+    --float-disc-wave-accent: oklch(0.76 0.14 220 / 0.2);
+    --float-disc-scanline: var(--primary);
+    --float-disc-ring-track: oklch(0.58 0.2 252 / 0.14);
+    --float-disc-ring-progress: var(--primary);
 }

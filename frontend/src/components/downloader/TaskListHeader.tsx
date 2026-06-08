@@ -8,9 +8,8 @@ import {
   type TaskTableColumnState,
   useTaskTableStore,
 } from "@/core/store/useTaskTableStore"
+import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
 import { cn } from "@/lib/utils"
-
-export const TASK_TABLE_SELECT_COLUMN_WIDTH = 72
 
 interface TaskListHeaderProps {
   checked?: boolean
@@ -112,7 +111,7 @@ function HeaderCell({
       {showSeparator ? (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-[0_0_8px_rgba(255,255,255,0.08)]"
+          className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-divider-glow"
         />
       ) : null}
       <GripVertical className="mr-1 size-3.5 shrink-0 opacity-45" />
@@ -135,10 +134,7 @@ export default function TaskListHeader({
   onCheckedChange,
 }: TaskListHeaderProps) {
   const columns = useTaskTableStore((state) => state.columns)
-  const tableWidth = columns.reduce(
-    (total, column) => total + column.width,
-    TASK_TABLE_SELECT_COLUMN_WIDTH
-  )
+  const tableWidth = getTaskTableWidth(columns)
   const resizeColumn = useTaskTableStore((state) => state.resizeColumn)
   const moveColumn = useTaskTableStore((state) => state.moveColumn)
   const resizeRef = useRef<{
@@ -208,7 +204,7 @@ export default function TaskListHeader({
     <div
       data-slot="task-list-header"
       className={cn(
-        "flex h-13 shrink-0 items-center overflow-hidden rounded-[var(--radius)] bg-card/95 shadow-[0_12px_28px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.05)]",
+        "flex h-13 shrink-0 items-center overflow-hidden rounded-lg bg-card/95 shadow-surface-raised",
         className
       )}
       style={{ minWidth: tableWidth }}

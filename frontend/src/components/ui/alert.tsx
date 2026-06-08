@@ -5,7 +5,7 @@ import { AlertCircle, CheckCircle2, Info, TriangleAlert } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const alertVariants = cva(
-  "relative grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-[var(--radius-lg)] border px-4 py-3 text-sm leading-6",
+  "relative grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 rounded-lg border px-4 py-3 text-sm leading-6",
   {
     variants: {
       variant: {

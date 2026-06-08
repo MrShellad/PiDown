@@ -3,15 +3,13 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 @import "./themes/skins/modern-fluid/variables.css";
-@import "./themes/skins/cyberpunk-2077/variables.css";
-@import "./themes/skins/retro-win98/variables.css";
 
 @custom-variant dark (&:is(.dark *));
 
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: var(--font-ui);
+    --font-sans: var(--font-ui);
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -43,6 +41,13 @@
     --color-card: var(--card);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
+    --color-switch-thumb: var(--switch-thumb);
+    --color-switch-icon-off: var(--switch-icon-off);
+    --color-status-success: var(--status-success);
+    --color-status-warning: var(--status-warning);
+    --color-status-danger: var(--status-danger);
+    --color-float-disc-wave-accent: var(--float-disc-wave-accent);
+    --color-float-disc-scanline: var(--float-disc-scanline);
     --radius-sm: calc(var(--radius) * 0.6);
     --radius-md: calc(var(--radius) * 0.8);
     --radius-lg: var(--radius);
@@ -50,9 +55,20 @@
     --radius-2xl: calc(var(--radius) * 1.8);
     --radius-3xl: calc(var(--radius) * 2.2);
     --radius-4xl: calc(var(--radius) * 2.6);
+    --shadow-surface-raised: var(--surface-shadow-raised);
+    --shadow-surface-strong: var(--surface-shadow-strong);
+    --shadow-surface-inset: var(--surface-shadow-inset);
+    --shadow-divider-glow: var(--surface-shadow-divider);
+    --shadow-glow-effect: var(--glow-effect);
+    --shadow-button-glow: var(--button-glow);
+    --shadow-dialog-header: var(--dialog-header-shadow);
+    --shadow-dialog-footer: var(--dialog-footer-shadow);
+    --color-popover-soft: var(--popover-soft);
+    --color-muted-soft: var(--muted-soft);
 }
 
 :root {
+    --font-ui: 'Geist Variable', 'Microsoft YaHei UI', 'PingFang SC', sans-serif;
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
@@ -82,6 +98,41 @@
     --scrollbar-thumb: color-mix(in oklch, var(--primary), transparent 72%);
     --scrollbar-thumb-hover: color-mix(in oklch, var(--primary), transparent 52%);
     --scrollbar-thumb-active: color-mix(in oklch, var(--primary), transparent 35%);
+    --theme-static-background: var(--background);
+    --surface-shadow-raised: 0 14px 32px oklch(0 0 0 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.05);
+    --surface-shadow-strong: 0 18px 42px oklch(0 0 0 / 0.22), inset 0 1px 0 oklch(1 0 0 / 0.06);
+    --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.05);
+    --surface-shadow-divider: 0 0 8px oklch(1 0 0 / 0.08);
+    --dialog-header-shadow: 0 10px 24px oklch(0 0 0 / 0.08);
+    --dialog-footer-shadow: 0 -10px 24px oklch(0 0 0 / 0.08);
+    --popover-soft: color-mix(in oklch, var(--popover), transparent 5%);
+    --muted-soft: color-mix(in oklch, var(--muted), transparent 35%);
+    --switch-track-off: var(--muted);
+    --switch-track-off-hover: color-mix(in oklch, var(--muted), var(--foreground) 10%);
+    --switch-track-on: var(--primary);
+    --switch-track-on-hover: color-mix(in oklch, var(--primary), var(--foreground) 10%);
+    --switch-thumb: var(--background);
+    --switch-icon-off: var(--muted-foreground);
+    --switch-press-ring: color-mix(in oklch, var(--primary), transparent 82%);
+    --switch-thumb-shadow-on: 0 3px 10px oklch(0 0 0 / 0.18);
+    --switch-thumb-shadow-off: 0 1px 4px oklch(0 0 0 / 0.16);
+    --status-success: oklch(0.62 0.18 145);
+    --status-warning: oklch(0.72 0.16 75);
+    --status-danger: var(--destructive);
+    --task-progress-active: color-mix(in oklab, var(--primary) 22%, transparent);
+    --task-progress-paused: color-mix(in oklab, var(--status-warning) 24%, transparent);
+    --task-progress-failed: color-mix(in oklab, var(--status-danger) 22%, transparent);
+    --float-disc-background: color-mix(in oklch, var(--card), transparent 10%);
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid color-mix(in oklch, var(--primary), transparent 70%);
+    --float-disc-shadow: var(--surface-shadow-strong);
+    --float-disc-color: var(--foreground);
+    --float-disc-drag-border: 1px solid var(--primary);
+    --float-disc-drag-shadow: var(--button-glow);
+    --float-disc-wave-accent: var(--primary);
+    --float-disc-scanline: var(--primary);
+    --float-disc-ring-track: color-mix(in oklch, var(--primary), transparent 88%);
+    --float-disc-ring-progress: var(--primary);
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
     --sidebar-primary: oklch(0.205 0 0);

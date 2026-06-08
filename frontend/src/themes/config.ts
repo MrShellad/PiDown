@@ -1,31 +1,21 @@
 export interface ThemeMeta {
-  id: "modern" | "cyberpunk" | "retro";
+  id: "modern";
   name: string;
   description: string;
   hasCanvasBg: boolean;
   hasSpecialSound: boolean;
+  accent: string;
+  previewClassName: string;
 }
 
 export const THEME_REGISTRY: ThemeMeta[] = [
   {
     id: "modern",
     name: "Modern Fluid",
-    description: "Glassmorphism, gradients, fluid micro-animations, and soft modern audio.",
+    description: "Glassmorphism, gradients, fluid micro-animations, plus dark and tech-blue light color modes.",
     hasCanvasBg: true,
     hasSpecialSound: true,
-  },
-  {
-    id: "cyberpunk",
-    name: "Cyberpunk 2077",
-    description: "High contrast neon cyan/pink, rigid corners, grid scanlines, and digital synthetic audio.",
-    hasCanvasBg: true,
-    hasSpecialSound: true,
-  },
-  {
-    id: "retro",
-    name: "Retro Win98",
-    description: "Classic gray block layout, retro pixel borders, starry canvas, and 8-bit chip sounds.",
-    hasCanvasBg: true,
-    hasSpecialSound: true,
+    accent: "科技蓝亮色",
+    previewClassName: "bg-[radial-gradient(circle_at_18%_18%,oklch(0.58_0.2_252_/0.78),transparent_34%),radial-gradient(circle_at_82%_72%,oklch(0.76_0.14_220_/0.58),transparent_31%),linear-gradient(135deg,oklch(0.98_0.014_235),oklch(0.9_0.035_240))]",
   },
 ];

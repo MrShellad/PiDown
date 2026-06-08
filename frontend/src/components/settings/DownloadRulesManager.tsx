@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 
+import { CategoryDropdown } from "@/components/common"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -176,7 +177,7 @@ function RuleListRow({
 }) {
   return (
     <div className="flex items-center gap-4 px-4 py-3">
-      <div className="grid size-9 shrink-0 place-items-center rounded-[var(--radius-lg)] bg-muted">
+      <div className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
         {icon}
       </div>
       <div className="min-w-0 flex-1">
@@ -268,21 +269,13 @@ function TagForm({
         </SettingsField>
       </div>
       <SettingsField label={UI_TEXT.settings.tagCategory}>
-        <select
-          value={value.category_id ?? ""}
-          onChange={(event) =>
-            onChange({ ...value, category_id: event.target.value ? Number(event.target.value) : null })
-          }
-          className="h-10 w-full rounded-[var(--radius-lg)] border border-border bg-background/70 px-4 text-sm leading-5 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
-          aria-label={UI_TEXT.settings.tagCategory}
-        >
-          <option value="">{UI_TEXT.settings.noCategory}</option>
-          {categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+        <CategoryDropdown
+          categories={categories}
+          value={value.category_id ?? null}
+          onValueChange={(categoryId) => onChange({ ...value, category_id: categoryId })}
+          noCategoryLabel={UI_TEXT.settings.noCategory}
+          triggerClassName="bg-background/70"
+        />
       </SettingsField>
       <RuleFields value={value.rules} onChange={(rules) => onChange({ ...value, rules })} />
       <SettingsField label={UI_TEXT.settings.ruleSavePath}>
@@ -384,7 +377,7 @@ export default function DownloadRulesManager() {
             </Button>
           }
         >
-          <div className={cn("overflow-hidden rounded-[var(--radius-lg)] bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]")}>
+          <div className={cn("overflow-hidden rounded-lg bg-background/45 shadow-surface-inset")}>
             {categories.length ? (
               categories.map((category, index) => (
                 <div key={category.id} className={cn(index > 0 && "border-t border-border/60")}>
@@ -424,7 +417,7 @@ export default function DownloadRulesManager() {
             </Button>
           }
         >
-          <div className="overflow-hidden rounded-[var(--radius-lg)] bg-background/45 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+          <div className="overflow-hidden rounded-lg bg-background/45 shadow-surface-inset">
             {tags.length ? (
               tags.map((tag, index) => {
                 const category = categories.find((item) => item.id === tag.categoryId)

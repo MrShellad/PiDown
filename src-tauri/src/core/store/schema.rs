@@ -64,6 +64,7 @@ impl super::DbStore {
         conn.execute(
             "CREATE TABLE IF NOT EXISTS tasks (
                 id TEXT PRIMARY KEY,
+                engine_id TEXT UNIQUE,
                 name TEXT NOT NULL,
                 url TEXT NOT NULL,
                 protocol TEXT NOT NULL,
@@ -76,6 +77,13 @@ impl super::DbStore {
                 started_at INTEGER,
                 completed_at INTEGER
             );",
+            [],
+        )?;
+        self.ensure_column(&conn, "tasks", "engine_id", "TEXT")?;
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_engine_id
+             ON tasks(engine_id)
+             WHERE engine_id IS NOT NULL",
             [],
         )?;
 
@@ -127,10 +135,10 @@ impl super::DbStore {
         let count: i64 = conn.query_row("SELECT COUNT(*) FROM categories", [], |row| row.get(0))?;
 
         if count == 0 {
-            for (name, icon, sort_order) in default_categories() {
+            for category in default_categories() {
                 conn.execute(
                     "INSERT INTO categories (name, icon, sort_order) VALUES (?1, ?2, ?3)",
-                    params![name, icon, sort_order],
+                    params![category.name, category.icon, category.sort_order],
                 )?;
             }
         }

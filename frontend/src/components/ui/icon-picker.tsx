@@ -1,5 +1,5 @@
 import * as React from "react"
-import { AnimatePresence, motion } from "framer-motion"
+import { AnimatePresence, motion } from "motion/react"
 import {
   Archive,
   Binary,
@@ -152,7 +152,7 @@ function PickerItem({
       type="button"
       aria-label={label}
       className={cn(
-        "grid size-9 place-items-center justify-self-center rounded-[var(--radius-md)] text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40",
+        "grid size-9 place-items-center justify-self-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40",
         active && "bg-muted text-foreground shadow-sm"
       )}
       whileHover={{ y: -3, scale: 1.08 }}
@@ -204,11 +204,11 @@ function IconPicker({
           type="button"
           data-slot="icon-picker-trigger"
           className={cn(
-            "flex h-10 w-full items-center gap-3 rounded-[var(--radius-lg)] border border-border bg-background/70 px-4 text-left text-sm leading-5 text-foreground outline-none transition hover:bg-muted/40 focus:border-primary focus:ring-2 focus:ring-primary/20",
+            "flex h-10 w-full items-center gap-3 rounded-lg border border-border bg-background/70 px-4 text-left text-sm leading-5 text-foreground outline-none transition hover:bg-muted/40 focus:border-primary focus:ring-2 focus:ring-primary/20",
             className
           )}
         >
-          <span className="grid size-7 shrink-0 place-items-center rounded-[var(--radius-md)] bg-muted">
+          <span className="grid size-7 shrink-0 place-items-center rounded-md bg-muted">
             <IconPreview value={selectedIcon} color={selectedColor} />
           </span>
           <span className="min-w-0 flex-1 truncate">选择图标</span>
@@ -220,7 +220,7 @@ function IconPicker({
           data-slot="icon-picker"
           align="start"
           sideOffset={8}
-          className="z-[80] w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-[var(--radius-xl)] bg-popover text-popover-foreground shadow-[0_18px_44px_rgba(0,0,0,0.22),inset_0_1px_0_rgba(255,255,255,0.06)] outline-none data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className="z-[80] w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-surface-strong outline-none data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
         >
           <div className="px-4 pt-4 text-base font-semibold">
             <div className="inline-flex border-b-2 border-foreground pb-2 text-foreground">

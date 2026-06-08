@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence } from "framer-motion";
+import { AnimatePresence } from "motion/react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { openSettingsWindow } from "@/core/bridge/tauri-commands";
 import { UI_TEXT } from "@/core/locale";
 import { filterTaskIds, parseNavFilter, type NavFilter } from "@/core/taskFilters";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
+import { useTaskTableStore } from "@/core/store/useTaskTableStore";
+import {
+  getTaskTableShellMinWidth,
+  TASK_LIST_EDGE_SAFE_PADDING,
+} from "@/core/taskTableLayout";
 import DownloadToolbar from "./DownloadToolbar";
 import NewTaskModal from "./NewTaskModal";
 import TaskListHeader from "./TaskListHeader";
@@ -52,6 +56,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const clearCompleted = useDownloadStore((state) => state.clearCompleted);
+  const columns = useTaskTableStore((state) => state.columns);
   const filterContext = useMemo(() => ({ categories, tags }), [categories, tags]);
 
   const filteredGids = useMemo(
@@ -63,53 +68,77 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     [activeFilter, categories, tags]
   );
   const hasCompleted = filteredGids.some((gid) => tasks[gid].status === "Completed");
+  const tableShellMinWidth = getTaskTableShellMinWidth(columns);
 
   return (
-    <div className="flex flex-1 flex-col gap-5 p-6 select-none">
-      <DownloadToolbar
-        canClearCompleted={hasCompleted}
-        onCreateTask={() => setModalOpen(true)}
-        onClearCompleted={clearCompleted}
-        onOpenSettings={() => openSettingsWindow().catch(console.error)}
-      />
+    <div className="flex flex-1 flex-col overflow-hidden p-4 select-none">
+      <ScrollArea
+        className="min-h-0 flex-1"
+        orientation="both"
+        scrollbar="overlay"
+        visibility="auto"
+        gutter="none"
+      >
+        <div className="flex min-h-full flex-col gap-5 px-2 pb-4 pt-2" style={{ minWidth: tableShellMinWidth }}>
+          <div
+            style={{
+              paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
+              paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
+            }}
+          >
+            <DownloadToolbar
+              canClearCompleted={hasCompleted}
+              onCreateTask={() => setModalOpen(true)}
+              onClearCompleted={clearCompleted}
+            />
+          </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3">
-        <div className="flex shrink-0 items-center justify-between">
-          <span className="text-sm font-semibold leading-5 text-muted-foreground">
-            {filterLabel} ({filteredGids.length})
-          </span>
-        </div>
-        <ScrollArea
-          className="flex-1"
-          orientation="both"
-          scrollbar="overlay"
-          visibility="auto"
-          gutter="none"
-        >
-          <div className="flex min-w-max flex-col gap-2 pb-2 pr-3">
-            <TaskListHeader disabled={filteredGids.length === 0} />
-            {filteredGids.length === 0 ? (
-              <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-[var(--radius)] border border-dashed border-[var(--border)] font-mono text-sm text-[var(--muted-foreground)]">
-                <span className="text-lg">...</span>
-                <span>
-                  {activeFilter === "all"
-                    ? UI_TEXT.dashboard.emptyTasks
-                    : UI_TEXT.dashboard.emptyFilterTasks}
-                </span>
-                {activeFilter === "all" && (
-                  <span className="text-xs opacity-60">{UI_TEXT.dashboard.emptyTip}</span>
+          <div className="flex min-h-0 flex-1 flex-col gap-3">
+            <div
+              className="flex shrink-0 items-center justify-between"
+              style={{
+                paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
+                paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
+              }}
+            >
+              <span className="text-sm font-semibold leading-5 text-muted-foreground">
+                {filterLabel} ({filteredGids.length})
+              </span>
+            </div>
+            <div className="flex min-w-max flex-col gap-2 pb-2">
+              <div
+                className="flex flex-col gap-2"
+                style={{
+                  paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
+                  paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
+                  paddingBottom: TASK_LIST_EDGE_SAFE_PADDING,
+                }}
+              >
+                <TaskListHeader disabled={filteredGids.length === 0} />
+                {filteredGids.length === 0 ? (
+                  <div className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border font-mono text-sm text-muted-foreground">
+                    <span className="text-lg">...</span>
+                    <span>
+                      {activeFilter === "all"
+                        ? UI_TEXT.dashboard.emptyTasks
+                        : UI_TEXT.dashboard.emptyFilterTasks}
+                    </span>
+                    {activeFilter === "all" && (
+                      <span className="text-xs opacity-60">{UI_TEXT.dashboard.emptyTip}</span>
+                    )}
+                  </div>
+                ) : (
+                  <AnimatePresence>
+                    {filteredGids.map((gid) => (
+                      <TaskTableRow key={gid} gid={gid} />
+                    ))}
+                  </AnimatePresence>
                 )}
               </div>
-            ) : (
-              <AnimatePresence>
-                {filteredGids.map((gid) => (
-                  <TaskTableRow key={gid} gid={gid} />
-                ))}
-              </AnimatePresence>
-            )}
+            </div>
           </div>
-        </ScrollArea>
-      </div>
+        </div>
+      </ScrollArea>
 
       <NewTaskModal open={modalOpen} onOpenChange={setModalOpen} />
     </div>

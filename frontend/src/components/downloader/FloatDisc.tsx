@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
-import { useThemeStore } from "@/core/store/useThemeStore";
 import { switchToMain, createTask } from "@/core/bridge/tauri-commands";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { Download } from "lucide-react";
@@ -16,7 +15,7 @@ export default function FloatDisc() {
   const globalSpeed = useDownloadStore((state) => state.globalSpeed);
   const tasks = useDownloadStore((state) => state.tasks);
   const addTask = useDownloadStore((state) => state.addTask);
-  const theme = useThemeStore((state) => state.theme);
+  const fetchTasks = useDownloadStore((state) => state.fetchTasks);
   const settings = useAppSettingsStore((state) => state.settings);
   
   const [dragActive, setDragActive] = useState(false);
@@ -65,6 +64,7 @@ export default function FloatDisc() {
               settings?.download.default_save_dir || undefined
             );
             addTask(gid, filePath, file.name);
+            await fetchTasks();
           } catch (err) {
             console.error("Failed to parse dropped torrent", err);
           }
@@ -81,6 +81,7 @@ export default function FloatDisc() {
             name = data.split("/").pop() || "HTTP Link";
           }
           addTask(gid, data, name);
+          await fetchTasks();
         } catch (err) {
           console.error("Failed to download dropped URL:", err);
         }
@@ -88,32 +89,12 @@ export default function FloatDisc() {
     }
   };
 
-  // Determine styles depending on the theme
-  const getDiscStyles = () => {
-    if (theme === "retro") {
-      return {
-        background: "#c0c0c0",
-        border: "3px double #ffffff",
-        boxShadow: "inset -1px -1px 1px #000, inset 1px 1px 1px #fff",
-        color: "#000000",
-      };
-    }
-    if (theme === "cyberpunk") {
-      return {
-        background: "#03001e",
-        border: `2px solid ${dragActive ? "#ff007f" : "#00f0ff"}`,
-        boxShadow: dragActive ? "0 0 15px #ff007f" : "0 0 15px rgba(0, 240, 255, 0.4)",
-        color: "#00f0ff",
-      };
-    }
-    // Modern Fluid
-    return {
-      background: "rgba(18, 14, 32, 0.75)",
-      backdropFilter: "blur(12px)",
-      border: "1px solid rgba(170, 59, 255, 0.3)",
-      boxShadow: "0 8px 32px 0 rgba(170, 59, 255, 0.2)",
-      color: "#ffffff",
-    };
+  const discStyles = {
+    background: "var(--float-disc-background)",
+    backdropFilter: "var(--float-disc-backdrop)",
+    border: dragActive ? "var(--float-disc-drag-border)" : "var(--float-disc-border)",
+    boxShadow: dragActive ? "var(--float-disc-drag-shadow)" : "var(--float-disc-shadow)",
+    color: "var(--float-disc-color)",
   };
 
   return (
@@ -126,22 +107,17 @@ export default function FloatDisc() {
       <div
         onDoubleClick={handleDoubleClick}
         className="w-32 h-32 rounded-full flex flex-col items-center justify-center p-2 relative overflow-hidden transition-all duration-300 cursor-pointer"
-        style={getDiscStyles()}
+        style={discStyles}
         data-tauri-drag-region="true"
         title={UI_TEXT.floatDisc.title}
       >
         
-        {/* Dynamic Water Wave Progress backdrop for Modern Fluid */}
-        {theme === "modern" && activeTasks.length > 0 && (
+        {/* Dynamic Water Wave Progress backdrop */}
+        {activeTasks.length > 0 && (
           <div 
-            className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[var(--primary)] to-cyan-500/20 opacity-30 transition-all duration-500 pointer-events-none"
+            className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary to-float-disc-wave-accent opacity-30 transition-all duration-500"
             style={{ height: `${averageProgress}%` }}
           />
-        )}
-
-        {/* Dynamic Scanline scanning effect for Cyberpunk */}
-        {theme === "cyberpunk" && (
-          <div className="absolute top-0 left-0 w-full h-[2px] bg-pink-500/30 opacity-50 animate-bounce pointer-events-none" />
         )}
 
         {/* Info contents */}
@@ -152,14 +128,14 @@ export default function FloatDisc() {
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center pointer-events-none z-10">
-            <span className="text-base text-[var(--muted-foreground)] font-bold uppercase tracking-wider">
+            <span className="text-base text-muted-foreground font-bold uppercase tracking-wider">
               {activeTasks.length > 0 ? "SPEED" : "IDLE"}
             </span>
             <span className="text-base font-black tracking-tighter my-0.5">
               {globalSpeed}
             </span>
             {activeTasks.length > 0 && (
-              <span className="text-base text-[var(--primary)] font-bold">
+              <span className="text-base text-primary font-bold">
                 {Math.round(averageProgress)}%
               </span>
             )}
@@ -167,14 +143,14 @@ export default function FloatDisc() {
         )}
 
         {/* Ring outline speed indicator */}
-        {activeTasks.length > 0 && theme !== "retro" && (
+        {activeTasks.length > 0 && (
           <svg className="absolute inset-0 w-full h-full pointer-events-none -rotate-90">
             <circle
               cx="64"
               cy="64"
               r="60"
               fill="transparent"
-              stroke={theme === "cyberpunk" ? "rgba(0, 240, 255, 0.1)" : "rgba(170, 59, 255, 0.1)"}
+              stroke="var(--float-disc-ring-track)"
               strokeWidth="2"
             />
             <circle
@@ -182,7 +158,7 @@ export default function FloatDisc() {
               cy="64"
               r="60"
               fill="transparent"
-              stroke={theme === "cyberpunk" ? "#ff007f" : "var(--primary)"}
+              stroke="var(--float-disc-ring-progress)"
               strokeWidth="3"
               strokeDasharray={2 * Math.PI * 60}
               strokeDashoffset={2 * Math.PI * 60 * (1 - averageProgress / 100)}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import {
   ChevronDown,
   ChevronRight,
@@ -21,7 +21,6 @@ import {
 } from "@/core/taskFilters";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
-import { useThemeStore } from "@/core/store/useThemeStore";
 
 export type { NavFilter } from "@/core/taskFilters";
 
@@ -36,7 +35,6 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
   const tasks = useDownloadStore((state) => state.tasks);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
-  const theme = useThemeStore((state) => state.theme);
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     all: false,
@@ -64,8 +62,6 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
 
   const unboundTags = tagsByCategory.get(null) ?? [];
   const filterContext = useMemo(() => ({ categories, tags }), [categories, tags]);
-  const isRetro = theme === "retro";
-  const isCyberpunk = theme === "cyberpunk";
 
   const toggleGroup = (groupId: string) => {
     setCollapsed((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
@@ -93,9 +89,9 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
     const isActive = activeFilter === id;
     const count = countTasks(tasks, id, filterContext);
     const paddingLeft = depth === 0 ? "pl-3" : depth === 1 ? "pl-8" : "pl-12";
-    const activeWeight = isCyberpunk ? "font-black" : isRetro ? "font-bold" : "font-semibold";
+    const activeWeight = "font-semibold";
     const inactiveWeight =
-      kind === "tag" ? "font-normal text-[var(--muted-foreground)]" : "font-bold text-[var(--foreground)]";
+      kind === "tag" ? "font-normal text-muted-foreground" : "font-bold text-foreground";
 
     return (
       <button
@@ -105,7 +101,7 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
           onFilterChange(id);
           onToggle?.();
         }}
-        className={`flex w-full items-center gap-3 rounded-[var(--radius)] py-2 pr-3 text-sm transition-all duration-150 ${paddingLeft} ${
+        className={`flex w-full items-center gap-3 rounded-lg py-2 pr-3 text-sm transition-all duration-150 ${paddingLeft} ${
           isActive ? activeWeight : inactiveWeight
         }`}
         style={{
@@ -175,7 +171,7 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
 
   return (
     <nav
-      className="flex h-full min-h-0 flex-col border-r border-[var(--border)] bg-[var(--card)] pt-4 select-none"
+      className="flex h-full min-h-0 flex-col border-r border-border bg-card pt-4 select-none"
       style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}
     >
       <ScrollArea

@@ -20,7 +20,7 @@ function Empty({
     <div
       data-slot="empty"
       className={cn(
-        "flex min-h-40 flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-border bg-card/40 p-6 text-center",
+        "flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-border bg-card/40 p-6 text-center",
         className
       )}
       {...props}

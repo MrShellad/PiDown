@@ -53,7 +53,7 @@ function LoadingOverlay({
       )}
       {...props}
     >
-      <div className="flex items-center gap-2 rounded-[var(--radius-lg)] border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
+      <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
         <Spinner size="sm" label={label} />
         <span>{label}</span>
       </div>

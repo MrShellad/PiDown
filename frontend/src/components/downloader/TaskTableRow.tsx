@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { AlertTriangle, FileText, FolderOpen, Pause, Play, RefreshCw, Trash2 } from "lucide-react"
-import { motion } from "framer-motion"
+import { motion } from "motion/react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -29,8 +29,8 @@ import {
   type TaskTableColumnId,
   useTaskTableStore,
 } from "@/core/store/useTaskTableStore"
+import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
 import { cn } from "@/lib/utils"
-import { TASK_TABLE_SELECT_COLUMN_WIDTH } from "./TaskListHeader"
 
 interface TaskTableRowProps {
   gid: string
@@ -65,7 +65,7 @@ function TaskContextMenuTitle({ name }: { name: string }) {
   const shouldScroll = name.length > 28
 
   return (
-    <div className="mx-1 mb-1 rounded-[var(--radius-md)] bg-muted/45 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
+    <div className="mx-1 mb-1 rounded-md bg-muted/45 px-3 py-2.5 shadow-surface-inset">
       <span className="mb-1 block text-xs font-medium leading-4 text-muted-foreground">
         选中任务
       </span>
@@ -113,7 +113,7 @@ function NameCell({
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <motion.span
         layout
-        className="flex size-9 shrink-0 items-center justify-center rounded-[var(--radius-sm)] bg-background/55 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.06)]"
+        className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55"
         style={{ color: categoryColor }}
         whileHover={{ y: -1, scale: 1.04 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
@@ -133,7 +133,7 @@ function NameCell({
             variant="ghost"
             aria-label={task.status === "Downloading" ? UI_TEXT.dashboard.pause : UI_TEXT.dashboard.resume}
             onClick={() => toggleTask(gid)}
-            className="size-8 rounded-[var(--radius-sm)]"
+            className="size-8 rounded-sm"
           >
             {task.status === "Downloading" ? (
               <Pause className="size-4" />
@@ -147,7 +147,7 @@ function NameCell({
           variant="ghost"
           aria-label={UI_TEXT.dashboard.delete}
           onClick={onRequestDelete}
-          className="size-8 rounded-[var(--radius-sm)] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+          className="size-8 rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
         >
           <Trash2 className="size-4" />
         </Button>
@@ -209,9 +209,9 @@ function Cell({
           className={cn(
             "truncate font-medium",
             task.status === "Downloading" && "text-primary",
-            task.status === "Paused" && "text-amber-500",
-            task.status === "Completed" && "text-green-500",
-            task.status === "Failed" && "text-red-500"
+            task.status === "Paused" && "text-status-warning",
+            task.status === "Completed" && "text-status-success",
+            task.status === "Failed" && "text-status-danger"
           )}
         >
           {statusText(task.status)}
@@ -248,10 +248,7 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
   const restartTask = useDownloadStore((state) => state.restartTask)
   const columns = useTaskTableStore((state) => state.columns)
   const { speedStr, progress, etaStr, downloadedStr, totalStr } = useTaskSpeed(gid)
-  const tableWidth = columns.reduce(
-    (total, column) => total + column.width,
-    TASK_TABLE_SELECT_COLUMN_WIDTH
-  )
+  const tableWidth = getTaskTableWidth(columns)
 
   if (!task) return null
 
@@ -260,10 +257,10 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
   const showProgressOverlay = task.status !== "Completed"
   const progressTint =
     task.status === "Failed"
-        ? "rgba(239, 68, 68, 0.14)"
+        ? "var(--task-progress-failed)"
         : task.status === "Paused"
-          ? "rgba(245, 158, 11, 0.13)"
-          : "color-mix(in oklab, var(--primary) 22%, transparent)"
+          ? "var(--task-progress-paused)"
+          : "var(--task-progress-active)"
   const requestDelete = () => {
     setDeleteLocalFiles(false)
     setDeleteConfirmOpen(true)
@@ -281,7 +278,7 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
           transition={{ duration: 0.18, ease: "easeOut" }}
           data-slot="task-table-row"
           className={cn(
-            "group/task-row relative flex min-h-17 items-center overflow-hidden rounded-[var(--radius)] bg-card/80 text-sm leading-5 shadow-[0_10px_24px_rgba(0,0,0,0.18),inset_0_1px_0_rgba(255,255,255,0.04)] transition-colors hover:bg-card",
+            "group/task-row relative flex min-h-17 items-center overflow-hidden rounded-lg bg-card/80 text-sm leading-5 shadow-surface-raised transition-colors hover:bg-card",
             contextMenuOpen && "bg-card"
           )}
           style={{ minWidth: tableWidth }}
@@ -395,7 +392,7 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
       <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <DialogContent size="sm" variant="alert" showCloseButton={false}>
           <DialogHeader>
-            <div className="flex size-10 items-center justify-center rounded-[var(--radius-lg)] bg-destructive/10 text-destructive">
+            <div className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
               <AlertTriangle className="size-5" />
             </div>
             <DialogTitle className="text-destructive">删除任务</DialogTitle>
@@ -407,7 +404,7 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
             <p className="text-sm leading-6 text-muted-foreground">
               勾选后会同时尝试删除已下载文件和临时分片文件，请确认不再需要本地文件。
             </p>
-            <label className="mx-auto flex max-w-80 cursor-pointer items-center justify-center gap-3 rounded-[var(--radius-md)] bg-muted/50 px-4 py-3 text-sm leading-5 text-foreground">
+            <label className="mx-auto flex max-w-80 cursor-pointer items-center justify-center gap-3 rounded-md bg-muted/50 px-4 py-3 text-sm leading-5 text-foreground">
               <Checkbox
                 checked={deleteLocalFiles}
                 onCheckedChange={(checked) => setDeleteLocalFiles(checked === true)}

@@ -74,6 +74,9 @@ export interface TaskProgressPayload {
 
 export interface DownloadSpeedPayload {
   global_speed: string;
+  global_download_speed?: string;
+  global_upload_speed?: string;
+  global_transfer_speed?: string;
   active_tasks_count: number;
   tasks: TaskProgressPayload[];
 }
@@ -91,6 +94,9 @@ interface DownloadState {
   categories: Category[];
   tags: Tag[];
   globalSpeed: string;
+  globalDownloadSpeed: string;
+  globalUploadSpeed: string;
+  globalTransferSpeed: string;
   activeTasksCount: number;
   
   // Actions
@@ -162,6 +168,9 @@ export const useDownloadStore = create<DownloadState>()(
       categories: [],
       tags: [],
       globalSpeed: "0 B/s",
+      globalDownloadSpeed: "0 B/s",
+      globalUploadSpeed: "0 B/s",
+      globalTransferSpeed: "0 B/s",
       activeTasksCount: 0,
 
       addTask: (gid, url, name) => {
@@ -223,6 +232,9 @@ export const useDownloadStore = create<DownloadState>()(
           return {
             tasks: updatedTasks,
             globalSpeed: payload.global_speed,
+            globalDownloadSpeed: payload.global_download_speed ?? payload.global_speed,
+            globalUploadSpeed: payload.global_upload_speed ?? "0 B/s",
+            globalTransferSpeed: payload.global_transfer_speed ?? payload.global_speed,
             activeTasksCount: payload.active_tasks_count,
           };
         });

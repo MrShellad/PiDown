@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion } from "motion/react";
 import { AlertCircle, CheckCircle2, Info, TriangleAlert, X } from "lucide-react";
 
 import { useToastStore, type ToastItem } from "@/core/store/useToastStore";
@@ -28,10 +28,10 @@ function ToastCard({ toast }: { toast: ToastItem }) {
       exit={{ opacity: 0, y: -8, scale: 0.96 }}
       transition={{ type: "spring", stiffness: 460, damping: 34 }}
       className={cn(
-        "pointer-events-auto flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-[var(--radius-lg)] bg-popover px-4 py-3 text-popover-foreground shadow-[0_16px_38px_rgba(0,0,0,0.24),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-border/70",
-        toast.variant === "success" && "text-primary",
-        toast.variant === "warning" && "text-amber-400",
-        toast.variant === "destructive" && "text-destructive"
+        "pointer-events-auto flex w-[min(24rem,calc(100vw-2rem))] items-start gap-3 rounded-lg bg-popover px-4 py-3 text-popover-foreground shadow-surface-strong ring-1 ring-border/70",
+        toast.variant === "success" && "text-status-success",
+        toast.variant === "warning" && "text-status-warning",
+        toast.variant === "destructive" && "text-status-danger"
       )}
       role="status"
     >
@@ -47,7 +47,7 @@ function ToastCard({ toast }: { toast: ToastItem }) {
       <button
         type="button"
         aria-label="关闭提示"
-        className="grid size-6 shrink-0 place-items-center rounded-[var(--radius-sm)] text-muted-foreground transition hover:bg-muted hover:text-foreground"
+        className="grid size-6 shrink-0 place-items-center rounded-sm text-muted-foreground transition hover:bg-muted hover:text-foreground"
         onClick={() => dismissToast(toast.id)}
       >
         <X className="size-3.5" />

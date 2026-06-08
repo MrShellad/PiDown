@@ -3,3 +3,4 @@ pub mod models;
 pub mod settings;
 pub mod state;
 pub mod store;
+pub mod window_state;

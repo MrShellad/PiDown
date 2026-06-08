@@ -1,46 +1,162 @@
-use super::file_actions::cleanup_task_files;
+use super::file_actions::{cleanup_task_files, task_file_path};
 use super::task_format::{format_eta, format_speed, sanitize_filename};
 use crate::core::categories::{infer_category, infer_tags};
 use crate::core::models::{DbTask, TaskClassificationPreview, TaskOverview};
 use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol, HttpTaskOptions};
 use chrono::Utc;
-use gosh_dl::DownloadId;
+use gosh_dl::{DownloadId, DownloadState, DownloadStatus};
 use std::path::Path;
+use uuid::Uuid;
 
 impl super::AppState {
-    pub(super) fn sync_on_startup(&self) {
+    pub fn reconcile_download_tasks(&self) {
         let db_tasks = match self.db.get_all_tasks() {
             Ok(tasks) => tasks,
             Err(_) => return,
         };
 
         for db_task in db_tasks {
-            if let Some(gid_id) = DownloadId::from_gid(&db_task.id) {
-                if let Some(engine_status) = self.engine.status(gid_id) {
-                    let new_status_str = engine_status.state.to_aria2_status();
-                    let mapped_status = match new_status_str {
-                        "active" => "Downloading",
-                        "waiting" => "Pending",
-                        "paused" => "Paused",
-                        "complete" => "Completed",
-                        "error" => "Failed",
-                        _ => "Paused",
-                    };
+            if let Some(engine_status) = self.engine_status_for_task(&db_task) {
+                self.sync_task_from_engine_status(&db_task.id, &engine_status, None);
+            } else if db_task.status == "Downloading" || db_task.status == "Pending" {
+                let _ = self.db.update_task_status(&db_task.id, "Paused", None);
+            }
+        }
+    }
 
-                    if db_task.status != mapped_status {
-                        let _ = self.db.update_task_status(&db_task.id, mapped_status, None);
-                    }
+    pub(super) fn sync_on_startup(&self) {
+        self.reconcile_download_tasks();
+    }
 
-                    let _ = self.db.update_task_progress(
-                        &db_task.id,
-                        engine_status.progress.completed_size,
-                        engine_status.progress.total_size.unwrap_or(0),
-                    );
-                } else if db_task.status == "Downloading" || db_task.status == "Pending" {
-                    let _ = self.db.update_task_status(&db_task.id, "Paused", None);
+    fn parse_engine_id(engine_id: &str) -> Option<DownloadId> {
+        Uuid::parse_str(engine_id).ok().map(DownloadId::from_uuid)
+    }
+
+    fn engine_status_for_task(&self, task: &DbTask) -> Option<DownloadStatus> {
+        if let Some(engine_id) = task.engine_id.as_deref().and_then(Self::parse_engine_id) {
+            if let Some(status) = self.engine.status(engine_id) {
+                return Some(status);
+            }
+        }
+
+        let matched = self
+            .engine
+            .list()
+            .into_iter()
+            .find(|status| status.id.matches_gid(&task.id));
+
+        if let Some(status) = matched.as_ref() {
+            let engine_id = status.id.as_uuid().to_string();
+            if task.engine_id.as_deref() != Some(engine_id.as_str()) {
+                let _ = self.db.update_task_engine_id(&task.id, Some(&engine_id));
+            }
+        }
+
+        matched
+    }
+
+    fn resolve_download_id(&self, gid: &str) -> Result<DownloadId, String> {
+        if let Some(task) = self.db.get_task(gid).map_err(|e| e.to_string())? {
+            if let Some(engine_id) = task.engine_id.as_deref().and_then(Self::parse_engine_id) {
+                if self.engine.status(engine_id).is_some() {
+                    return Ok(engine_id);
                 }
             }
         }
+
+        if let Some(status) = self
+            .engine
+            .list()
+            .into_iter()
+            .find(|status| status.id.matches_gid(gid))
+        {
+            let engine_id = status.id.as_uuid().to_string();
+            let _ = self.db.update_task_engine_id(gid, Some(&engine_id));
+            return Ok(status.id);
+        }
+
+        if let Some(id) = DownloadId::from_gid(gid) {
+            if self.engine.status(id).is_some() {
+                return Ok(id);
+            }
+        }
+
+        Err("Task is not available in the download engine".to_string())
+    }
+
+    pub fn gid_for_download_id(&self, id: DownloadId) -> String {
+        let engine_id = id.as_uuid().to_string();
+        if let Ok(Some(task)) = self.db.get_task_by_engine_id(&engine_id) {
+            return task.id;
+        }
+
+        let gid = id.to_gid();
+        if let Ok(Some(task)) = self.db.get_task(&gid) {
+            if task.engine_id.as_deref() != Some(engine_id.as_str()) {
+                let _ = self.db.update_task_engine_id(&task.id, Some(&engine_id));
+            }
+            return task.id;
+        }
+
+        gid
+    }
+
+    pub fn sync_download_event_status(
+        &self,
+        id: DownloadId,
+        completed_at: Option<i64>,
+    ) -> Option<String> {
+        let gid = self.gid_for_download_id(id);
+        let status = self.engine.status(id)?;
+        if !matches!(self.db.get_task(&gid), Ok(Some(_))) {
+            return None;
+        }
+        self.sync_task_from_engine_status(&gid, &status, completed_at);
+        Some(gid)
+    }
+
+    pub fn sync_download_progress(
+        &self,
+        id: DownloadId,
+        completed_size: u64,
+        total_size: Option<u64>,
+    ) -> String {
+        let gid = self.gid_for_download_id(id);
+        let _ = self
+            .db
+            .update_task_progress(&gid, completed_size, total_size.unwrap_or(0));
+        gid
+    }
+
+    fn sync_task_from_engine_status(
+        &self,
+        gid: &str,
+        engine_status: &DownloadStatus,
+        completed_at: Option<i64>,
+    ) {
+        let mapped_status = match &engine_status.state {
+            DownloadState::Queued => "Pending",
+            DownloadState::Connecting | DownloadState::Downloading | DownloadState::Seeding => {
+                "Downloading"
+            }
+            DownloadState::Paused => "Paused",
+            DownloadState::Completed => "Completed",
+            DownloadState::Error { .. } => "Failed",
+        };
+
+        let final_completed_at = match &engine_status.state {
+            DownloadState::Completed | DownloadState::Error { .. } => completed_at,
+            _ => None,
+        };
+
+        let _ = self
+            .db
+            .update_task_status(gid, mapped_status, final_completed_at);
+        let _ = self.db.update_task_progress(
+            gid,
+            engine_status.progress.completed_size,
+            engine_status.progress.total_size.unwrap_or(0),
+        );
     }
 
     pub async fn add_task(
@@ -113,6 +229,7 @@ impl super::AppState {
 
         let db_task = DbTask {
             id: gid.clone(),
+            engine_id: Some(id.as_uuid().to_string()),
             name,
             url: url.to_string(),
             protocol: protocol.as_str().to_string(),
@@ -133,6 +250,9 @@ impl super::AppState {
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
         for tag in preview.tags {
             let _ = self.db.add_task_tag(&gid, tag.id);
+        }
+        if let Some(engine_status) = self.engine.status(id) {
+            self.sync_task_from_engine_status(&gid, &engine_status, None);
         }
 
         Ok(gid)
@@ -206,14 +326,14 @@ impl super::AppState {
     }
 
     pub async fn pause_task(&self, gid: &str) -> Result<(), String> {
-        let id = DownloadId::from_gid(gid).ok_or_else(|| "Invalid task GID format".to_string())?;
+        let id = self.resolve_download_id(gid)?;
         self.engine.pause(id).await?;
         let _ = self.db.update_task_status(gid, "Paused", None);
         Ok(())
     }
 
     pub async fn resume_task(&self, gid: &str) -> Result<(), String> {
-        let id = DownloadId::from_gid(gid).ok_or_else(|| "Invalid task GID format".to_string())?;
+        let id = self.resolve_download_id(gid)?;
         self.engine.resume(id).await?;
         let _ = self.db.update_task_status(gid, "Downloading", None);
         Ok(())
@@ -222,7 +342,7 @@ impl super::AppState {
     pub async fn cancel_task(&self, gid: &str, delete_files: bool) -> Result<(), String> {
         let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
 
-        if let Some(id) = DownloadId::from_gid(gid) {
+        if let Ok(id) = self.resolve_download_id(gid) {
             let _ = self.engine.cancel(id, delete_files).await;
         }
 
@@ -260,7 +380,7 @@ impl super::AppState {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Task not found".to_string())?;
 
-        if let Some(id) = DownloadId::from_gid(gid) {
+        if let Ok(id) = self.resolve_download_id(gid) {
             let _ = self.engine.cancel(id, true).await;
         }
 
@@ -278,6 +398,45 @@ impl super::AppState {
         self.db.delete_task(gid).map_err(|e| e.to_string())?;
 
         Ok(new_gid)
+    }
+
+    pub fn validate_completed_task_file(&self, gid: &str) -> Result<(), String> {
+        let task = self
+            .db
+            .get_task(gid)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Task not found".to_string())?;
+
+        if task.protocol != "http" && task.protocol != "https" {
+            return Ok(());
+        }
+
+        if task.total_size == 0 {
+            return Ok(());
+        }
+
+        let file_path = task_file_path(&task);
+        let actual_size = std::fs::metadata(&file_path)
+            .map(|metadata| metadata.len())
+            .map_err(|e| format!("Failed to inspect completed file: {e}"))?;
+
+        if actual_size != task.total_size {
+            let _ = self
+                .db
+                .update_task_progress(gid, actual_size, task.total_size);
+            let _ = self
+                .db
+                .update_task_status(gid, "Failed", Some(Utc::now().timestamp()));
+            return Err(format!(
+                "Completed file size mismatch: actual {} bytes, expected {} bytes",
+                actual_size, task.total_size
+            ));
+        }
+
+        let _ = self
+            .db
+            .update_task_progress(gid, task.total_size, task.total_size);
+        Ok(())
     }
 
     pub fn list_tasks(&self) -> Result<Vec<TaskOverview>, String> {
@@ -300,19 +459,16 @@ impl super::AppState {
                 .speed_display_unit
                 .clone();
 
-            if let Some(gid_id) = DownloadId::from_gid(&gid) {
-                if let Some(engine_status) = self.engine.status(gid_id) {
-                    downloaded_bytes = engine_status.progress.completed_size;
-                    total_bytes = engine_status.progress.total_size.unwrap_or(0);
-                    progress = engine_status.progress.percentage();
-                    speed =
-                        format_speed(engine_status.progress.download_speed, &speed_display_unit);
-                    eta = format_eta(engine_status.progress.eta_seconds);
-                } else if total_bytes > 0 {
-                    progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;
-                } else if db_task.status == "Completed" {
-                    progress = 100.0;
-                }
+            if let Some(engine_status) = self.engine_status_for_task(&db_task) {
+                downloaded_bytes = engine_status.progress.completed_size;
+                total_bytes = engine_status.progress.total_size.unwrap_or(0);
+                progress = engine_status.progress.percentage();
+                speed = format_speed(engine_status.progress.download_speed, &speed_display_unit);
+                eta = format_eta(engine_status.progress.eta_seconds);
+            } else if total_bytes > 0 {
+                progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;
+            } else if db_task.status == "Completed" {
+                progress = 100.0;
             }
 
             let tags = self.db.get_task_tags(&gid).unwrap_or_default();

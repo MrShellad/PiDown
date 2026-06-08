@@ -1,6 +1,27 @@
+use crate::core::categories::default_categories;
 use crate::core::models::{CategoryInput, DbCategory, DbTag, TagInput};
+use std::path::Path;
 
 impl super::AppState {
+    pub(super) fn ensure_default_category_configs(
+        &self,
+        previous_default_save_dir: Option<&Path>,
+    ) -> Result<(), String> {
+        let settings = self.settings.read().unwrap().clone();
+        let default_save_dir = Path::new(&settings.download.default_save_dir);
+
+        self.db
+            .ensure_default_category_configs(default_save_dir, previous_default_save_dir)
+            .map_err(|e| e.to_string())?;
+
+        for category in default_categories() {
+            std::fs::create_dir_all(category.save_path(default_save_dir))
+                .map_err(|e| e.to_string())?;
+        }
+
+        Ok(())
+    }
+
     pub fn get_categories(&self) -> Result<Vec<DbCategory>, String> {
         self.db.get_categories().map_err(|e| e.to_string())
     }

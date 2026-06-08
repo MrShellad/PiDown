@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbTask {
     pub id: String,
+    pub engine_id: Option<String>,
     pub name: String,
     pub url: String,
     pub protocol: String,

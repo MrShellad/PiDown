@@ -1,76 +1,114 @@
 use crate::core::state::AppState;
 use chrono::Utc;
 use gosh_dl::DownloadEvent;
+use serde::Serialize;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
+use tokio::sync::broadcast;
+
+#[derive(Clone, Serialize)]
+struct TaskUpdatedPayload {
+    gid: String,
+}
+
+fn emit_task_updated(app_handle: &AppHandle, gid: impl Into<String>) {
+    let _ = app_handle.emit(
+        "download-task-updated",
+        TaskUpdatedPayload { gid: gid.into() },
+    );
+}
 
 pub fn start_event_reporter(app_handle: AppHandle, state: Arc<AppState>) {
     let mut rx = state.engine.subscribe();
 
     tauri::async_runtime::spawn(async move {
-        while let Ok(event) = rx.recv().await {
+        loop {
+            let event = match rx.recv().await {
+                Ok(event) => event,
+                Err(broadcast::error::RecvError::Lagged(skipped)) => {
+                    log::warn!("Download event reporter lagged, skipped {skipped} events");
+                    state.reconcile_download_tasks();
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => break,
+            };
+
             match event {
+                DownloadEvent::Progress { id, progress } => {
+                    state.sync_download_progress(id, progress.completed_size, progress.total_size);
+                }
+                DownloadEvent::StateChanged { id, .. } | DownloadEvent::Started { id } => {
+                    if let Some(gid) = state.sync_download_event_status(id, None) {
+                        emit_task_updated(&app_handle, gid);
+                    }
+                }
                 DownloadEvent::Completed { id } => {
-                    let gid = id.to_gid();
+                    let synced_gid =
+                        state.sync_download_event_status(id, Some(Utc::now().timestamp()));
+                    let gid = synced_gid
+                        .clone()
+                        .unwrap_or_else(|| state.gid_for_download_id(id));
                     log::info!("Download completed: {}", gid);
 
-                    if let Some(status) = state.engine.status(id) {
-                        let completed_size = status.progress.completed_size;
-                        let total_size = status.progress.total_size.unwrap_or(completed_size);
-
-                        let _ = state.db.update_task_status(
-                            &gid,
-                            "Completed",
-                            Some(Utc::now().timestamp()),
+                    if let Some(gid) = synced_gid {
+                        match state.validate_completed_task_file(&gid) {
+                            Ok(()) => {
+                                emit_task_updated(&app_handle, gid);
+                                let _ = app_handle.emit("play-sound", "success");
+                            }
+                            Err(err) => {
+                                log::warn!(
+                                    "Download completed but file validation failed for {}: {}",
+                                    gid,
+                                    err
+                                );
+                                emit_task_updated(&app_handle, gid);
+                                let _ = app_handle.emit("play-sound", "warning");
+                            }
+                        }
+                    } else {
+                        log::warn!(
+                            "Download completed but task status could not be synced: {}",
+                            gid
                         );
-                        let _ = state
-                            .db
-                            .update_task_progress(&gid, completed_size, total_size);
+                        state.reconcile_download_tasks();
+                        emit_task_updated(&app_handle, gid);
                     }
-
-                    // Play success sound
-                    let _ = app_handle.emit("play-sound", "success");
                 }
                 DownloadEvent::Failed { id, error, .. } => {
-                    let gid = id.to_gid();
+                    let synced_gid =
+                        state.sync_download_event_status(id, Some(Utc::now().timestamp()));
+                    let gid = synced_gid
+                        .clone()
+                        .unwrap_or_else(|| state.gid_for_download_id(id));
                     log::error!("Download failed: {}, error: {}", gid, error);
 
-                    if let Some(status) = state.engine.status(id) {
-                        let completed_size = status.progress.completed_size;
-                        let total_size = status.progress.total_size.unwrap_or(completed_size);
-
-                        let _ = state.db.update_task_status(
-                            &gid,
-                            "Failed",
-                            Some(Utc::now().timestamp()),
-                        );
-                        let _ = state
-                            .db
-                            .update_task_progress(&gid, completed_size, total_size);
+                    if let Some(gid) = synced_gid {
+                        emit_task_updated(&app_handle, gid);
+                    } else {
+                        state.reconcile_download_tasks();
+                        emit_task_updated(&app_handle, gid);
                     }
-
-                    // Play warning sound
                     let _ = app_handle.emit("play-sound", "warning");
                 }
                 DownloadEvent::Paused { id } => {
-                    let gid = id.to_gid();
+                    let gid = state
+                        .sync_download_event_status(id, None)
+                        .unwrap_or_else(|| state.gid_for_download_id(id));
                     log::info!("Download paused: {}", gid);
-
-                    if let Some(status) = state.engine.status(id) {
-                        let completed_size = status.progress.completed_size;
-                        let total_size = status.progress.total_size.unwrap_or(completed_size);
-
-                        let _ = state.db.update_task_status(&gid, "Paused", None);
-                        let _ = state
-                            .db
-                            .update_task_progress(&gid, completed_size, total_size);
-                    }
+                    emit_task_updated(&app_handle, gid);
                 }
                 DownloadEvent::Resumed { id } => {
-                    let gid = id.to_gid();
+                    let gid = state
+                        .sync_download_event_status(id, None)
+                        .unwrap_or_else(|| state.gid_for_download_id(id));
                     log::info!("Download resumed: {}", gid);
-
-                    let _ = state.db.update_task_status(&gid, "Downloading", None);
+                    emit_task_updated(&app_handle, gid);
+                }
+                DownloadEvent::Removed { id } => {
+                    let gid = state.gid_for_download_id(id);
+                    log::info!("Download removed: {}", gid);
+                    emit_task_updated(&app_handle, gid);
                 }
                 _ => {}
             }
