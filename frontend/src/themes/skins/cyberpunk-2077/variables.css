@@ -1,0 +1,33 @@
+[data-theme="cyberpunk"] {
+    --background: oklch(0.05 0.03 290); /* Very dark purple/black */
+    --foreground: oklch(0.85 0.18 195); /* Bright Cyan */
+    --card: oklch(0.08 0.04 290);
+    --card-foreground: oklch(0.85 0.18 195);
+    --popover: oklch(0.08 0.04 290);
+    --popover-foreground: oklch(0.85 0.18 195);
+    
+    --primary: oklch(0.7 0.28 340); /* Neon Pink (#ff007f) */
+    --primary-foreground: oklch(0.05 0.03 290);
+    
+    --secondary: oklch(0.15 0.06 290);
+    --secondary-foreground: oklch(0.85 0.18 195);
+    
+    --muted: oklch(0.12 0.05 290);
+    --muted-foreground: oklch(0.65 0.15 340); /* Hot Pink Muted */
+    
+    --accent: oklch(0.85 0.18 195 / 0.15);
+    --accent-foreground: oklch(0.85 0.18 195);
+    
+    --destructive: oklch(0.55 0.22 30);
+    --destructive-foreground: oklch(0.95 0.02 30);
+    
+    --border: oklch(0.85 0.18 195); /* Bright Cyan borders */
+    --input: oklch(0.85 0.18 195 / 0.3);
+    --ring: oklch(0.7 0.28 340);
+    
+    --radius: 0px; /* Sharp hard corners */
+    
+    /* Custom Neon Glow effects */
+    --glow-effect: 0 0 15px oklch(0.85 0.18 195 / 0.6);
+    --button-glow: 0 0 12px oklch(0.7 0.28 340 / 0.8);
+}

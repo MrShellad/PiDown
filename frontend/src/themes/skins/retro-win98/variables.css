@@ -1,0 +1,32 @@
+[data-theme="retro"] {
+    --background: oklch(0.82 0 0); /* Classic Windows 98 Gray (#c0c0c0) */
+    --foreground: oklch(0.15 0 0); /* Black (#000000) */
+    --card: oklch(0.82 0 0);
+    --card-foreground: oklch(0.15 0 0);
+    --popover: oklch(0.82 0 0);
+    --popover-foreground: oklch(0.15 0 0);
+    
+    --primary: oklch(0.25 0.1 260); /* Navy Blue (#000080) */
+    --primary-foreground: oklch(0.98 0 0); /* White */
+    
+    --secondary: oklch(0.75 0 0); /* Light Gray */
+    --secondary-foreground: oklch(0.15 0 0);
+    
+    --muted: oklch(0.75 0 0);
+    --muted-foreground: oklch(0.45 0 0); /* Dark Gray */
+    
+    --accent: oklch(0.25 0.1 260 / 0.1);
+    --accent-foreground: oklch(0.25 0.1 260);
+    
+    --destructive: oklch(0.45 0.15 20);
+    --destructive-foreground: oklch(0.98 0 0);
+    
+    --border: oklch(0.45 0 0); /* Beveled border effect simulated by solid gray */
+    --input: oklch(0.98 0 0);
+    --ring: oklch(0.25 0.1 260);
+    
+    --radius: 2px; /* Very small rectangular roundness */
+    
+    --glow-effect: none;
+    --button-glow: none;
+}

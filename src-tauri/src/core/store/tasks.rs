@@ -1,0 +1,146 @@
+use crate::core::models::DbTask;
+use chrono::Utc;
+use rusqlite::params;
+
+#[allow(dead_code)]
+impl super::DbStore {
+    pub fn insert_task(&self, task: &DbTask) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT OR REPLACE INTO tasks (
+                id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+            params![
+                task.id,
+                task.name,
+                task.url,
+                task.protocol,
+                task.save_path,
+                task.total_size as i64,
+                task.completed_size as i64,
+                task.status,
+                task.category_id,
+                task.created_at,
+                task.started_at,
+                task.completed_at
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_task_progress(
+        &self,
+        id: &str,
+        completed_size: u64,
+        total_size: u64,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET completed_size = ?1, total_size = ?2 WHERE id = ?3",
+            params![completed_size as i64, total_size as i64, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_task_status(
+        &self,
+        id: &str,
+        status: &str,
+        completed_at: Option<i64>,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+
+        if status == "Downloading" {
+            conn.execute(
+                "UPDATE tasks SET status = ?1, started_at = COALESCE(started_at, ?2) WHERE id = ?3",
+                params![status, Utc::now().timestamp(), id],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE tasks SET status = ?1, completed_at = ?2 WHERE id = ?3",
+                params![status, completed_at, id],
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn update_task_category(
+        &self,
+        id: &str,
+        category_id: Option<i64>,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET category_id = ?1 WHERE id = ?2",
+            params![category_id, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_task(&self, id: &str) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+        Ok(())
+    }
+
+    pub fn get_task(&self, id: &str) -> Result<Option<DbTask>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+             FROM tasks
+             WHERE id = ?1",
+        )?;
+        let mut rows = stmt.query(params![id])?;
+
+        if let Some(row) = rows.next()? {
+            Ok(Some(DbTask {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                url: row.get(2)?,
+                protocol: row.get(3)?,
+                save_path: row.get(4)?,
+                total_size: row.get::<_, i64>(5)? as u64,
+                completed_size: row.get::<_, i64>(6)? as u64,
+                status: row.get(7)?,
+                category_id: row.get(8)?,
+                created_at: row.get(9)?,
+                started_at: row.get(10)?,
+                completed_at: row.get(11)?,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_all_tasks(&self) -> Result<Vec<DbTask>, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+             FROM tasks
+             ORDER BY created_at DESC",
+        )?;
+        let rows = stmt.query_map([], |row| {
+            Ok(DbTask {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                url: row.get(2)?,
+                protocol: row.get(3)?,
+                save_path: row.get(4)?,
+                total_size: row.get::<_, i64>(5)? as u64,
+                completed_size: row.get::<_, i64>(6)? as u64,
+                status: row.get(7)?,
+                category_id: row.get(8)?,
+                created_at: row.get(9)?,
+                started_at: row.get(10)?,
+                completed_at: row.get(11)?,
+            })
+        })?;
+
+        let mut tasks = Vec::new();
+        for task_res in rows {
+            tasks.push(task_res?);
+        }
+        Ok(tasks)
+    }
+}
