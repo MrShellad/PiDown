@@ -26,6 +26,7 @@ import {
   closeSettingsWindow,
   getDefaultAppSettings,
   type AppSettings,
+  type SpeedDisplayUnit,
 } from "@/core/bridge/tauri-commands";
 import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore, type SettingsSectionId } from "@/core/store/useAppSettingsStore";
@@ -61,6 +62,13 @@ function parseNullableNumber(value: string): number | null {
   const numeric = Number(trimmed);
   return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
 }
+
+const SPEED_DISPLAY_UNIT_OPTIONS: { value: SpeedDisplayUnit; label: string }[] = [
+  { value: "auto", label: "自动 (B/s, KiB/s, MiB/s)" },
+  { value: "kib", label: "KiB/s" },
+  { value: "mib", label: "MiB/s" },
+  { value: "mb", label: "MB/s" },
+];
 
 function ResetSettingsButton({ onClick }: { onClick: () => void }) {
   return (
@@ -110,17 +118,21 @@ export default function SettingsWindow() {
 
   useEffect(() => {
     if (!settings) return;
-    setDraft(settings);
-    setDownloadLimitInput(
-      settings.transfer.download_speed_limit_kib == null
-        ? ""
-        : String(settings.transfer.download_speed_limit_kib)
-    );
-    setUploadLimitInput(
-      settings.transfer.upload_speed_limit_kib == null
-        ? ""
-        : String(settings.transfer.upload_speed_limit_kib)
-    );
+    const timer = window.setTimeout(() => {
+      setDraft(settings);
+      setDownloadLimitInput(
+        settings.transfer.download_speed_limit_kib == null
+          ? ""
+          : String(settings.transfer.download_speed_limit_kib)
+      );
+      setUploadLimitInput(
+        settings.transfer.upload_speed_limit_kib == null
+          ? ""
+          : String(settings.transfer.upload_speed_limit_kib)
+      );
+    }, 0);
+
+    return () => window.clearTimeout(timer);
   }, [settings]);
 
   const normalizedDraft = useMemo<AppSettings | null>(() => {
@@ -379,6 +391,33 @@ export default function SettingsWindow() {
                             String(draft.transfer.max_concurrent_downloads)
                           )}
                         />
+                      </SettingsListItem>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.speedDisplayUnit}
+                        description={UI_TEXT.settings.speedDisplayUnitDesc}
+                      >
+                        <select
+                          value={draft.transfer.speed_display_unit}
+                          onChange={(event) => {
+                            const nextUnit = event.target.value as SpeedDisplayUnit;
+
+                            updateDraft((prev) => ({
+                              ...prev,
+                              transfer: {
+                                ...prev.transfer,
+                                speed_display_unit: nextUnit,
+                              },
+                            }));
+                          }}
+                          className="h-10 w-full rounded-[var(--radius-lg)] border border-border bg-background/70 px-4 text-sm leading-5 text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+                          aria-label={UI_TEXT.settings.speedDisplayUnit}
+                        >
+                          {SPEED_DISPLAY_UNIT_OPTIONS.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label}
+                            </option>
+                          ))}
+                        </select>
                       </SettingsListItem>
                       <SettingsListItem
                         title={UI_TEXT.settings.downloadSpeedLimit}

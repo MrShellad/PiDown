@@ -72,7 +72,7 @@ impl super::DbStore {
     pub fn get_tags(&self) -> Result<Vec<DbTag>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, COALESCE(category_id, group_id), name, icon, color, rules_json, save_path FROM tags ORDER BY id ASC",
+            "SELECT id, category_id, name, icon, color, rules_json, save_path FROM tags ORDER BY id ASC",
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(DbTag {
@@ -97,7 +97,7 @@ impl super::DbStore {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT INTO tags (name, color, category_id, group_id, icon, rules_json, save_path)
-             VALUES (?1, ?2, ?3, ?3, ?4, ?5, ?6)",
+             VALUES (?1, ?2, ?3, NULL, ?4, ?5, ?6)",
             params![
                 input.name.trim(),
                 input.color.as_deref(),
@@ -114,7 +114,7 @@ impl super::DbStore {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "UPDATE tags
-             SET name = ?1, color = ?2, category_id = ?3, group_id = ?3, icon = ?4, rules_json = ?5, save_path = ?6
+             SET name = ?1, color = ?2, category_id = ?3, group_id = NULL, icon = ?4, rules_json = ?5, save_path = ?6
              WHERE id = ?7",
             params![
                 input.name.trim(),

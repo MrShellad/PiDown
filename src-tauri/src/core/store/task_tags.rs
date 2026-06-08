@@ -25,7 +25,7 @@ impl super::DbStore {
     pub fn get_task_tags(&self, task_id: &str) -> Result<Vec<DbTag>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT t.id, COALESCE(t.category_id, t.group_id), t.name, t.icon, t.color, t.rules_json, t.save_path
+            "SELECT t.id, t.category_id, t.name, t.icon, t.color, t.rules_json, t.save_path
              FROM tags t
              JOIN task_tags tt ON t.id = tt.tag_id
              WHERE tt.task_id = ?1",

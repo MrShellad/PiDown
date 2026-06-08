@@ -24,6 +24,7 @@ impl DbStore {
         }
 
         let conn = Connection::open(db_path)?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
         let store = Self {
             conn: Mutex::new(conn),
         };

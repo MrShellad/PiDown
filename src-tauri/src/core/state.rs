@@ -1,7 +1,7 @@
 mod classification;
 mod file_actions;
 mod settings_state;
-mod task_format;
+pub(crate) mod task_format;
 mod task_service;
 
 use crate::core::settings::{AppSettings, APP_SETTINGS_KEY};

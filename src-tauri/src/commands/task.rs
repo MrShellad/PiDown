@@ -1,4 +1,6 @@
-use crate::core::models::{CategoryInput, DbCategory, DbTag, TagInput, TaskOverview};
+use crate::core::models::{
+    CategoryInput, DbCategory, DbTag, TagInput, TaskClassificationPreview, TaskOverview,
+};
 use crate::core::state::AppState;
 use serde::Serialize;
 use std::sync::Arc;
@@ -17,9 +19,18 @@ pub async fn create_task(
     path: Option<String>,
     filename: Option<String>,
     category_id: Option<i64>,
+    category_override: Option<bool>,
+    total_size: Option<u64>,
 ) -> Result<String, String> {
     state
-        .add_task(&url, path.as_deref(), filename.as_deref(), category_id)
+        .add_task(
+            &url,
+            path.as_deref(),
+            filename.as_deref(),
+            category_id,
+            category_override.unwrap_or(false),
+            total_size,
+        )
         .await
 }
 
@@ -33,6 +44,24 @@ pub async fn inspect_download_metadata(
         filename: inspection.filename,
         total_size: inspection.total_size,
     })
+}
+
+#[tauri::command]
+pub async fn preview_task_classification(
+    state: State<'_, Arc<AppState>>,
+    url: String,
+    filename: String,
+    total_size: Option<u64>,
+    category_id: Option<i64>,
+    category_override: Option<bool>,
+) -> Result<TaskClassificationPreview, String> {
+    state.preview_task_classification(
+        &url,
+        &filename,
+        total_size,
+        category_id,
+        category_override.unwrap_or(false),
+    )
 }
 
 #[tauri::command]
@@ -52,6 +81,16 @@ pub async fn cancel_task(
     delete_files: Option<bool>,
 ) -> Result<(), String> {
     state.cancel_task(&gid, delete_files.unwrap_or(false)).await
+}
+
+#[tauri::command]
+pub async fn clear_completed_tasks(
+    state: State<'_, Arc<AppState>>,
+    delete_files: Option<bool>,
+) -> Result<usize, String> {
+    state
+        .clear_completed_tasks(delete_files.unwrap_or(false))
+        .await
 }
 
 #[tauri::command]

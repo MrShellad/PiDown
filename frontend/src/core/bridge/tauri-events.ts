@@ -29,7 +29,8 @@ export async function setupTauriEvents() {
 
 // Function to play sound according to the theme and event type
 function playThemeSound(theme: string, type: string) {
-  const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+  const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
+  const context = new AudioContextCtor();
   
   // We will generate simple synth frequencies dynamically to avoid loading missing audio assets 
   // and ensuring we have zero asset loading errors. This gives a very cool retro/synth vibe!

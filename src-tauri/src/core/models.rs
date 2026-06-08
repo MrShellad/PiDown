@@ -103,3 +103,10 @@ pub struct TaskOverview {
     pub category_id: Option<i64>,
     pub tags: Vec<DbTag>,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct TaskClassificationPreview {
+    pub category: Option<DbCategory>,
+    pub tags: Vec<DbTag>,
+    pub save_path: String,
+}

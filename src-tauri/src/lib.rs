@@ -43,9 +43,11 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::create_task,
             commands::inspect_download_metadata,
+            commands::preview_task_classification,
             commands::pause_task,
             commands::resume_task,
             commands::cancel_task,
+            commands::clear_completed_tasks,
             commands::open_task_file,
             commands::open_task_folder,
             commands::restart_task,

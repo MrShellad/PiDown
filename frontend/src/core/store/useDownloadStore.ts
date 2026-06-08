@@ -1,9 +1,9 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import {
   pauseTask,
   resumeTask,
   cancelTask,
+  clearCompletedTasks,
   openTaskFile,
   openTaskFolder,
   restartTask,
@@ -19,6 +19,9 @@ import {
   createTag,
   updateTag as updateTagConfig,
   deleteTag,
+  type DbCategory,
+  type DbTag,
+  type TaskOverview,
   type CategoryInput,
   type MatchRules,
   type TagInput,
@@ -29,7 +32,7 @@ export interface Task {
   gid: string;
   name: string;
   url: string;
-  status: "Downloading" | "Paused" | "Completed" | "Failed";
+  status: "Pending" | "Downloading" | "Paused" | "Completed" | "Failed" | "Cancelled";
   speed: string;
   progress: number; // 0 to 100
   eta: string;
@@ -37,7 +40,7 @@ export interface Task {
   totalBytes: number;
   createdAt?: number;
   categoryId?: number | null;
-  tags?: { id: number; name: string; color?: string }[];
+  tags?: { id: number; name: string; icon?: string; color?: string }[];
 }
 
 export interface Category {
@@ -98,7 +101,7 @@ interface DownloadState {
   openTaskFile: (gid: string) => Promise<void>;
   openTaskFolder: (gid: string) => Promise<void>;
   restartTask: (gid: string) => Promise<void>;
-  clearCompleted: () => void;
+  clearCompleted: () => Promise<void>;
   fetchTasks: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchTags: () => Promise<void>;
@@ -113,8 +116,47 @@ interface DownloadState {
   deleteTag: (tagId: number) => Promise<void>;
 }
 
+const mapTag = (tag: DbTag): Tag => ({
+  id: tag.id,
+  categoryId: tag.category_id,
+  name: tag.name,
+  icon: tag.icon,
+  color: tag.color,
+  rules: normalizeRules(tag.rules),
+  savePath: tag.save_path,
+});
+
+const mapCategory = (category: DbCategory): Category => ({
+  id: category.id,
+  name: category.name,
+  icon: category.icon,
+  color: category.color,
+  sortOrder: category.sort_order,
+  rules: normalizeRules(category.rules),
+  savePath: category.save_path,
+});
+
+const mapTask = (task: TaskOverview): Task => ({
+  gid: task.gid,
+  name: task.name,
+  url: task.url,
+  status: task.status,
+  speed: task.speed,
+  progress: task.progress,
+  eta: task.eta,
+  downloadedBytes: task.downloaded_bytes,
+  totalBytes: task.total_bytes,
+  createdAt: task.created_at,
+  categoryId: task.category_id,
+  tags: task.tags.map((tag) => ({
+    id: tag.id,
+    name: tag.name,
+    icon: tag.icon || undefined,
+    color: tag.color || undefined,
+  })),
+});
+
 export const useDownloadStore = create<DownloadState>()(
-  persist(
     (set, get) => ({
       tasks: {},
       categories: [],
@@ -217,20 +259,17 @@ export const useDownloadStore = create<DownloadState>()(
       },
 
       removeTask: async (gid, deleteFiles = false) => {
-        const task = get().tasks[gid];
-        if (task && (task.status === "Downloading" || task.status === "Paused")) {
-          try {
-            await cancelTask(gid, deleteFiles);
-          } catch (e) {
-            console.error("Failed to cancel task in backend", e);
-          }
-        } else {
-          try {
-            await cancelTask(gid, deleteFiles);
-          } catch (e) {
-            console.error("Failed to remove task in backend", e);
-          }
+        try {
+          await cancelTask(gid, deleteFiles);
+        } catch (e) {
+          useToastStore.getState().pushToast({
+            title: "删除任务失败",
+            description: String(e),
+            variant: "warning",
+          });
+          return;
         }
+
         set((state) => {
           const updated = { ...state.tasks };
           delete updated[gid];
@@ -298,42 +337,25 @@ export const useDownloadStore = create<DownloadState>()(
         }
       },
 
-      clearCompleted: () => {
-        set((state) => {
-          const updated = { ...state.tasks };
-          Object.keys(updated).forEach((gid) => {
-            if (updated[gid].status === "Completed") {
-              delete updated[gid];
-            }
+      clearCompleted: async () => {
+        try {
+          await clearCompletedTasks(false);
+          await get().fetchTasks();
+        } catch (e) {
+          useToastStore.getState().pushToast({
+            title: "清空已完成失败",
+            description: String(e),
+            variant: "warning",
           });
-          return { tasks: updated };
-        });
+        }
       },
 
       fetchTasks: async () => {
         try {
           const backendTasks = await getActiveTasks();
           const mappedTasks: Record<string, Task> = {};
-          backendTasks.forEach((t: any) => {
-            mappedTasks[t.gid] = {
-              gid: t.gid,
-              name: t.name,
-              url: t.url,
-              status: t.status,
-              speed: t.speed,
-              progress: t.progress,
-              eta: t.eta,
-              downloadedBytes: t.downloaded_bytes,
-              totalBytes: t.total_bytes,
-              createdAt: t.created_at,
-              categoryId: t.category_id,
-              tags: t.tags ? t.tags.map((tag: any) => ({
-                id: tag.id,
-                name: tag.name,
-                icon: tag.icon || undefined,
-                color: tag.color || undefined,
-              })) : [],
-            };
+          backendTasks.forEach((task) => {
+            mappedTasks[task.gid] = mapTask(task);
           });
           set({ tasks: mappedTasks });
         } catch (e) {
@@ -344,17 +366,7 @@ export const useDownloadStore = create<DownloadState>()(
       fetchCategories: async () => {
         try {
           const cats = await getCategories();
-          set({
-            categories: cats.map((c: any) => ({
-              id: c.id,
-              name: c.name,
-              icon: c.icon,
-              color: c.color,
-              sortOrder: c.sort_order,
-              rules: normalizeRules(c.rules),
-              savePath: c.save_path,
-            })),
-          });
+          set({ categories: cats.map(mapCategory) });
         } catch (e) {
           console.error("Failed to fetch categories", e);
         }
@@ -363,17 +375,7 @@ export const useDownloadStore = create<DownloadState>()(
       fetchTags: async () => {
         try {
           const tgs = await getTags();
-          set({
-            tags: tgs.map((t: any) => ({
-              id: t.id,
-              categoryId: t.category_id,
-              name: t.name,
-              icon: t.icon,
-              color: t.color,
-              rules: normalizeRules(t.rules),
-              savePath: t.save_path,
-            })),
-          });
+          set({ tags: tgs.map(mapTag) });
         } catch (e) {
           console.error("Failed to fetch tags", e);
         }
@@ -484,9 +486,5 @@ export const useDownloadStore = create<DownloadState>()(
           console.error("Failed to delete tag", e);
         }
       },
-    }),
-    {
-      name: "pidownloader-tasks",
-    }
-  )
+    })
 );

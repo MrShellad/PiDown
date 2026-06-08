@@ -67,6 +67,35 @@ fn test_task_crud() {
 }
 
 #[test]
+fn test_delete_completed_tasks() {
+    let store = DbStore::new(":memory:").unwrap();
+
+    for (id, status) in [("task_done", "Completed"), ("task_active", "Downloading")] {
+        store
+            .insert_task(&DbTask {
+                id: id.to_string(),
+                name: format!("{id}.bin"),
+                url: format!("http://example.com/{id}.bin"),
+                protocol: "http".to_string(),
+                save_path: "/downloads".to_string(),
+                total_size: 1000,
+                completed_size: if status == "Completed" { 1000 } else { 100 },
+                status: status.to_string(),
+                category_id: None,
+                created_at: 123456,
+                started_at: Some(123456),
+                completed_at: None,
+            })
+            .unwrap();
+    }
+
+    let deleted = store.delete_completed_tasks().unwrap();
+    assert_eq!(deleted, 1);
+    assert!(store.get_task("task_done").unwrap().is_none());
+    assert!(store.get_task("task_active").unwrap().is_some());
+}
+
+#[test]
 fn test_category_crud() {
     let store = DbStore::new(":memory:").unwrap();
     let cat_id = store
@@ -91,19 +120,11 @@ fn test_category_crud() {
 #[test]
 fn test_tag_crud() {
     let store = DbStore::new(":memory:").unwrap();
-
-    let conn = store.conn.lock().unwrap();
-    conn.execute(
-        "INSERT INTO tag_groups (name, icon, sort_order) VALUES ('Group1', 'icon1', 1)",
-        [],
-    )
-    .unwrap();
-    let group_id = conn.last_insert_rowid();
-    drop(conn);
+    let category_id = store.get_categories().unwrap()[0].id;
 
     let tag_id = store
         .insert_tag(&TagInput {
-            category_id: Some(group_id),
+            category_id: Some(category_id),
             name: "Tag1".to_string(),
             icon: Some("tag".to_string()),
             color: Some("blue".to_string()),
@@ -114,7 +135,7 @@ fn test_tag_crud() {
     let tags = store.get_tags().unwrap();
     let tag = tags.iter().find(|t| t.id == tag_id).unwrap();
     assert_eq!(tag.name, "Tag1");
-    assert_eq!(tag.category_id, Some(group_id));
+    assert_eq!(tag.category_id, Some(category_id));
 
     store.delete_tag(tag_id).unwrap();
     let tags = store.get_tags().unwrap();
@@ -164,4 +185,55 @@ fn test_task_tag_relationships() {
     store.remove_task_tag("task_1", tag_id).unwrap();
     let task_tags = store.get_task_tags("task_1").unwrap();
     assert_eq!(task_tags.len(), 0);
+}
+
+#[test]
+fn test_foreign_keys_cleanup_task_tags() {
+    let store = DbStore::new(":memory:").unwrap();
+
+    store
+        .insert_task(&DbTask {
+            id: "task_1".to_string(),
+            name: "test.mp4".to_string(),
+            url: "http://example.com/test.mp4".to_string(),
+            protocol: "http".to_string(),
+            save_path: "/downloads".to_string(),
+            total_size: 1000,
+            completed_size: 100,
+            status: "Downloading".to_string(),
+            category_id: None,
+            created_at: 123456,
+            started_at: Some(123456),
+            completed_at: None,
+        })
+        .unwrap();
+
+    let tag_id = store
+        .insert_tag(&TagInput {
+            category_id: None,
+            name: "TagCleanup".to_string(),
+            icon: None,
+            color: None,
+            rules: MatchRules::default(),
+            save_path: None,
+        })
+        .unwrap();
+    store.add_task_tag("task_1", tag_id).unwrap();
+
+    store.delete_tag(tag_id).unwrap();
+    assert!(store.get_task_tags("task_1").unwrap().is_empty());
+
+    let tag_id = store
+        .insert_tag(&TagInput {
+            category_id: None,
+            name: "TagCleanupByTask".to_string(),
+            icon: None,
+            color: None,
+            rules: MatchRules::default(),
+            save_path: None,
+        })
+        .unwrap();
+    store.add_task_tag("task_1", tag_id).unwrap();
+    store.delete_task("task_1").unwrap();
+    assert!(store.get_all_task_tags_mappings().unwrap().is_empty());
 }

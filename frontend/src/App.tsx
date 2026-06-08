@@ -9,11 +9,30 @@ import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
 
+function resolveActiveFilter(
+  filter: NavFilter,
+  categories: ReturnType<typeof useDownloadStore.getState>["categories"],
+  tags: ReturnType<typeof useDownloadStore.getState>["tags"]
+): NavFilter {
+  const parsed = parseNavFilter(filter);
+
+  if (parsed.type === "category" && !categories.some((category) => category.id === parsed.id)) {
+    return "all";
+  }
+
+  if (parsed.type === "tag" && !tags.some((tag) => tag.id === parsed.id)) {
+    return "all";
+  }
+
+  return filter;
+}
+
 export default function App() {
   const [path, setPath] = useState(window.location.pathname);
   const [activeFilter, setActiveFilter] = useState<NavFilter>("all");
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
+  const visibleFilter = resolveActiveFilter(activeFilter, categories, tags);
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -33,18 +52,6 @@ export default function App() {
       clearInterval(interval);
     };
   }, [path]);
-
-  useEffect(() => {
-    const parsed = parseNavFilter(activeFilter);
-
-    if (parsed.type === "category" && !categories.some((category) => category.id === parsed.id)) {
-      setActiveFilter("all");
-    }
-
-    if (parsed.type === "tag" && !tags.some((tag) => tag.id === parsed.id)) {
-      setActiveFilter("all");
-    }
-  }, [activeFilter, categories, tags]);
 
   if (path === "/float") {
     return (
@@ -70,8 +77,8 @@ export default function App() {
         <ActiveBackground />
         <WindowFrame title="PiDownloader" />
         <div className="flex min-h-0 flex-1 overflow-hidden">
-          <NavSidebar activeFilter={activeFilter} onFilterChange={setActiveFilter} />
-          <TaskListDashboard activeFilter={activeFilter} />
+          <NavSidebar activeFilter={visibleFilter} onFilterChange={setActiveFilter} />
+          <TaskListDashboard activeFilter={visibleFilter} />
         </div>
       </div>
     </ThemeProvider>

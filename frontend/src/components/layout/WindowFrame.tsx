@@ -10,6 +10,52 @@ interface WindowFrameProps {
   title: string;
 }
 
+const WINDOW_MENU_ITEMS = [
+  {
+    icon: <Download className="size-4" />,
+    label: UI_TEXT.windowFrame.menuNew,
+    shortcut: UI_TEXT.windowFrame.shortcutNew,
+  },
+  {
+    icon: <FolderOpen className="size-4" />,
+    label: UI_TEXT.windowFrame.menuOpenDir,
+    shortcut: "",
+  },
+  {
+    icon: <Info className="size-4" />,
+    label: UI_TEXT.windowFrame.menuAbout,
+    shortcut: "",
+  },
+];
+
+function MenuDropdown({
+  className = "",
+  onMouseLeave,
+}: {
+  className?: string;
+  onMouseLeave: () => void;
+}) {
+  return (
+    <div
+      className={`absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg backdrop-blur-xl ${className}`}
+      onMouseLeave={onMouseLeave}
+    >
+      {WINDOW_MENU_ITEMS.map((item) => (
+        <button
+          key={item.label}
+          className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--secondary)]"
+        >
+          {item.icon}
+          <span className="flex-1 text-left">{item.label}</span>
+          {item.shortcut && (
+            <span className="font-mono text-xs text-[var(--muted-foreground)]">{item.shortcut}</span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function WindowFrame({ title }: WindowFrameProps) {
   const theme = useThemeStore((state) => state.theme);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -55,30 +101,6 @@ export default function WindowFrame({ title }: WindowFrameProps) {
     }
   };
 
-  const MenuDropdown = ({ className = "" }: { className?: string }) => (
-    <div
-      className={`absolute left-0 top-full z-50 mt-1 min-w-[160px] rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)] py-1 shadow-lg backdrop-blur-xl ${className}`}
-      onMouseLeave={() => setMenuOpen(false)}
-    >
-      {[
-        { icon: <Download className="size-4" />, label: UI_TEXT.windowFrame.menuNew, shortcut: UI_TEXT.windowFrame.shortcutNew },
-        { icon: <FolderOpen className="size-4" />, label: UI_TEXT.windowFrame.menuOpenDir, shortcut: "" },
-        { icon: <Info className="size-4" />, label: UI_TEXT.windowFrame.menuAbout, shortcut: "" },
-      ].map((item) => (
-        <button
-          key={item.label}
-          className="flex w-full items-center gap-2.5 px-3 py-1.5 text-sm text-[var(--foreground)] transition-colors hover:bg-[var(--secondary)]"
-        >
-          {item.icon}
-          <span className="flex-1 text-left">{item.label}</span>
-          {item.shortcut && (
-            <span className="font-mono text-xs text-[var(--muted-foreground)]">{item.shortcut}</span>
-          )}
-        </button>
-      ))}
-    </div>
-  );
-
   if (theme === "retro") {
     return (
       <div className="relative select-none" style={{ zIndex: 100 }}>
@@ -94,7 +116,7 @@ export default function WindowFrame({ title }: WindowFrameProps) {
               <Menu size={12} />
               <span className="text-sm font-bold">{UI_TEXT.windowFrame.menu}</span>
             </button>
-            {menuOpen && <MenuDropdown />}
+            {menuOpen && <MenuDropdown onMouseLeave={() => setMenuOpen(false)} />}
           </div>
 
           <div
@@ -153,7 +175,7 @@ export default function WindowFrame({ title }: WindowFrameProps) {
               <Menu size={12} />
               <span className="text-sm font-black">{UI_TEXT.windowFrame.menu}</span>
             </button>
-            {menuOpen && <MenuDropdown />}
+            {menuOpen && <MenuDropdown onMouseLeave={() => setMenuOpen(false)} />}
           </div>
 
           <div
@@ -214,7 +236,7 @@ export default function WindowFrame({ title }: WindowFrameProps) {
             <Menu size={14} />
             <span className="text-sm font-medium">{UI_TEXT.windowFrame.menu}</span>
           </button>
-          {menuOpen && <MenuDropdown />}
+          {menuOpen && <MenuDropdown onMouseLeave={() => setMenuOpen(false)} />}
         </div>
 
         <div

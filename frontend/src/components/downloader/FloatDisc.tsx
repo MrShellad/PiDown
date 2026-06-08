@@ -6,6 +6,12 @@ import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { Download } from "lucide-react";
 import { UI_TEXT } from "@/core/locale";
 
+type TauriDroppedFile = File & { path?: string };
+
+function getDroppedFilePath(file: File) {
+  return (file as TauriDroppedFile).path || file.name;
+}
+
 export default function FloatDisc() {
   const globalSpeed = useDownloadStore((state) => state.globalSpeed);
   const tasks = useDownloadStore((state) => state.tasks);
@@ -48,16 +54,17 @@ export default function FloatDisc() {
       // For simplicity, download the file link or parse torrent
       const files = Array.from(e.dataTransfer.files);
       for (const file of files) {
-        console.log("Dropped file:", file.name, (file as any).path);
+        const filePath = getDroppedFilePath(file);
+        console.log("Dropped file:", file.name, filePath);
         // If it's a file, we can use its local file path (Tauri supports path access)
         // For security or simplicity, treat as download url if it matches or just pass the path
         if (file.name.endsWith(".torrent") || file.name.startsWith("magnet:")) {
           try {
             const gid = await createTask(
-              (file as any).path || file.name,
+              filePath,
               settings?.download.default_save_dir || undefined
             );
-            addTask(gid, (file as any).path || file.name, file.name);
+            addTask(gid, filePath, file.name);
           } catch (err) {
             console.error("Failed to parse dropped torrent", err);
           }

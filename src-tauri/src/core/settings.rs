@@ -16,6 +16,21 @@ impl Default for CloseAction {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SpeedDisplayUnit {
+    Auto,
+    Kib,
+    Mib,
+    Mb,
+}
+
+impl Default for SpeedDisplayUnit {
+    fn default() -> Self {
+        Self::Auto
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DownloadSettings {
@@ -40,6 +55,9 @@ pub struct TransferSettings {
     pub max_concurrent_downloads: u32,
     pub download_speed_limit_kib: Option<u64>,
     pub upload_speed_limit_kib: Option<u64>,
+    pub speed_display_unit: SpeedDisplayUnit,
+    #[serde(skip_serializing)]
+    pub speed_limit_unit: Option<SpeedDisplayUnit>,
 }
 
 impl Default for TransferSettings {
@@ -48,6 +66,8 @@ impl Default for TransferSettings {
             max_concurrent_downloads: 3,
             download_speed_limit_kib: None,
             upload_speed_limit_kib: None,
+            speed_display_unit: SpeedDisplayUnit::Auto,
+            speed_limit_unit: None,
         }
     }
 }
@@ -82,6 +102,10 @@ impl AppSettings {
 
         if self.transfer.max_concurrent_downloads == 0 {
             self.transfer.max_concurrent_downloads = 1;
+        }
+
+        if let Some(legacy_unit) = self.transfer.speed_limit_unit.take() {
+            self.transfer.speed_display_unit = legacy_unit;
         }
     }
 }

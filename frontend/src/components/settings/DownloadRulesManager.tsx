@@ -320,6 +320,7 @@ export default function DownloadRulesManager() {
   useEffect(() => {
     if (!editor) return
 
+    const timer = window.setTimeout(() => {
     if (editor.mode === "category" && editor.id) {
       const category = categories.find((item) => item.id === editor.id)
       if (category) setEditor({ mode: "category", id: category.id, draft: normalizeCategory(category) })
@@ -329,7 +330,10 @@ export default function DownloadRulesManager() {
       const tag = tags.find((item) => item.id === editor.id)
       if (tag) setEditor({ mode: "tag", id: tag.id, draft: normalizeTag(tag) })
     }
-  }, [categories, tags])
+    }, 0)
+
+    return () => window.clearTimeout(timer)
+  }, [categories, editor, tags])
 
   const openCreateCategory = () => {
     setEditor({ mode: "category", draft: emptyCategoryDraft(nextSortOrder) })

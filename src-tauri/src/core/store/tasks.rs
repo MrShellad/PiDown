@@ -84,6 +84,11 @@ impl super::DbStore {
         Ok(())
     }
 
+    pub fn delete_completed_tasks(&self) -> Result<usize, rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute("DELETE FROM tasks WHERE status = 'Completed'", [])
+    }
+
     pub fn get_task(&self, id: &str) -> Result<Option<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

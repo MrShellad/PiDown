@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion } from "framer-motion";
 import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle } from "lucide-react";
 
@@ -10,12 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/u
 import {
   createTask,
   inspectDownloadMetadata,
-  type MatchRules,
+  previewTaskClassification,
 } from "@/core/bridge/tauri-commands";
 import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore, type Category, type Tag } from "@/core/store/useDownloadStore";
-import { useToastStore } from "@/core/store/useToastStore";
 
 interface NewTaskModalProps {
   open: boolean;
@@ -31,51 +30,9 @@ function inferFileName(url: string) {
     const urlObj = new URL(url);
     const lastSegment = urlObj.pathname.split("/").filter(Boolean).at(-1);
     return lastSegment ? decodeURIComponent(lastSegment) : "download";
-  } catch (_) {
+  } catch {
     return "download";
   }
-}
-
-const normalizeRuleValues = (values?: string[]) =>
-  (values ?? [])
-    .map((value) => value.trim().toLowerCase())
-    .filter(Boolean);
-
-function rulesMatch(url: string, filename: string, rules?: MatchRules) {
-  if (!rules) return false;
-
-  const urlLower = url.toLowerCase();
-  const filenameLower = filename.toLowerCase();
-  const domains = normalizeRuleValues(rules.domains);
-  const extensions = normalizeRuleValues(rules.extensions);
-  const keywords = normalizeRuleValues(rules.name_keywords);
-
-  if (domains.length && !domains.some((domain) => urlLower.includes(domain))) return false;
-  if (
-    extensions.length &&
-    !extensions.some((extension) => {
-      const normalized = extension.startsWith(".") ? extension : `.${extension}`;
-      return filenameLower.endsWith(normalized);
-    })
-  ) {
-    return false;
-  }
-  if (keywords.length && !keywords.some((keyword) => filenameLower.includes(keyword))) return false;
-
-  return Boolean(domains.length || extensions.length || keywords.length);
-}
-
-function inferCategory(url: string, filename: string, categories: Category[]) {
-  return categories.find((category) => rulesMatch(url, filename, category.rules)) ?? null;
-}
-
-function inferTag(url: string, filename: string, tags: Tag[], categoryId: number | null) {
-  return (
-    tags.find((tag) => {
-      const categoryMatches = tag.categoryId == null || tag.categoryId === categoryId;
-      return categoryMatches && rulesMatch(url, filename, tag.rules);
-    }) ?? null
-  );
 }
 
 function formatBytes(bytes: number | null) {
@@ -116,17 +73,16 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
   const [filename, setFilename] = useState("");
   const [savePath, setSavePath] = useState("");
   const [categoryId, setCategoryId] = useState<number | null>(null);
+  const [categoryTouched, setCategoryTouched] = useState(false);
+  const [previewTagIds, setPreviewTagIds] = useState<number[]>([]);
   const [totalSize, setTotalSize] = useState<number | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
-  const [pathTouched, setPathTouched] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const addTask = useDownloadStore((state) => state.addTask);
-  const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
+  const categories = useDownloadStore((state) => state.categories);
   const settings = useAppSettingsStore((state) => state.settings);
   const loadSettings = useAppSettingsStore((state) => state.load);
-  const pushToast = useToastStore((state) => state.pushToast);
   const globalSaveDir = settings?.download.default_save_dir ?? "";
 
   const selectedCategory = useMemo(
@@ -134,53 +90,56 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     [categories, categoryId]
   );
   const matchedTag = useMemo(
-    () => inferTag(url.trim(), filename.trim(), tags, categoryId),
-    [url, filename, tags, categoryId]
+    () => tags.find((tag) => previewTagIds.includes(tag.id)) ?? null,
+    [previewTagIds, tags]
   );
   const ruleLabel = matchedTag?.name ?? selectedCategory?.name ?? "未分类";
 
-  const resolveDefaultSavePath = (
-    category?: Category | null,
-    tag?: Tag | null,
-    options?: { notify?: boolean }
+  const applyClassificationPreview = useCallback(async (
+    nextUrl: string,
+    nextFilename: string,
+    nextTotalSize: number | null,
+    nextCategoryId: number | null,
+    overrideCategory: boolean,
+    options?: { touchPath?: boolean }
   ) => {
-    const ruleSavePath = tag?.savePath?.trim() || category?.savePath?.trim();
-    if (ruleSavePath) return ruleSavePath;
+    const preview = await previewTaskClassification(
+      nextUrl,
+      nextFilename,
+      nextTotalSize,
+      nextCategoryId,
+      overrideCategory
+    );
 
-    if (options?.notify && category) {
-      pushToast({
-        title: "已使用全局下载目录",
-        description: `${tag?.name ?? category.name} 未指定下载目录，已回填全局默认路径。`,
-        variant: "warning",
-      });
+    setCategoryId(preview.category?.id ?? null);
+    setPreviewTagIds(preview.tags.map((tag) => tag.id));
+    if (options?.touchPath !== false) {
+      setSavePath(preview.save_path || globalSaveDir);
     }
+  }, [globalSaveDir]);
 
-    return globalSaveDir;
-  };
-
-  useEffect(() => {
-    if (settings || !open) return;
-    loadSettings().catch(console.error);
-  }, [loadSettings, open, settings]);
-
-  useEffect(() => {
-    if (open) return;
-
+  const resetForm = useCallback(() => {
     setStep("link");
     setUrl("");
     setFilename("");
     setSavePath("");
     setCategoryId(null);
+    setCategoryTouched(false);
+    setPreviewTagIds([]);
     setTotalSize(null);
     setMetadataLoading(false);
-    setPathTouched(false);
     setLoading(false);
-  }, [open]);
+  }, []);
+
+  const closeModal = useCallback(() => {
+    resetForm();
+    onOpenChange(false);
+  }, [onOpenChange, resetForm]);
 
   useEffect(() => {
-    if (step !== "details" || pathTouched) return;
-    setSavePath(resolveDefaultSavePath(selectedCategory, matchedTag));
-  }, [step, pathTouched, selectedCategory, matchedTag, globalSaveDir]);
+    if (settings || !open) return;
+    loadSettings().catch(console.error);
+  }, [loadSettings, open, settings]);
 
   const pasteFromClipboard = async () => {
     if (!navigator.clipboard) return;
@@ -200,14 +159,11 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     try {
       const metadata = await inspectDownloadMetadata(nextUrl);
       const nextFilename = metadata.filename?.trim() || fallbackFilename;
-      const nextCategory = inferCategory(nextUrl, nextFilename, categories);
-      const nextTag = inferTag(nextUrl, nextFilename, tags, nextCategory?.id ?? null);
+      const nextTotalSize = metadata.total_size ?? null;
 
       setFilename(nextFilename);
-      setCategoryId(nextCategory?.id ?? null);
-      setTotalSize(metadata.total_size ?? null);
-      setSavePath(resolveDefaultSavePath(nextCategory, nextTag, { notify: Boolean(nextCategory) }));
-      setPathTouched(false);
+      setTotalSize(nextTotalSize);
+      await applyClassificationPreview(nextUrl, nextFilename, nextTotalSize, null, false);
     } catch (err) {
       console.warn("Failed to inspect download metadata:", err);
       setTotalSize(null);
@@ -221,25 +177,26 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     if (!trimmedUrl) return;
 
     const fallbackFilename = inferFileName(trimmedUrl);
-    const nextCategory = inferCategory(trimmedUrl, fallbackFilename, categories);
-    const nextTag = inferTag(trimmedUrl, fallbackFilename, tags, nextCategory?.id ?? null);
 
     setFilename(fallbackFilename);
-    setCategoryId(nextCategory?.id ?? null);
-    setSavePath(resolveDefaultSavePath(nextCategory, nextTag, { notify: Boolean(nextCategory) }));
-    setPathTouched(false);
+    setCategoryTouched(false);
+    applyClassificationPreview(trimmedUrl, fallbackFilename, null, null, false).catch(console.error);
     setStep("details");
     inspectMetadata(trimmedUrl, fallbackFilename).catch(console.error);
   };
 
   const handleCategoryChange = (value: string) => {
     const nextCategoryId = value === NO_CATEGORY_VALUE ? null : Number(value);
-    const nextCategory = categories.find((category) => category.id === nextCategoryId) ?? null;
-    const nextTag = inferTag(url.trim(), filename.trim(), tags, nextCategoryId);
 
     setCategoryId(nextCategoryId);
-    setSavePath(resolveDefaultSavePath(nextCategory, nextTag, { notify: Boolean(nextCategory) }));
-    setPathTouched(false);
+    setCategoryTouched(true);
+    applyClassificationPreview(
+      url.trim(),
+      filename.trim() || inferFileName(url.trim()),
+      totalSize,
+      nextCategoryId,
+      true
+    ).catch(console.error);
   };
 
   const handleCreateTask = async () => {
@@ -247,20 +204,20 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
 
     setLoading(true);
     try {
-      const finalSavePath = savePath.trim() || resolveDefaultSavePath(selectedCategory, matchedTag);
+      const finalSavePath = savePath.trim() || globalSaveDir;
       const finalFilename = filename.trim() || inferFileName(url.trim());
-      const gid = await createTask(
+      await createTask(
         url.trim(),
         finalSavePath || undefined,
         finalFilename,
-        categoryId
+        categoryId,
+        categoryTouched,
+        totalSize
       );
 
-      addTask(gid, url.trim(), finalFilename);
-      useDownloadStore.getState().fetchTasks().catch(console.error);
+      await useDownloadStore.getState().fetchTasks();
 
-      setUrl("");
-      onOpenChange(false);
+      closeModal();
     } catch (err) {
       console.error("Failed to create download task:", err);
       alert(UI_TEXT.newTask.errorAlert);
@@ -280,7 +237,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : closeModal())}>
       <DialogContent
         variant="modal"
         className="border-[var(--border)] bg-[var(--card)] text-[var(--card-foreground)] sm:max-w-[46rem]"
@@ -374,7 +331,6 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
                     value={savePath}
                     onChange={(event) => {
                       setSavePath(event.target.value);
-                      setPathTouched(true);
                     }}
                     disabled={loading}
                     leadingIcon={<FolderOpen />}
@@ -421,7 +377,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={closeModal}
                   disabled={loading}
                 >
                   {UI_TEXT.newTask.cancel}
@@ -444,7 +400,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={closeModal}
                   disabled={loading}
                   className="min-w-28"
                 >
