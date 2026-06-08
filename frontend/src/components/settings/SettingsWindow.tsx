@@ -420,6 +420,64 @@ export default function SettingsWindow() {
                         </select>
                       </SettingsListItem>
                       <SettingsListItem
+                        title="单任务线程数"
+                        description="新建 HTTP/HTTPS 任务时传给 gosh-dl 的 max_connections，用于分段并行下载。"
+                      >
+                        <Slider
+                          min={1}
+                          max={16}
+                          value={draft.transfer.task_thread_count}
+                          onValueChange={(value) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              transfer: {
+                                ...prev.transfer,
+                                task_thread_count: value,
+                              },
+                            }))
+                          }
+                          valueText={`每个任务最多 ${draft.transfer.task_thread_count} 条连接`}
+                        />
+                      </SettingsListItem>
+                      <SettingsListItem
+                        title="最大下载重试次数"
+                        description="传给 gosh-dl 的 HTTP max_retries，网络波动或服务端临时错误时使用；该值会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。"
+                      >
+                        <Slider
+                          min={0}
+                          max={20}
+                          value={draft.transfer.max_download_retries}
+                          onValueChange={(value) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              transfer: {
+                                ...prev.transfer,
+                                max_download_retries: value,
+                              },
+                            }))
+                          }
+                          valueText={`最多重试 ${draft.transfer.max_download_retries} 次`}
+                        />
+                      </SettingsListItem>
+                      <SettingsListItem
+                        title="忽略 SSL 证书错误"
+                        description="允许 gosh-dl 接受无效 HTTPS 证书；该开关会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。仅建议在可信内网、自签证书源或临时排障时开启。"
+                        action={
+                          <Switch
+                            checked={draft.transfer.ignore_ssl_certificate}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                transfer: {
+                                  ...prev.transfer,
+                                  ignore_ssl_certificate: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
                         title={UI_TEXT.settings.downloadSpeedLimit}
                         description={UI_TEXT.settings.downloadSpeedLimitDesc}
                       >

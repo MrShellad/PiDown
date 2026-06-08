@@ -1,6 +1,29 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+type SettingsActionAlign = "title" | "start" | "center";
+
+function SettingsActionSlot({
+  action,
+  align,
+}: {
+  action: React.ReactNode;
+  align: SettingsActionAlign;
+}) {
+  return (
+    <div
+      className={cn(
+        "shrink-0",
+        align === "title" && "flex h-5 items-center",
+        align === "start" && "self-start",
+        align === "center" && "self-center"
+      )}
+    >
+      {action}
+    </div>
+  );
+}
+
 export function SettingsSectionCard({
   className,
   children,
@@ -37,7 +60,7 @@ export function SettingsSectionHeader({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {action ? <div className="shrink-0">{action}</div> : null}
+      {action ? <div className="flex h-6 shrink-0 items-center">{action}</div> : null}
     </div>
   );
 }
@@ -99,13 +122,36 @@ export function SettingsListItem({
   action,
   children,
   className,
+  actionAlign = "title",
+  childrenSpan = "content",
 }: {
   title: string;
   description?: string;
   action?: React.ReactNode;
   children?: React.ReactNode;
   className?: string;
+  actionAlign?: SettingsActionAlign;
+  childrenSpan?: "content" | "full";
 }) {
+  if (childrenSpan === "full") {
+    return (
+      <div className={cn("px-4 py-4", className)}>
+        <div className="flex items-start justify-between gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold leading-5 text-foreground">{title}</div>
+            {description ? (
+              <div className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                {description}
+              </div>
+            ) : null}
+          </div>
+          {action ? <SettingsActionSlot action={action} align={actionAlign} /> : null}
+        </div>
+        {children ? <div className="mt-4">{children}</div> : null}
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -122,7 +168,7 @@ export function SettingsListItem({
         ) : null}
         {children ? <div className="mt-4">{children}</div> : null}
       </div>
-      {action ? <div className="shrink-0 self-center">{action}</div> : null}
+      {action ? <SettingsActionSlot action={action} align={actionAlign} /> : null}
     </div>
   );
 }

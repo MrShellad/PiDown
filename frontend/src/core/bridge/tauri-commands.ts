@@ -91,6 +91,9 @@ export interface AppSettings {
   };
   transfer: {
     max_concurrent_downloads: number;
+    task_thread_count: number;
+    max_download_retries: number;
+    ignore_ssl_certificate: boolean;
     download_speed_limit_kib: number | null;
     upload_speed_limit_kib: number | null;
     speed_display_unit: SpeedDisplayUnit;
@@ -247,6 +250,9 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
     },
     transfer: {
       max_concurrent_downloads: 3,
+      task_thread_count: 16,
+      max_download_retries: 5,
+      ignore_ssl_certificate: false,
       download_speed_limit_kib: null,
       upload_speed_limit_kib: null,
       speed_display_unit: "auto",

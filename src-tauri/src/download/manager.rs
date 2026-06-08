@@ -31,6 +31,20 @@ impl DownloadManager {
         self.engine.set_config(config).map_err(|e| e.to_string())
     }
 
+    /// Set HTTP defaults used by gosh-dl for newly scheduled HTTP downloads.
+    pub fn set_http_options(
+        &self,
+        max_connections_per_download: usize,
+        max_retries: usize,
+        accept_invalid_certs: bool,
+    ) -> Result<(), String> {
+        let mut config = self.engine.get_config();
+        config.max_connections_per_download = max_connections_per_download;
+        config.http.max_retries = max_retries;
+        config.http.accept_invalid_certs = accept_invalid_certs;
+        self.engine.set_config(config).map_err(|e| e.to_string())
+    }
+
     /// Get the current engine configuration
     pub fn get_config(&self) -> EngineConfig {
         self.engine.get_config()

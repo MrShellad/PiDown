@@ -1,16 +1,22 @@
-use crate::core::settings::{AppSettings, CloseAction, APP_SETTINGS_KEY};
+use crate::core::settings::{AppSettings, AppSettingsDocument, CloseAction, APP_SETTINGS_VERSION};
 use crate::download::DownloadManager;
 
 impl super::AppState {
     pub(super) fn persist_settings(&self) -> Result<(), String> {
         let settings = self.settings.read().unwrap().clone();
-        let encoded = serde_json::to_string(&settings).map_err(|e| e.to_string())?;
-        self.db
-            .set_setting(APP_SETTINGS_KEY, &encoded)
-            .map_err(|e| e.to_string())?;
-        self.db
-            .set_setting("default_save_dir", &settings.download.default_save_dir)
-            .map_err(|e| e.to_string())
+        let created_at = *self.settings_created_at.read().unwrap();
+        let document = AppSettingsDocument {
+            version: APP_SETTINGS_VERSION,
+            created_at,
+            settings,
+        };
+        let encoded = serde_json::to_string_pretty(&document).map_err(|e| e.to_string())?;
+
+        if let Some(parent) = self.settings_file.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+
+        std::fs::write(&self.settings_file, encoded).map_err(|e| e.to_string())
     }
 
     pub(super) fn ensure_default_save_dir(&self) -> Result<(), String> {
@@ -23,6 +29,11 @@ impl super::AppState {
         let manager = DownloadManager::new(self.engine.inner().clone());
 
         manager.set_concurrency_limit(settings.transfer.max_concurrent_downloads as usize)?;
+        manager.set_http_options(
+            settings.transfer.task_thread_count as usize,
+            settings.transfer.max_download_retries as usize,
+            settings.transfer.ignore_ssl_certificate,
+        )?;
         manager.set_speed_limits(
             settings
                 .transfer
@@ -51,9 +62,7 @@ impl super::AppState {
             settings.download.default_save_dir.trim().to_string()
         };
 
-        if settings.transfer.max_concurrent_downloads == 0 {
-            settings.transfer.max_concurrent_downloads = 1;
-        }
+        settings.transfer.normalize();
 
         std::fs::create_dir_all(&settings.download.default_save_dir).map_err(|e| e.to_string())?;
 

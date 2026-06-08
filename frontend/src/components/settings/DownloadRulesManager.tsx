@@ -377,6 +377,7 @@ export default function DownloadRulesManager() {
         <SettingsListItem
           title={UI_TEXT.settings.categoryManager}
           description={UI_TEXT.settings.categoryManagerDesc}
+          childrenSpan="full"
           action={
             <Button size="sm" leftIcon={<Plus />} onClick={openCreateCategory}>
               {UI_TEXT.settings.addCategory}
@@ -416,6 +417,7 @@ export default function DownloadRulesManager() {
         <SettingsListItem
           title={UI_TEXT.settings.tagManager}
           description={UI_TEXT.settings.tagManagerDesc}
+          childrenSpan="full"
           action={
             <Button size="sm" leftIcon={<Plus />} onClick={openCreateTag}>
               {UI_TEXT.settings.addTag}

@@ -1,10 +1,11 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { motion, useReducedMotion } from "framer-motion";
 import { Switch as SwitchPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
 
 const switchTrackVariants = cva(
-  "group inline-flex shrink-0 cursor-pointer items-center rounded-full border outline-none transition-colors focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[state=checked]:border-primary/70 data-[state=checked]:bg-primary/90 data-[state=unchecked]:border-border data-[state=unchecked]:bg-secondary/70",
+  "relative inline-flex shrink-0 cursor-pointer items-center overflow-hidden rounded-full border border-transparent bg-[#D1D5DB]",
   {
     variants: {
       size: {
@@ -20,7 +21,7 @@ const switchTrackVariants = cva(
 );
 
 const switchThumbVariants = cva(
-  "pointer-events-none block rounded-full bg-white shadow-sm transition-transform data-[state=checked]:translate-x-[calc(100%-0.125rem)] data-[state=unchecked]:translate-x-0.5",
+  "pointer-events-none relative z-10 block rounded-full bg-white shadow-sm",
   {
     variants: {
       size: {
@@ -35,6 +36,12 @@ const switchThumbVariants = cva(
   }
 );
 
+const switchMotionMetrics = {
+  sm: { offX: 2, onX: 18, thumb: 16, pressed: 20 },
+  default: { offX: 2, onX: 22, thumb: 20, pressed: 24 },
+  lg: { offX: 2, onX: 22, thumb: 24, pressed: 28 },
+} as const;
+
 interface SwitchProps
   extends Omit<React.ComponentProps<typeof SwitchPrimitive.Root>, "onChange">,
     VariantProps<typeof switchTrackVariants> {
@@ -44,7 +51,12 @@ interface SwitchProps
 
 export function Switch({
   checked,
+  defaultChecked,
   onCheckedChange,
+  onPointerDown,
+  onPointerUp,
+  onPointerCancel,
+  onPointerLeave,
   className,
   disabled,
   label,
@@ -52,25 +64,118 @@ export function Switch({
   size,
   ...props
 }: SwitchProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const [pressed, setPressed] = React.useState(false);
+  const [internalChecked, setInternalChecked] = React.useState(Boolean(defaultChecked));
+  const isControlled = checked !== undefined;
+  const resolvedChecked = isControlled ? Boolean(checked) : internalChecked;
+  const state = resolvedChecked ? "checked" : "unchecked";
+  const resolvedSize = size ?? "default";
+  const metrics = switchMotionMetrics[resolvedSize];
+  const thumbX =
+    resolvedChecked && pressed
+      ? metrics.onX - (metrics.pressed - metrics.thumb)
+      : resolvedChecked
+        ? metrics.onX
+        : metrics.offX;
+  const springTransition = prefersReducedMotion
+    ? { duration: 0 }
+    : { type: "spring" as const, stiffness: 520, damping: 32, mass: 0.75 };
+  const colorTransition = prefersReducedMotion ? { duration: 0 } : { duration: 0.16 };
+  const trackColor = resolvedChecked ? "#22C55E" : "#D1D5DB";
+  const hoverTrackColor = resolvedChecked ? "#16A34A" : "#BDC4CF";
+
+  const handleCheckedChange = (nextChecked: boolean) => {
+    if (!isControlled) {
+      setInternalChecked(nextChecked);
+    }
+    onCheckedChange?.(nextChecked);
+  };
+
   return (
     <SwitchPrimitive.Root
       data-slot="switch"
+      data-state={state}
       aria-label={label}
-      checked={checked}
+      checked={resolvedChecked}
+      defaultChecked={defaultChecked}
       disabled={disabled}
-      onCheckedChange={onCheckedChange}
+      onCheckedChange={handleCheckedChange}
+      onPointerDown={(event) => {
+        setPressed(true);
+        onPointerDown?.(event);
+      }}
+      onPointerUp={(event) => {
+        setPressed(false);
+        onPointerUp?.(event);
+      }}
+      onPointerCancel={(event) => {
+        setPressed(false);
+        onPointerCancel?.(event);
+      }}
+      onPointerLeave={(event) => {
+        setPressed(false);
+        onPointerLeave?.(event);
+      }}
       className={cn(
-        "inline-flex items-center gap-3 rounded-[var(--radius-lg)] text-left",
+        "group/switch inline-flex items-center gap-3 rounded-full text-left outline-none focus-visible:ring-2 focus-visible:ring-[#22C55E]/70 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed disabled:opacity-45",
         className
       )}
       {...props}
     >
-      <span aria-hidden="true" className={cn(switchTrackVariants({ size }))}>
-        <SwitchPrimitive.Thumb
-          data-slot="switch-thumb"
-          className={cn(switchThumbVariants({ size }))}
-        />
-      </span>
+      <motion.span
+        aria-hidden="true"
+        data-slot="switch-track"
+        data-state={state}
+        className={cn(switchTrackVariants({ size }))}
+        animate={{
+          backgroundColor: trackColor,
+          boxShadow:
+            !disabled && pressed
+              ? "0 0 0 4px rgba(34, 197, 94, 0.18)"
+              : "0 0 0 0 rgba(34, 197, 94, 0)",
+        }}
+        whileHover={
+          disabled
+            ? undefined
+            : {
+                backgroundColor: hoverTrackColor,
+                boxShadow: "0 0 0 3px rgba(34, 197, 94, 0.14)",
+              }
+        }
+        whileTap={disabled || prefersReducedMotion ? undefined : { scale: 0.98 }}
+        transition={colorTransition}
+      >
+        <motion.span
+          className="pointer-events-none absolute left-1.5 text-[10px] font-bold leading-none text-white/90"
+          animate={{ opacity: resolvedChecked ? 1 : 0, scale: resolvedChecked ? 1 : 0.85 }}
+          transition={springTransition}
+        >
+          |
+        </motion.span>
+        <motion.span
+          className="pointer-events-none absolute right-1.5 text-[10px] font-bold leading-none text-slate-500/80"
+          animate={{ opacity: resolvedChecked ? 0 : 1, scale: resolvedChecked ? 0.85 : 1 }}
+          transition={springTransition}
+        >
+          {"\u25CB"}
+        </motion.span>
+        <SwitchPrimitive.Thumb asChild>
+          <motion.span
+            data-slot="switch-thumb"
+            data-state={state}
+            className={cn(switchThumbVariants({ size }))}
+            animate={{
+              x: thumbX,
+              width: pressed ? metrics.pressed : metrics.thumb,
+              boxShadow: resolvedChecked
+                ? "0 3px 10px rgba(15, 23, 42, 0.18)"
+                : "0 1px 4px rgba(15, 23, 42, 0.16)",
+            }}
+            transition={springTransition}
+          />
+        </SwitchPrimitive.Thumb>
+      </motion.span>
       {(label || description) && (
         <span className="flex min-w-0 flex-col">
           {label && <span className="text-sm font-semibold leading-5 text-foreground">{label}</span>}

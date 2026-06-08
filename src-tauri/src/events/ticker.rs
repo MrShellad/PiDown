@@ -1,5 +1,5 @@
-use crate::core::state::AppState;
 use crate::core::state::task_format::{format_eta, format_speed};
+use crate::core::state::AppState;
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;

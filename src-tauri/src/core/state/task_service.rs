@@ -2,7 +2,7 @@ use super::file_actions::cleanup_task_files;
 use super::task_format::{format_eta, format_speed, sanitize_filename};
 use crate::core::categories::{infer_category, infer_tags};
 use crate::core::models::{DbTask, TaskClassificationPreview, TaskOverview};
-use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol};
+use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol, HttpTaskOptions};
 use chrono::Utc;
 use gosh_dl::DownloadId;
 use std::path::Path;
@@ -69,14 +69,13 @@ impl super::AppState {
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| sanitize_filename(inferred_name));
 
-        let preview =
-            self.preview_task_classification(
-                url,
-                &name,
-                total_size,
-                category_id_override,
-                category_override,
-            )?;
+        let preview = self.preview_task_classification(
+            url,
+            &name,
+            total_size,
+            category_id_override,
+            category_override,
+        )?;
 
         let save_dir = match path {
             Some(p) if !p.is_empty() => p.to_string(),
@@ -88,7 +87,14 @@ impl super::AppState {
         let id = match protocol {
             DownloadProtocol::Http | DownloadProtocol::Https => {
                 self.engine
-                    .add_http(url, Path::new(&save_dir), Some(name.clone()))
+                    .add_http(
+                        url,
+                        Path::new(&save_dir),
+                        Some(name.clone()),
+                        HttpTaskOptions {
+                            max_connections: settings.transfer.task_thread_count as usize,
+                        },
+                    )
                     .await?
             }
             DownloadProtocol::Magnet => self.engine.add_magnet(url, Path::new(&save_dir)).await?,
@@ -286,14 +292,21 @@ impl super::AppState {
             let mut downloaded_bytes = db_task.completed_size;
             let mut total_bytes = db_task.total_size;
 
-            let speed_display_unit = self.settings.read().unwrap().transfer.speed_display_unit.clone();
+            let speed_display_unit = self
+                .settings
+                .read()
+                .unwrap()
+                .transfer
+                .speed_display_unit
+                .clone();
 
             if let Some(gid_id) = DownloadId::from_gid(&gid) {
                 if let Some(engine_status) = self.engine.status(gid_id) {
                     downloaded_bytes = engine_status.progress.completed_size;
                     total_bytes = engine_status.progress.total_size.unwrap_or(0);
                     progress = engine_status.progress.percentage();
-                    speed = format_speed(engine_status.progress.download_speed, &speed_display_unit);
+                    speed =
+                        format_speed(engine_status.progress.download_speed, &speed_display_unit);
                     eta = format_eta(engine_status.progress.eta_seconds);
                 } else if total_bytes > 0 {
                     progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;

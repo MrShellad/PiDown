@@ -19,13 +19,33 @@ pub struct EngineWrapper {
     user_agent: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct HttpTaskOptions {
+    pub max_connections: usize,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct EngineHttpConfig {
+    pub max_connections_per_download: usize,
+    pub max_retries: usize,
+    pub accept_invalid_certs: bool,
+}
+
 impl EngineWrapper {
     /// Initialize the wrapper. If `db_dir` is provided, use it for gosh-dl internal SQLite storage.
-    pub async fn new(db_dir: Option<&Path>) -> Result<Self, String> {
+    pub async fn new(
+        db_dir: Option<&Path>,
+        http_config: Option<EngineHttpConfig>,
+    ) -> Result<Self, String> {
         let mut config = EngineConfig::default();
         if let Some(dir) = db_dir {
             let gosh_db = dir.join("gosh_dl.db");
             config = config.database_path(gosh_db);
+        }
+        if let Some(http_config) = http_config {
+            config.max_connections_per_download = http_config.max_connections_per_download;
+            config.http.max_retries = http_config.max_retries;
+            config.http.accept_invalid_certs = http_config.accept_invalid_certs;
         }
         let probe_pool = ConnectionPool::new(&config.http)
             .map_err(|e| format!("Failed to initialize gosh-dl HTTP probe: {}", e))?;
@@ -64,10 +84,12 @@ impl EngineWrapper {
         url: &str,
         save_dir: &Path,
         filename: Option<String>,
+        task_options: HttpTaskOptions,
     ) -> Result<DownloadId, String> {
         let mut opts = DownloadOptions::default();
         opts.save_dir = Some(save_dir.to_path_buf());
         opts.filename = filename;
+        opts.max_connections = Some(task_options.max_connections);
 
         self.inner
             .add_http(url, opts)
