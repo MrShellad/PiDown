@@ -317,7 +317,7 @@ export default function TaskTableRow({
             "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/80 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-card"
           )}
-          style={{ minWidth: tableWidth }}
+          style={{ width: "100%", minWidth: tableWidth }}
         >
       <motion.div
         aria-hidden="true"
@@ -412,7 +412,10 @@ export default function TaskTableRow({
           <div
             key={column.id}
             data-slot="task-table-cell"
-            className="relative flex min-h-17 shrink-0 items-center px-4"
+            className={cn(
+              "relative flex min-h-17 shrink-0 items-center px-4",
+              column.id === "name" && "grow"
+            )}
             style={{ width: column.width }}
           >
             {index > 0 ? (

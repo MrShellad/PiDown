@@ -2,7 +2,7 @@ use crate::core::models::{
     CategoryInput, DbCategory, DbTag, TagInput, TaskClassificationPreview, TaskOverview,
 };
 use crate::core::state::task_format::sanitize_filename;
-use crate::core::state::AppState;
+use crate::core::state::{AppState, TaskCreateOptions};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -33,6 +33,11 @@ pub async fn create_task(
     category_override: Option<bool>,
     total_size: Option<u64>,
     overwrite: Option<bool>,
+    max_download_speed_kib: Option<u64>,
+    max_connections: Option<u32>,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Option<Vec<String>>,
 ) -> Result<String, String> {
     let should_overwrite = overwrite.unwrap_or(false);
     if !should_overwrite {
@@ -51,6 +56,13 @@ pub async fn create_task(
             category_id,
             category_override.unwrap_or(false),
             total_size,
+            TaskCreateOptions {
+                max_connections,
+                max_download_speed_kib,
+                user_agent,
+                referer,
+                cookies: cookies.unwrap_or_default(),
+            },
         )
         .await
 }

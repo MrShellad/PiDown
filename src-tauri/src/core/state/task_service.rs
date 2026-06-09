@@ -8,6 +8,33 @@ use gosh_dl::{DownloadId, DownloadState, DownloadStatus};
 use std::path::Path;
 use uuid::Uuid;
 
+#[derive(Debug, Clone, Default)]
+pub struct TaskCreateOptions {
+    pub max_connections: Option<u32>,
+    pub max_download_speed_kib: Option<u64>,
+    pub user_agent: Option<String>,
+    pub referer: Option<String>,
+    pub cookies: Vec<String>,
+}
+
+fn normalize_optional_header_value(value: Option<String>) -> Option<String> {
+    value
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+}
+
+fn normalize_cookies(cookies: Vec<String>) -> Vec<String> {
+    cookies
+        .into_iter()
+        .map(|cookie| cookie.trim().trim_end_matches(';').to_string())
+        .filter(|cookie| !cookie.is_empty())
+        .collect()
+}
+
+fn speed_limit_kib_to_bps(value: Option<u64>) -> Option<u64> {
+    value.and_then(|value| (value > 0).then(|| value.saturating_mul(1024)))
+}
+
 impl super::AppState {
     pub fn reconcile_download_tasks(&self) {
         let db_tasks = match self.db.get_all_tasks() {
@@ -167,6 +194,7 @@ impl super::AppState {
         category_id_override: Option<i64>,
         category_override: bool,
         total_size: Option<u64>,
+        task_options: TaskCreateOptions,
     ) -> Result<String, String> {
         let protocol = detect_protocol(url);
         let settings = self.settings.read().unwrap().clone();
@@ -202,13 +230,25 @@ impl super::AppState {
 
         let id = match protocol {
             DownloadProtocol::Http | DownloadProtocol::Https => {
+                let max_connections = task_options
+                    .max_connections
+                    .unwrap_or(settings.transfer.task_thread_count)
+                    .clamp(1, crate::core::settings::MAX_TASK_THREAD_COUNT)
+                    as usize;
+
                 self.engine
                     .add_http(
                         url,
                         Path::new(&save_dir),
                         Some(name.clone()),
                         HttpTaskOptions {
-                            max_connections: settings.transfer.task_thread_count as usize,
+                            max_connections,
+                            max_download_speed: speed_limit_kib_to_bps(
+                                task_options.max_download_speed_kib,
+                            ),
+                            user_agent: normalize_optional_header_value(task_options.user_agent),
+                            referer: normalize_optional_header_value(task_options.referer),
+                            cookies: normalize_cookies(task_options.cookies),
                         },
                     )
                     .await?
@@ -407,6 +447,7 @@ impl super::AppState {
                 task.category_id,
                 task.category_id.is_some(),
                 (task.total_size > 0).then_some(task.total_size),
+                TaskCreateOptions::default(),
             )
             .await?;
         self.db.delete_task(gid).map_err(|e| e.to_string())?;

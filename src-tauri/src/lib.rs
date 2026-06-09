@@ -58,6 +58,7 @@ pub fn run() {
             commands::preview_task_classification,
             commands::read_clipboard_text,
             commands::write_clipboard_text,
+            commands::pick_download_directory,
             commands::pause_task,
             commands::resume_task,
             commands::cancel_task,

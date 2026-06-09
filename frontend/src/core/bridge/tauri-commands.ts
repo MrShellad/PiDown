@@ -8,6 +8,14 @@ export interface TaskConfig {
   categoryId?: number | null;
 }
 
+export interface TaskAdvancedOptions {
+  maxDownloadSpeedKib?: number | null;
+  maxConnections?: number | null;
+  userAgent?: string | null;
+  referer?: string | null;
+  cookies?: string[];
+}
+
 export interface DownloadMetadata {
   filename: string | null;
   total_size: number | null;
@@ -120,7 +128,8 @@ export async function createTask(
   categoryId?: number | null,
   categoryOverride = false,
   totalSize?: number | null,
-  overwrite = false
+  overwrite = false,
+  advancedOptions: TaskAdvancedOptions = {}
 ): Promise<string> {
   return invoke<string>("create_task", {
     url,
@@ -130,6 +139,11 @@ export async function createTask(
     categoryOverride,
     totalSize,
     overwrite,
+    maxDownloadSpeedKib: advancedOptions.maxDownloadSpeedKib ?? null,
+    maxConnections: advancedOptions.maxConnections ?? null,
+    userAgent: advancedOptions.userAgent ?? null,
+    referer: advancedOptions.referer ?? null,
+    cookies: advancedOptions.cookies ?? [],
   });
 }
 
@@ -150,6 +164,10 @@ export async function readClipboardText(): Promise<string> {
 
 export async function writeClipboardText(text: string): Promise<void> {
   return invoke<void>("write_clipboard_text", { text });
+}
+
+export async function pickDownloadDirectory(defaultPath?: string): Promise<string | null> {
+  return invoke<string | null>("pick_download_directory", { defaultPath });
 }
 
 export async function previewTaskClassification(

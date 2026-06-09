@@ -4,6 +4,8 @@ mod settings_state;
 pub(crate) mod task_format;
 mod task_service;
 
+pub use task_service::TaskCreateOptions;
+
 use crate::core::settings::{
     AppSettings, AppSettingsDocument, APP_SETTINGS_FILE_NAME, LEGACY_APP_SETTINGS_KEY,
 };

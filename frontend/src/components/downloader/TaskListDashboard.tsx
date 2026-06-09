@@ -459,11 +459,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
               </span>
             </div>
 
-            <div className="flex min-h-0 min-w-max flex-1 flex-col">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div
                 className="flex min-h-0 flex-1 flex-col overflow-visible rounded-lg"
                 style={{
-                  width: tableShellMinWidth,
+                  width: "100%",
+                  minWidth: tableShellMinWidth,
                   paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
                   paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
                 }}
@@ -488,7 +489,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   {filteredGids.length === 0 ? (
                     <motion.div
                       className="flex h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-border font-mono text-sm text-muted-foreground"
-                      style={{ width: tableWidth }}
+                      style={{ width: "100%", minWidth: tableWidth }}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.18, ease: "easeOut" }}
@@ -504,7 +505,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       )}
                     </motion.div>
                   ) : (
-                    <div className="relative" style={{ width: tableWidth, height: virtualHeight }}>
+                    <div className="relative" style={{ width: "100%", minWidth: tableWidth, height: virtualHeight }}>
                       <div aria-hidden="true" style={{ height: virtualTopSpacer }} />
                       <Reorder.Group
                         as="div"
@@ -512,7 +513,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         values={visibleGids}
                         onReorder={() => undefined}
                         className="flex flex-col gap-2"
-                        style={{ width: tableWidth }}
+                        style={{ width: "100%", minWidth: tableWidth }}
                       >
                         <AnimatePresence initial={false} mode="popLayout">
                           {visibleGids.map((gid) => {
@@ -528,7 +529,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                 dragListener={false}
                               className="list-none overflow-hidden"
                                 style={{
-                                  width: tableWidth,
+                                  width: "100%",
+                                  minWidth: tableWidth,
                                   pointerEvents: isExiting ? "none" : "auto",
                                 }}
                                 layout="position"

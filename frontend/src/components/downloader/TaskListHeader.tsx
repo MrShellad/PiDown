@@ -95,7 +95,7 @@ function HeaderCell({
   showSeparator?: boolean
   onSort: (id: TaskTableColumnId) => void
   onResizeStart: (event: React.PointerEvent<HTMLButtonElement>, column: TaskTableColumnState) => void
-  onDragStart: (event: React.DragEvent<HTMLButtonElement>, id: TaskTableColumnId) => void
+  onDragStart: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
   onDragOver: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
   onDrop: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
   onDragEnd: () => void
@@ -107,12 +107,16 @@ function HeaderCell({
   return (
     <div
       data-slot="task-list-header-cell"
+      draggable
+      aria-label={`${meta.label} 拖拽调整列顺序`}
+      onDragStart={(event) => onDragStart(event, column.id)}
       onDragOver={(event) => onDragOver(event, column.id)}
       onDrop={(event) => onDrop(event, column.id)}
+      onDragEnd={onDragEnd}
       className={cn(
-        "relative flex h-full shrink-0 items-center justify-start px-4 text-sm font-medium leading-5 text-muted-foreground transition-colors",
+        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center justify-start px-4 text-sm font-medium leading-5 text-muted-foreground transition-colors active:cursor-grabbing",
         "hover:bg-muted/35 hover:text-foreground",
-        meta.sortable && "cursor-pointer",
+        column.id === "name" && "grow",
         isDragging && "bg-muted/50 opacity-70"
       )}
       style={{ width: column.width, minWidth: meta.minWidth }}
@@ -126,17 +130,12 @@ function HeaderCell({
           className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-divider-glow"
         />
       ) : null}
-      <button
-        type="button"
-        draggable
-        aria-label={`${meta.label} 拖拽调整列顺序`}
-        className="mr-1 flex size-5 shrink-0 cursor-grab items-center justify-center rounded-sm opacity-45 transition-opacity hover:opacity-80 active:cursor-grabbing"
-        onClick={(event) => event.stopPropagation()}
-        onDragStart={(event) => onDragStart(event, column.id)}
-        onDragEnd={onDragEnd}
+      <span
+        aria-hidden="true"
+        className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-45 transition-opacity group-hover/header-cell:opacity-80"
       >
         <GripVertical className="size-3.5" />
-      </button>
+      </span>
       {meta.sortable ? (
         <SortIcon
           className={cn(
@@ -150,6 +149,9 @@ function HeaderCell({
         type="button"
         aria-label={`${meta.label} 调整列宽`}
         className="absolute right-0 top-1/2 h-7 w-3 -translate-y-1/2 cursor-col-resize rounded-full outline-none transition-colors hover:bg-primary/20 focus-visible:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring/40"
+        draggable={false}
+        onClick={(event) => event.stopPropagation()}
+        onDragStart={(event) => event.preventDefault()}
         onPointerDown={(event) => onResizeStart(event, column)}
       />
     </div>
@@ -175,7 +177,14 @@ export default function TaskListHeader({
     startX: number
     startWidth: number
   } | null>(null)
+  const suppressSortClickRef = useRef(false)
   const [activeDragId, setActiveDragId] = useState<TaskTableColumnId | null>(null)
+
+  const releaseSortSuppression = () => {
+    window.setTimeout(() => {
+      suppressSortClickRef.current = false
+    }, 0)
+  }
 
   const handleResizeStart = (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -209,14 +218,16 @@ export default function TaskListHeader({
     window.addEventListener("pointerup", handlePointerUp)
   }
 
-  const handleDragStart = (event: React.DragEvent<HTMLButtonElement>, id: TaskTableColumnId) => {
+  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => {
     if (resizeRef.current) {
       event.preventDefault()
       return
     }
 
+    suppressSortClickRef.current = true
     setActiveDragId(id)
     event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("application/x-pidownloader-column", id)
     event.dataTransfer.setData("text/plain", id)
   }
 
@@ -227,10 +238,24 @@ export default function TaskListHeader({
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: TaskTableColumnId) => {
     event.preventDefault()
-    const sourceId = event.dataTransfer.getData("text/plain") as TaskTableColumnId
+    event.stopPropagation()
+    const sourceId =
+      (event.dataTransfer.getData("application/x-pidownloader-column") ||
+        event.dataTransfer.getData("text/plain")) as TaskTableColumnId
 
     if (sourceId) moveColumn(sourceId, targetId)
     setActiveDragId(null)
+    releaseSortSuppression()
+  }
+
+  const handleDragEnd = () => {
+    setActiveDragId(null)
+    releaseSortSuppression()
+  }
+
+  const handleSort = (id: TaskTableColumnId) => {
+    if (suppressSortClickRef.current) return
+    toggleSortColumn(id)
   }
 
   return (
@@ -241,7 +266,7 @@ export default function TaskListHeader({
         embedded ? "rounded-lg bg-card/95 shadow-none" : "rounded-lg bg-card/95 shadow-surface-raised",
         className
       )}
-      style={{ width: tableWidth, minWidth: tableWidth }}
+      style={{ width: "100%", minWidth: tableWidth }}
     >
       <div
         className="flex h-full shrink-0 items-center justify-center"
@@ -281,12 +306,12 @@ export default function TaskListHeader({
             activeDragId={activeDragId}
             sort={sort}
             showSeparator={index > 0}
-            onSort={toggleSortColumn}
+            onSort={handleSort}
             onResizeStart={handleResizeStart}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDrop={handleDrop}
-            onDragEnd={() => setActiveDragId(null)}
+            onDragEnd={handleDragEnd}
           />
         ))}
       </div>

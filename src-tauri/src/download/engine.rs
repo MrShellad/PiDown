@@ -22,6 +22,10 @@ pub struct EngineWrapper {
 #[derive(Debug, Clone)]
 pub struct HttpTaskOptions {
     pub max_connections: usize,
+    pub max_download_speed: Option<u64>,
+    pub user_agent: Option<String>,
+    pub referer: Option<String>,
+    pub cookies: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -90,6 +94,10 @@ impl EngineWrapper {
         opts.save_dir = Some(save_dir.to_path_buf());
         opts.filename = filename;
         opts.max_connections = Some(task_options.max_connections);
+        opts.max_download_speed = task_options.max_download_speed;
+        opts.user_agent = task_options.user_agent;
+        opts.referer = task_options.referer;
+        opts.cookies = (!task_options.cookies.is_empty()).then_some(task_options.cookies);
 
         self.inner
             .add_http(url, opts)
