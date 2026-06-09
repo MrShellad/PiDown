@@ -1,8 +1,7 @@
 import { useState } from "react"
-import { AlertTriangle, FileText, FolderOpen, Pause, Play, RefreshCw, Trash2 } from "lucide-react"
+import { FileText, FolderOpen, Pause, Play, RefreshCw, Trash2 } from "lucide-react"
 import { motion } from "motion/react"
 
-import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   ContextMenu,
@@ -12,15 +11,6 @@ import {
   ContextMenuShortcut,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { IconPreview } from "@/components/ui/icon-picker"
 import { useTaskSpeed } from "@/core/hooks/useTaskSpeed"
 import { UI_TEXT } from "@/core/locale"
@@ -31,13 +21,17 @@ import {
 } from "@/core/store/useTaskTableStore"
 import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
 import { cn } from "@/lib/utils"
+import TaskDeleteConfirmDialog from "./TaskDeleteConfirmDialog"
 
 interface TaskTableRowProps {
   gid: string
   animateEntry?: boolean
+  taskSnapshot?: Task
   selected?: boolean
+  detailsOpen?: boolean
   onSelect?: (gid: string) => void
   onContextSelect?: (gid: string) => void
+  onOpenDetails?: (gid: string) => void
 }
 
 function statusText(status: Task["status"]) {
@@ -52,6 +46,23 @@ function statusText(status: Task["status"]) {
     default:
       return UI_TEXT.taskCard.downloading
   }
+}
+
+function PreparingStatus() {
+  return (
+    <span
+      className="inline-flex min-w-0 items-center gap-2 truncate font-medium text-primary"
+      title={UI_TEXT.taskCard.preparingHint}
+    >
+      <motion.span
+        aria-hidden="true"
+        className="size-2 rounded-full bg-primary"
+        animate={{ scale: [0.85, 1.25, 0.85], opacity: [0.45, 1, 0.45] }}
+        transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+      />
+      <span className="truncate">{UI_TEXT.taskCard.preparing}</span>
+    </span>
+  )
 }
 
 function formatCreatedAt(timestamp?: number) {
@@ -100,24 +111,51 @@ function TaskContextMenuTitle({ name }: { name: string }) {
 function NameCell({
   task,
   category,
+  detailsOpen = false,
+  onOpenDetails,
 }: {
   task: Task
   category?: Category
+  detailsOpen?: boolean
+  onOpenDetails?: () => void
 }) {
   const categoryColor = category?.color ?? "var(--muted-foreground)"
+  const stopRowSelection = (event: React.SyntheticEvent) => {
+    event.stopPropagation()
+  }
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      <motion.span
+      <motion.button
+        type="button"
         layout
-        className="flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55"
+        className={cn(
+          "flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
+          detailsOpen && "border-primary/50 bg-primary/10 shadow-surface-soft"
+        )}
         style={{ color: categoryColor }}
         whileHover={{ y: -1, scale: 1.04 }}
         transition={{ duration: 0.16, ease: "easeOut" }}
-        title={category?.name ?? "未分类"}
+        aria-controls="task-details-sheet"
+        aria-expanded={detailsOpen}
+        title={`查看任务详情：${category?.name ?? "未分类"}`}
+        aria-label={`查看任务详情：${task.name}`}
+        onPointerDown={stopRowSelection}
+        onMouseDown={stopRowSelection}
+        onDoubleClick={stopRowSelection}
+        onContextMenu={stopRowSelection}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.stopPropagation()
+          }
+        }}
+        onClick={(event) => {
+          event.stopPropagation()
+          onOpenDetails?.()
+        }}
       >
         <IconPreview value={category?.icon ?? "folder"} color={categoryColor} className="size-5" />
-      </motion.span>
+      </motion.button>
       <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold leading-5 text-foreground">
           {task.name}
@@ -159,6 +197,7 @@ function Cell({
   etaStr,
   downloadedStr,
   totalStr,
+  preparing,
 }: {
   id: TaskTableColumnId
   task: Task
@@ -166,6 +205,7 @@ function Cell({
   etaStr: string
   downloadedStr: string
   totalStr: string
+  preparing: boolean
 }) {
   switch (id) {
     case "size":
@@ -175,6 +215,8 @@ function Cell({
         </span>
       )
     case "status":
+      if (preparing) return <PreparingStatus />
+
       return (
         <span
           className={cn(
@@ -189,7 +231,14 @@ function Cell({
         </span>
       )
     case "speed":
-      return <span className="truncate tabular-nums text-muted-foreground">{speedStr}</span>
+      return (
+        <span
+          className="truncate tabular-nums text-muted-foreground"
+          title={preparing ? UI_TEXT.taskCard.preparingHint : undefined}
+        >
+          {preparing ? UI_TEXT.taskCard.preparing : speedStr}
+        </span>
+      )
     case "eta":
       return <span className="truncate tabular-nums text-muted-foreground">{etaStr}</span>
     case "createdAt":
@@ -209,14 +258,16 @@ function Cell({
 export default function TaskTableRow({
   gid,
   animateEntry = false,
+  taskSnapshot,
   selected = false,
+  detailsOpen = false,
   onSelect,
   onContextSelect,
+  onOpenDetails,
 }: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
-  const [deleteLocalFiles, setDeleteLocalFiles] = useState(false)
-  const task = useDownloadStore((state) => state.tasks[gid])
+  const storeTask = useDownloadStore((state) => state.tasks[gid])
   const categories = useDownloadStore((state) => state.categories)
   const toggleTask = useDownloadStore((state) => state.toggleTask)
   const removeTask = useDownloadStore((state) => state.removeTask)
@@ -227,9 +278,14 @@ export default function TaskTableRow({
   const { speedStr, progress, etaStr, downloadedStr, totalStr } = useTaskSpeed(gid)
   const tableWidth = getTaskTableWidth(columns)
 
+  const task = storeTask ?? taskSnapshot
   if (!task) return null
 
   const category = categories.find((item) => item.id === task.categoryId)
+  const isPreparing =
+    task.status === "Downloading" &&
+    task.downloadedBytes === 0 &&
+    speedStr === "0 B/s"
   const safeProgress = Math.min(100, Math.max(0, progress))
   const showProgressOverlay = task.status !== "Completed"
   const progressTint =
@@ -239,7 +295,6 @@ export default function TaskTableRow({
           ? "var(--task-progress-paused)"
           : "var(--task-progress-active)"
   const requestDelete = () => {
-    setDeleteLocalFiles(false)
     setDeleteConfirmOpen(true)
   }
 
@@ -290,6 +345,20 @@ export default function TaskTableRow({
             initial={false}
             animate={{ opacity: selected ? 1 : 0 }}
             transition={{ duration: 0.16, ease: "easeOut" }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+            initial={false}
+            animate={{
+              opacity: isPreparing ? [0.18, 0.42, 0.18] : 0,
+              x: isPreparing ? ["-45%", "45%"] : "0%",
+            }}
+            transition={
+              isPreparing
+                ? { duration: 1.65, repeat: Infinity, ease: "easeInOut" }
+                : { duration: 0.16, ease: "easeOut" }
+            }
           />
           <motion.div
             aria-hidden="true"
@@ -356,6 +425,8 @@ export default function TaskTableRow({
               <NameCell
                 task={task}
                 category={category}
+                detailsOpen={detailsOpen}
+                onOpenDetails={onOpenDetails ? () => onOpenDetails(gid) : undefined}
               />
             ) : (
               <Cell
@@ -365,6 +436,7 @@ export default function TaskTableRow({
                 etaStr={etaStr}
                 downloadedStr={downloadedStr}
                 totalStr={totalStr}
+                preparing={isPreparing}
               />
             )}
           </div>
@@ -414,45 +486,13 @@ export default function TaskTableRow({
         </ContextMenuContent>
       </ContextMenu>
 
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent size="sm" variant="alert" showCloseButton={false}>
-          <DialogHeader>
-            <div className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-              <AlertTriangle className="size-5" />
-            </div>
-            <DialogTitle className="text-destructive">删除任务</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <DialogDescription>
-              确认删除任务“{task.name}”？这个操作会从任务列表中移除该记录。
-            </DialogDescription>
-            <p className="text-sm leading-6 text-muted-foreground">
-              勾选后会同时尝试删除已下载文件和临时分片文件，请确认不再需要本地文件。
-            </p>
-            <label className="mx-auto flex max-w-80 cursor-pointer items-center justify-center gap-3 rounded-md bg-muted/50 px-4 py-3 text-sm leading-5 text-foreground">
-              <Checkbox
-                checked={deleteLocalFiles}
-                onCheckedChange={(checked) => setDeleteLocalFiles(checked === true)}
-              />
-              <span>同时删除本地文件</span>
-            </label>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              取消
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={() => {
-                setDeleteConfirmOpen(false)
-                removeTask(gid, deleteLocalFiles)
-              }}
-            >
-              删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskDeleteConfirmDialog
+        open={deleteConfirmOpen}
+        taskCount={1}
+        taskName={task.name}
+        onOpenChange={setDeleteConfirmOpen}
+        onConfirm={(deleteLocalFiles) => removeTask(gid, deleteLocalFiles)}
+      />
     </>
   )
 }

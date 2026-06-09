@@ -86,4 +86,12 @@ impl super::AppState {
             CloseAction::Float
         )
     }
+
+    pub fn should_minimize_on_close_with_tasks(&self) -> bool {
+        self.settings
+            .read()
+            .unwrap()
+            .interface
+            .minimize_on_close_with_tasks
+    }
 }

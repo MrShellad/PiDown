@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react";
 import { motion } from "motion/react";
-import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle } from "lucide-react";
+import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle, Radar } from "lucide-react";
 
 import { CategoryDropdown } from "@/components/common/CategoryDropdown";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,55 @@ function RuleIconPreview({
   }
 
   return <FolderOpen className="size-7 text-muted-foreground" />;
+}
+
+function MetadataProbeCard({
+  loading,
+  hasMetadata,
+}: {
+  loading: boolean;
+  hasMetadata: boolean;
+}) {
+  return (
+    <motion.div
+      className="relative overflow-hidden rounded-lg border border-border bg-secondary/25 px-4 py-3 text-sm"
+      initial={false}
+      animate={{
+        borderColor: loading ? "color-mix(in oklab, var(--primary) 42%, var(--border))" : "var(--border)",
+      }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+    >
+      {loading ? (
+        <motion.div
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 w-1/2 bg-gradient-to-r from-transparent via-primary/10 to-transparent"
+          animate={{ x: ["-100%", "240%"] }}
+          transition={{ duration: 1.35, repeat: Infinity, ease: "easeInOut" }}
+        />
+      ) : null}
+      <div className="relative flex gap-3">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+          {loading ? <LoaderCircle className="size-4 animate-spin" /> : <Radar className="size-4" />}
+        </span>
+        <div className="min-w-0">
+          <div className="font-semibold leading-5 text-foreground">
+            {loading
+              ? UI_TEXT.newTask.metadataProbeTitle
+              : hasMetadata
+                ? UI_TEXT.newTask.metadataProbeDone
+                : UI_TEXT.newTask.metadataProbeFallbackTitle}
+          </div>
+          <p className="mt-1 leading-6 text-muted-foreground">
+            {loading
+              ? UI_TEXT.newTask.metadataProbeDesc
+              : hasMetadata
+                ? UI_TEXT.newTask.metadataProbeDone
+                : UI_TEXT.newTask.metadataProbeFallback}
+          </p>
+        </div>
+      </div>
+    </motion.div>
+  );
 }
 
 export default function NewTaskModal({
@@ -398,6 +447,8 @@ export default function NewTaskModal({
                 transition={{ duration: 0.16, ease: "easeOut" }}
               >
                 <div className="space-y-3">
+                  <MetadataProbeCard loading={metadataLoading} hasMetadata={Boolean(totalSize)} />
+
                   <ActionInput
                     type="text"
                     value={url}

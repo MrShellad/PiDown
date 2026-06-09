@@ -101,6 +101,7 @@ pub struct TaskOverview {
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub created_at: i64,
+    pub save_path: String,
     pub category_id: Option<i64>,
     pub tags: Vec<DbTag>,
 }

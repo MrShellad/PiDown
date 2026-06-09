@@ -52,6 +52,7 @@ export interface TaskOverview {
   downloaded_bytes: number;
   total_bytes: number;
   created_at: number;
+  save_path: string;
   category_id: number | null;
   tags: DbTag[];
 }
@@ -108,6 +109,7 @@ export interface AppSettings {
   };
   interface: {
     close_action: CloseAction;
+    minimize_on_close_with_tasks: boolean;
   };
 }
 
@@ -280,6 +282,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
     },
     interface: {
       close_action: "float",
+      minimize_on_close_with_tasks: false,
     },
   };
 }

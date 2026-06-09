@@ -103,12 +103,14 @@ impl TransferSettings {
 #[serde(default)]
 pub struct InterfaceSettings {
     pub close_action: CloseAction,
+    pub minimize_on_close_with_tasks: bool,
 }
 
 impl Default for InterfaceSettings {
     fn default() -> Self {
         Self {
             close_action: CloseAction::Float,
+            minimize_on_close_with_tasks: false,
         }
     }
 }

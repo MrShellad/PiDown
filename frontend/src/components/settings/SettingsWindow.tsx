@@ -33,6 +33,7 @@ import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore, type SettingsSectionId } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useThemeStore } from "@/core/store/useThemeStore";
+import { parseNullableSpeedLimit } from "@/core/transfer";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { THEME_REGISTRY } from "@/themes/config";
 import { createFontOptions, getThemeFontOption } from "@/themes/fonts";
@@ -57,13 +58,6 @@ const NAV_ITEMS: SettingsNavItem[] = [
   { id: "integration", label: UI_TEXT.settings.navIntegration, icon: <MonitorCog className="size-4" /> },
   { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
 ];
-
-function parseNullableNumber(value: string): number | null {
-  const trimmed = value.trim();
-  if (!trimmed) return null;
-  const numeric = Number(trimmed);
-  return Number.isFinite(numeric) && numeric >= 0 ? numeric : null;
-}
 
 const SPEED_DISPLAY_UNIT_OPTIONS: { value: SpeedDisplayUnit; label: string }[] = [
   { value: "auto", label: "自动 (B/s, KiB/s, MiB/s)" },
@@ -230,8 +224,8 @@ export default function SettingsWindow() {
       ...draft,
       transfer: {
         ...draft.transfer,
-        download_speed_limit_kib: parseNullableNumber(downloadLimitInput),
-        upload_speed_limit_kib: parseNullableNumber(uploadLimitInput),
+        download_speed_limit_kib: parseNullableSpeedLimit(downloadLimitInput),
+        upload_speed_limit_kib: parseNullableSpeedLimit(uploadLimitInput),
       },
     };
   }, [draft, downloadLimitInput, uploadLimitInput]);
@@ -654,6 +648,24 @@ export default function SettingsWindow() {
                           }
                         />
                       ))}
+                      <SettingsListItem
+                        title={UI_TEXT.settings.minimizeOnCloseWithTasks}
+                        description={UI_TEXT.settings.minimizeOnCloseWithTasksDesc}
+                        action={
+                          <Switch
+                            checked={draft.interface.minimize_on_close_with_tasks}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  minimize_on_close_with_tasks: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">

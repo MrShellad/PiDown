@@ -39,6 +39,8 @@ export interface Task {
   downloadedBytes: number;
   totalBytes: number;
   createdAt?: number;
+  savePath?: string;
+  connections?: number;
   categoryId?: number | null;
   tags?: { id: number; name: string; icon?: string; color?: string }[];
 }
@@ -70,6 +72,7 @@ export interface TaskProgressPayload {
   eta: string;
   downloaded_bytes: number;
   total_bytes: number;
+  connections?: number;
 }
 
 export interface DownloadSpeedPayload {
@@ -153,6 +156,8 @@ const mapTask = (task: TaskOverview): Task => ({
   downloadedBytes: task.downloaded_bytes,
   totalBytes: task.total_bytes,
   createdAt: task.created_at,
+  savePath: task.save_path,
+  connections: 0,
   categoryId: task.category_id,
   tags: task.tags.map((tag) => ({
     id: tag.id,
@@ -188,6 +193,8 @@ export const useDownloadStore = create<DownloadState>()(
               downloadedBytes: 0,
               totalBytes: 0,
               createdAt: Math.floor(Date.now() / 1000),
+              savePath: "",
+              connections: 0,
               categoryId: null,
               tags: [],
             },
@@ -204,6 +211,7 @@ export const useDownloadStore = create<DownloadState>()(
             if (updatedTasks[gid].status === "Downloading") {
               updatedTasks[gid].speed = "0 B/s";
               updatedTasks[gid].eta = "--:--:--";
+              updatedTasks[gid].connections = 0;
             }
           });
 
@@ -224,6 +232,8 @@ export const useDownloadStore = create<DownloadState>()(
               downloadedBytes: activeTask.downloaded_bytes,
               totalBytes: activeTask.total_bytes,
               createdAt: existing ? existing.createdAt : undefined,
+              savePath: existing ? existing.savePath : "",
+              connections: activeTask.connections ?? existing?.connections ?? 0,
               categoryId: existing ? existing.categoryId : null,
               tags: existing ? existing.tags : [],
             };
@@ -333,6 +343,7 @@ export const useDownloadStore = create<DownloadState>()(
                 downloadedBytes: 0,
                 totalBytes: 0,
                 createdAt: Math.floor(Date.now() / 1000),
+                connections: 0,
               };
             }
 

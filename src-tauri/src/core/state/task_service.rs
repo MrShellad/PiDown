@@ -373,6 +373,20 @@ impl super::AppState {
         self.db.delete_completed_tasks().map_err(|e| e.to_string())
     }
 
+    pub fn has_incomplete_download_tasks(&self) -> Result<bool, String> {
+        Ok(self
+            .db
+            .get_all_tasks()
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .any(|task| {
+                matches!(
+                    task.status.as_str(),
+                    "Pending" | "Downloading" | "Paused" | "Failed"
+                )
+            }))
+    }
+
     pub async fn restart_task(&self, gid: &str) -> Result<String, String> {
         let task = self
             .db
@@ -484,6 +498,7 @@ impl super::AppState {
                 downloaded_bytes,
                 total_bytes,
                 created_at: db_task.created_at,
+                save_path: db_task.save_path,
                 category_id: db_task.category_id,
                 tags,
             });

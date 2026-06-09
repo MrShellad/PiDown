@@ -77,6 +77,18 @@ pub async fn close_main_window(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,
 ) -> Result<(), String> {
+    if state.should_minimize_on_close_with_tasks() && state.has_incomplete_download_tasks()? {
+        use tauri::Manager;
+
+        let main_win = app
+            .get_webview_window("main")
+            .ok_or("Main window not found")?;
+
+        save_main_window_state_now(&app)?;
+        main_win.minimize().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
     if state.should_close_to_float() {
         switch_to_float(app).await
     } else {
