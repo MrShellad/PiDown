@@ -1,6 +1,41 @@
 import * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
+
+type ToolbarTooltipProps = {
+  tooltip?: React.ReactNode
+  tooltipSide?: React.ComponentProps<typeof TooltipContent>["side"]
+}
+
+function ToolbarTooltip({
+  content,
+  disabled,
+  side = "bottom",
+  children,
+}: {
+  content?: React.ReactNode
+  disabled?: boolean
+  side?: React.ComponentProps<typeof TooltipContent>["side"]
+  children: React.ReactElement
+}) {
+  if (!content) return children
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        {disabled ? (
+          <span data-slot="toolbar-tooltip-trigger" className="flex items-stretch self-stretch">
+            {children}
+          </span>
+        ) : (
+          children
+        )}
+      </TooltipTrigger>
+      <TooltipContent side={side}>{content}</TooltipContent>
+    </Tooltip>
+  )
+}
 
 function Toolbar({ className, ...props }: React.ComponentProps<"div">) {
   return (
@@ -8,7 +43,7 @@ function Toolbar({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="toolbar"
       role="toolbar"
       className={cn(
-        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-card text-card-foreground shadow-surface-raised",
+        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-card text-card-foreground shadow-toolbar-glow",
         className
       )}
       {...props}
@@ -40,15 +75,19 @@ function ToolbarSeparator({ className, ...props }: React.ComponentProps<"div">) 
 function ToolbarButton({
   className,
   icon,
+  tooltip,
+  tooltipSide,
   children,
+  disabled,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: React.ReactNode
-}) {
-  return (
+} & ToolbarTooltipProps) {
+  const button = (
     <button
       data-slot="toolbar-button"
       type="button"
+      disabled={disabled}
       className={cn(
         "group/toolbar-button flex min-w-22 items-center justify-center gap-2 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40",
         className
@@ -69,22 +108,32 @@ function ToolbarButton({
       </span>
     </button>
   )
+
+  return (
+    <ToolbarTooltip content={tooltip} disabled={disabled} side={tooltipSide}>
+      {button}
+    </ToolbarTooltip>
+  )
 }
 
 function ToolbarPrimaryButton({
   className,
   icon,
   actionIcon,
+  tooltip,
+  tooltipSide,
   children,
+  disabled,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
   icon?: React.ReactNode
   actionIcon?: React.ReactNode
-}) {
-  return (
+} & ToolbarTooltipProps) {
+  const button = (
     <button
       data-slot="toolbar-primary-button"
       type="button"
+      disabled={disabled}
       className={cn(
         "flex min-w-44 items-center justify-between gap-3 bg-muted/55 px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50",
         className
@@ -108,13 +157,19 @@ function ToolbarPrimaryButton({
       {actionIcon ? (
         <span
           data-slot="toolbar-primary-action"
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground shadow-button-glow [&_svg]:size-4"
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground [&_svg]:size-4"
           aria-hidden="true"
         >
           {actionIcon}
         </span>
       ) : null}
     </button>
+  )
+
+  return (
+    <ToolbarTooltip content={tooltip} disabled={disabled} side={tooltipSide}>
+      {button}
+    </ToolbarTooltip>
   )
 }
 

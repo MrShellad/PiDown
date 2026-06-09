@@ -103,7 +103,7 @@ function SettingsWindowSkeleton() {
   return (
     <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-transparent select-none">
       <aside
-        className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
+        className="flex min-h-0 shrink-0 flex-col bg-card/70 px-3 py-4 shadow-[var(--settings-sidebar-shadow)] backdrop-blur-xl"
         style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
       >
         <div className="space-y-2">
@@ -303,18 +303,18 @@ export default function SettingsWindow() {
     lastError || (feedback && feedback !== UI_TEXT.settings.saved ? feedback : null);
   const tabMotionTransition = prefersReducedMotion
     ? { duration: 0 }
-    : { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const };
+    : { duration: 0.18, ease: "easeOut" as const };
 
   return (
     <motion.div
       className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text"
-      initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+      initial={prefersReducedMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.12, ease: "easeOut" }}
     >
       <div className="flex min-h-0 flex-1">
         <aside
-          className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
+          className="relative z-10 flex min-h-0 shrink-0 flex-col bg-card/70 px-2.5 py-4 shadow-[var(--settings-sidebar-shadow)] backdrop-blur-xl"
           style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
         >
           <ScrollArea className="flex-1" visibility="auto" scrollbar="overlay" viewportClassName="space-y-1">
@@ -324,14 +324,20 @@ export default function SettingsWindow() {
                 <button
                   key={item.id}
                   onClick={() => setActiveSection(item.id)}
-                  className={`w-full rounded-lg border px-3 py-3 text-left transition-colors ${
+                  className={`group/settings-nav w-full rounded-lg px-2.5 py-3 text-left transition-colors ${
                     active
-                      ? "border-primary/50 bg-primary/12 text-foreground"
-                      : "border-transparent text-muted-foreground hover:border-border hover:bg-secondary/60 hover:text-foreground"
+                      ? "bg-primary/12 text-foreground shadow-surface-inset"
+                      : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="flex size-9 items-center justify-center rounded-md bg-secondary/80 text-foreground">
+                    <div
+                      className={`flex size-9 items-center justify-center rounded-md transition-colors ${
+                        active
+                          ? "bg-primary/14 text-primary"
+                          : "bg-primary/8 text-primary/75 group-hover/settings-nav:text-primary"
+                      }`}
+                    >
                       {item.icon}
                     </div>
                     <div className="min-w-0">
@@ -353,13 +359,13 @@ export default function SettingsWindow() {
                 </div>
               ) : null}
 
-              <AnimatePresence initial={false}>
+              <AnimatePresence initial={false} mode="popLayout">
                 <motion.div
                   key={activeSection}
-                  layout="position"
-                  initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={prefersReducedMotion ? undefined : { opacity: 0, y: -6 }}
+                  className="w-full"
+                  initial={prefersReducedMotion ? false : { opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={prefersReducedMotion ? undefined : { opacity: 0 }}
                   transition={tabMotionTransition}
                 >
                   {activeSection === "download" ? (

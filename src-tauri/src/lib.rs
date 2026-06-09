@@ -6,7 +6,6 @@ mod events;
 use core::app_paths::default_download_dir;
 use core::native_bridge::{remove_bridge_state, start_native_bridge_server};
 use core::state::AppState;
-use core::window_state::setup_main_window_state;
 use tauri::Manager;
 
 pub fn run_native_host() -> Result<(), String> {
@@ -38,7 +37,6 @@ pub fn run() {
                 tauri::async_runtime::block_on(AppState::new(&app_data_dir, &default_save_dir))
                     .map_err(std::io::Error::other)?;
 
-            setup_main_window_state(&app_handle, &app_data_dir).map_err(std::io::Error::other)?;
             if let Err(error) = start_native_bridge_server(app_data_dir.clone(), app_handle.clone())
             {
                 log::warn!("PiDownloader native bridge is unavailable: {error}");

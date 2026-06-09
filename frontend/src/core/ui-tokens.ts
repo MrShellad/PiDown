@@ -1,6 +1,6 @@
 export const UI_TOKENS = {
   sidebarWidth: "220px",
-  settingsSidebarWidth: "240px",
+  settingsSidebarWidth: "208px",
   settingsDialog: {
     width: "1040px",
     height: "720px",
@@ -15,6 +15,12 @@ export const UI_TOKENS = {
     sm: "0.875rem",
     md: "1rem",
     lg: "1.125rem",
+  },
+  tooltip: {
+    delayDuration: 260,
+    skipDelayDuration: 80,
+    sideOffset: 8,
+    collisionPadding: 12,
   },
   content: {
     pagePadding: "1.5rem",

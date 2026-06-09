@@ -1,5 +1,4 @@
 use crate::core::state::AppState;
-use crate::core::window_state::save_main_window_state_now;
 use std::sync::Arc;
 use tauri::{AppHandle, State};
 
@@ -14,7 +13,6 @@ pub async fn switch_to_float(app: AppHandle) -> Result<(), String> {
         .get_webview_window("float")
         .ok_or("Float window not found")?;
 
-    save_main_window_state_now(&app)?;
     main_win.hide().map_err(|e| e.to_string())?;
     float_win
         .eval("window.location.replace('/float')")
@@ -54,7 +52,6 @@ pub async fn close_main_window(
             .get_webview_window("main")
             .ok_or("Main window not found")?;
 
-        save_main_window_state_now(&app)?;
         main_win.minimize().map_err(|e| e.to_string())?;
         return Ok(());
     }
@@ -62,7 +59,6 @@ pub async fn close_main_window(
     if state.should_close_to_float() {
         switch_to_float(app).await
     } else {
-        save_main_window_state_now(&app)?;
         app.exit(0);
         Ok(())
     }

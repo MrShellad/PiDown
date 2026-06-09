@@ -1,9 +1,11 @@
-import { useCallback, useState } from "react";
+import { useCallback, useState, type ReactElement } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { closeMainWindow } from "@/core/bridge/tauri-commands";
 import { UI_TEXT } from "@/core/locale";
+import { useThemeStore } from "@/core/store/useThemeStore";
 import { UI_TOKENS } from "@/core/ui-tokens";
-import { Download, FolderOpen, Info, Menu, Minus, Settings, Square, X } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Download, FolderOpen, Info, Menu, Minus, Moon, Settings, Square, Sun, X } from "lucide-react";
 
 interface WindowFrameProps {
   title: string;
@@ -58,6 +60,21 @@ function MenuDropdown({
   );
 }
 
+function TitlebarTooltip({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactElement;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{children}</TooltipTrigger>
+      <TooltipContent side="bottom">{label}</TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function WindowFrame({
   title,
   showMenu = true,
@@ -65,6 +82,10 @@ export default function WindowFrame({
   onOpenSettings,
 }: WindowFrameProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const colorMode = useThemeStore((state) => state.colorMode);
+  const setColorMode = useThemeStore((state) => state.setColorMode);
+  const nextColorMode = colorMode === "dark" ? "light" : "dark";
+  const ThemeIcon = colorMode === "dark" ? Sun : Moon;
 
   const handleMinimize = async () => {
     try {
@@ -107,13 +128,15 @@ export default function WindowFrame({
       >
         {showMenu ? (
           <div className="relative flex h-full items-center" style={{ zIndex: 10 }}>
-            <button
-              onClick={toggleMenu}
-              className="flex h-full items-center gap-1.5 rounded-tl-lg px-3.5 text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90"
-            >
-              <Menu size={14} />
-              <span className="text-sm font-medium">{UI_TEXT.windowFrame.menu}</span>
-            </button>
+            <TitlebarTooltip label={UI_TEXT.windowFrame.menu}>
+              <button
+                onClick={toggleMenu}
+                className="flex h-full items-center gap-1.5 rounded-tl-lg px-3.5 text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90"
+              >
+                <Menu size={14} />
+                <span className="text-sm font-medium">{UI_TEXT.windowFrame.menu}</span>
+              </button>
+            </TitlebarTooltip>
             {menuOpen && <MenuDropdown onMouseLeave={() => setMenuOpen(false)} />}
           </div>
         ) : null}
@@ -130,33 +153,64 @@ export default function WindowFrame({
         </div>
 
         <div className="ml-auto flex h-full items-center" style={{ zIndex: 10 }}>
-          {showSettingsButton ? (
+          <TitlebarTooltip
+            label={
+              nextColorMode === "light"
+                ? UI_TEXT.windowFrame.switchToLightMode
+                : UI_TEXT.windowFrame.switchToDarkMode
+            }
+          >
             <button
-              onClick={onOpenSettings}
-              disabled={!onOpenSettings}
-              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+              onClick={() => setColorMode(nextColorMode)}
+              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90"
+              aria-label={
+                nextColorMode === "light"
+                  ? UI_TEXT.windowFrame.switchToLightMode
+                  : UI_TEXT.windowFrame.switchToDarkMode
+              }
             >
-              <Settings size={14} />
+              <ThemeIcon size={14} />
             </button>
+          </TitlebarTooltip>
+          {showSettingsButton ? (
+            <TitlebarTooltip label={UI_TEXT.windowFrame.openSettings}>
+              <button
+                onClick={onOpenSettings}
+                disabled={!onOpenSettings}
+                className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+                aria-label={UI_TEXT.windowFrame.openSettings}
+              >
+                <Settings size={14} />
+              </button>
+            </TitlebarTooltip>
           ) : null}
-          <button
-            onClick={handleMinimize}
-            className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
-          >
-            <Minus size={14} />
-          </button>
-          <button
-            onClick={handleMaximize}
-            className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
-          >
-            <Square size={12} />
-          </button>
-          <button
-            onClick={handleClose}
-            className="flex h-full w-[36px] items-center justify-center rounded-tr-lg text-foreground/60 transition-colors hover:bg-red-500/20 hover:text-red-500"
-          >
-            <X size={14} />
-          </button>
+          <TitlebarTooltip label={UI_TEXT.windowFrame.minimize}>
+            <button
+              onClick={handleMinimize}
+              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+              aria-label={UI_TEXT.windowFrame.minimize}
+            >
+              <Minus size={14} />
+            </button>
+          </TitlebarTooltip>
+          <TitlebarTooltip label={UI_TEXT.windowFrame.maximize}>
+            <button
+              onClick={handleMaximize}
+              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+              aria-label={UI_TEXT.windowFrame.maximize}
+            >
+              <Square size={12} />
+            </button>
+          </TitlebarTooltip>
+          <TitlebarTooltip label={UI_TEXT.windowFrame.close}>
+            <button
+              onClick={handleClose}
+              className="flex h-full w-[36px] items-center justify-center rounded-tr-lg text-foreground/60 transition-colors hover:bg-red-500/20 hover:text-red-500"
+              aria-label={UI_TEXT.windowFrame.close}
+            >
+              <X size={14} />
+            </button>
+          </TitlebarTooltip>
         </div>
       </div>
     </div>

@@ -133,6 +133,7 @@ function DialogContent({
   const isOpen = React.useContext(DialogOpenContext)
   const shouldReduceMotion = useReducedMotion()
   const shouldRender = isOpen ?? true
+  const isFullSize = size === "full"
 
   return (
     <DialogPortal forceMount>
@@ -164,13 +165,15 @@ function DialogContent({
                 data-variant={surfaceVariant}
                 className={cn(dialogContentVariants({ size, variant: surfaceVariant, className }))}
                 style={{ x: "-50%", y: "-50%" }}
-                initial={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.96 }}
+                initial={{ opacity: 0, scale: shouldReduceMotion || isFullSize ? 1 : 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: shouldReduceMotion ? 1 : 0.98 }}
+                exit={{ opacity: 0, scale: shouldReduceMotion || isFullSize ? 1 : 0.98 }}
                 transition={
                   shouldReduceMotion
                     ? { duration: 0 }
-                    : { type: "spring", stiffness: 430, damping: 34, mass: 0.8 }
+                    : isFullSize
+                      ? { duration: 0.14, ease: [0.16, 1, 0.3, 1] }
+                      : { type: "spring", stiffness: 430, damping: 34, mass: 0.8 }
                 }
               >
                 <DialogSurfaceContext.Provider value={surfaceVariant}>
