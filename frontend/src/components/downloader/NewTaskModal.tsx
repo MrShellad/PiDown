@@ -68,6 +68,7 @@ export default function NewTaskModal({
                   loading={state.loading}
                   advancedDraft={state.advancedDraft}
                   defaultThreadCount={data.defaultThreadCount}
+                  globalUserAgent={data.globalUserAgent}
                   onDetailsTabChange={actions.setDetailsTab}
                   onUrlChange={actions.setUrl}
                   onFilenameChange={actions.setFilename}

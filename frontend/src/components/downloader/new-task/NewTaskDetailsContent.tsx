@@ -19,6 +19,7 @@ interface NewTaskDetailsContentProps {
   loading: boolean
   advancedDraft: NewTaskAdvancedDraft
   defaultThreadCount: number
+  globalUserAgent: string
   onDetailsTabChange: (value: NewTaskDetailsTab) => void
   onUrlChange: (value: string) => void
   onFilenameChange: (value: string) => void
@@ -44,6 +45,7 @@ export function NewTaskDetailsContent({
   loading,
   advancedDraft,
   defaultThreadCount,
+  globalUserAgent,
   onDetailsTabChange,
   onUrlChange,
   onFilenameChange,
@@ -81,6 +83,7 @@ export function NewTaskDetailsContent({
         <NewTaskAdvancedForm
           draft={advancedDraft}
           defaultThreadCount={defaultThreadCount}
+          globalUserAgent={globalUserAgent}
           loading={loading}
           onDraftChange={onAdvancedDraftChange}
         />

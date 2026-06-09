@@ -23,6 +23,11 @@ fn normalize_optional_header_value(value: Option<String>) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
+fn resolve_user_agent(task_user_agent: Option<String>, global_user_agent: &str) -> Option<String> {
+    normalize_optional_header_value(task_user_agent)
+        .or_else(|| normalize_optional_header_value(Some(global_user_agent.to_string())))
+}
+
 fn normalize_cookies(cookies: Vec<String>) -> Vec<String> {
     cookies
         .into_iter()
@@ -246,7 +251,10 @@ impl super::AppState {
                             max_download_speed: speed_limit_kib_to_bps(
                                 task_options.max_download_speed_kib,
                             ),
-                            user_agent: normalize_optional_header_value(task_options.user_agent),
+                            user_agent: resolve_user_agent(
+                                task_options.user_agent,
+                                &settings.download.global_user_agent,
+                            ),
                             referer: normalize_optional_header_value(task_options.referer),
                             cookies: normalize_cookies(task_options.cookies),
                         },
@@ -359,8 +367,12 @@ impl super::AppState {
     }
 
     pub async fn inspect_download(&self, url: &str) -> Result<DownloadInspection, String> {
+        let settings = self.settings.read().unwrap().clone();
         match detect_protocol(url) {
-            DownloadProtocol::Http | DownloadProtocol::Https => self.engine.inspect_http(url).await,
+            DownloadProtocol::Http | DownloadProtocol::Https => self
+                .engine
+                .inspect_http(url, Some(&settings.download.global_user_agent))
+                .await,
             _ => Err("Only HTTP/HTTPS links support metadata inspection".to_string()),
         }
     }

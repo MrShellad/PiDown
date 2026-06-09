@@ -61,6 +61,7 @@ export function useNewTaskModalState({
   const settings = useAppSettingsStore((state) => state.settings)
   const loadSettings = useAppSettingsStore((state) => state.load)
   const globalSaveDir = settings?.download.default_save_dir ?? ""
+  const globalUserAgent = settings?.download.global_user_agent ?? ""
   const defaultThreadCount = settings?.transfer.task_thread_count ?? DEFAULT_TASK_THREAD_COUNT
 
   const selectedCategory = useMemo(
@@ -375,6 +376,7 @@ export function useNewTaskModalState({
       matchedTag,
       ruleLabel,
       defaultThreadCount,
+      globalUserAgent,
     },
     actions: {
       closeModal,

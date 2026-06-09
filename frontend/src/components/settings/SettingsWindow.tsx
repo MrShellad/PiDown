@@ -425,6 +425,26 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
+                        title="全局 User-Agent"
+                        description="作为 HTTP/HTTPS 新建任务的默认 User-Agent；单个任务高级设置里填写的值会覆盖它。"
+                        childrenSpan="full"
+                      >
+                        <SettingsInput
+                          value={draft.download.global_user_agent}
+                          onChange={(event) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              download: {
+                                ...prev.download,
+                                global_user_agent: event.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Mozilla/5.0"
+                          className="font-mono"
+                        />
+                      </SettingsListItem>
+                      <SettingsListItem
                         title={UI_TEXT.settings.autoCategory}
                         description={UI_TEXT.settings.autoCategoryDesc}
                         action={
@@ -436,6 +456,24 @@ export default function SettingsWindow() {
                                 download: {
                                   ...prev.download,
                                   auto_categorize: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title="浏览器扩展联动"
+                        description="允许 Chrome/Chromium 扩展通过 Native Host 向下载器发起新建任务。关闭后，扩展将不再接管浏览器下载。"
+                        action={
+                          <Switch
+                            checked={draft.download.browser_extension_integration_enabled}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                download: {
+                                  ...prev.download,
+                                  browser_extension_integration_enabled: checked,
                                 },
                               }))
                             }

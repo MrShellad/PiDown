@@ -4,6 +4,8 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use crate::core::state::AppState;
+use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager};
 use uuid::Uuid;
 
@@ -174,6 +176,13 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
     match request {
         NativeRequest::Ping {} => NativeResponse::ok(),
         NativeRequest::CreateTask { download } => {
+            let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
+                return NativeResponse::error("PiDownloader state is unavailable");
+            };
+            if !state.get_settings().download.browser_extension_integration_enabled {
+                return NativeResponse::error("Browser extension integration is disabled");
+            }
+
             let url = download.url.unwrap_or_default();
             let url = url.trim().to_string();
             if !is_supported_url(&url) {

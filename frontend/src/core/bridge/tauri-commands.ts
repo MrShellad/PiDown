@@ -113,6 +113,8 @@ export interface AppSettings {
     default_save_dir: string;
     auto_start_downloads: boolean;
     auto_categorize: boolean;
+    global_user_agent: string;
+    browser_extension_integration_enabled: boolean;
   };
   transfer: {
     max_concurrent_downloads: number;
@@ -303,6 +305,8 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       default_save_dir: await downloadDir(),
       auto_start_downloads: true,
       auto_categorize: true,
+      global_user_agent: "",
+      browser_extension_integration_enabled: true,
     },
     transfer: {
       max_concurrent_downloads: 3,

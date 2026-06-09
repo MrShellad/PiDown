@@ -43,6 +43,8 @@ pub struct DownloadSettings {
     pub default_save_dir: String,
     pub auto_start_downloads: bool,
     pub auto_categorize: bool,
+    pub global_user_agent: String,
+    pub browser_extension_integration_enabled: bool,
 }
 
 impl Default for DownloadSettings {
@@ -51,6 +53,8 @@ impl Default for DownloadSettings {
             default_save_dir: String::new(),
             auto_start_downloads: true,
             auto_categorize: true,
+            global_user_agent: String::new(),
+            browser_extension_integration_enabled: true,
         }
     }
 }
@@ -129,6 +133,7 @@ impl AppSettings {
             self.download.default_save_dir = fallback_save_dir.to_string_lossy().to_string();
         }
 
+        self.download.global_user_agent = self.download.global_user_agent.trim().to_string();
         self.transfer.normalize();
     }
 }
@@ -195,6 +200,10 @@ mod tests {
             version: 0,
             created_at: 0,
             settings: AppSettings {
+                download: DownloadSettings {
+                    global_user_agent: "  Mozilla/5.0  ".to_string(),
+                    ..DownloadSettings::default()
+                },
                 transfer: TransferSettings {
                     max_concurrent_downloads: 0,
                     task_thread_count: 999,
@@ -221,6 +230,10 @@ mod tests {
         assert_eq!(
             document.settings.download.default_save_dir,
             "D:\\Fallback".to_string()
+        );
+        assert_eq!(
+            document.settings.download.global_user_agent,
+            "Mozilla/5.0".to_string()
         );
     }
 }

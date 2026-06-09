@@ -9,6 +9,7 @@ import type { NewTaskAdvancedDraft } from "./types"
 interface NewTaskAdvancedFormProps {
   draft: NewTaskAdvancedDraft
   defaultThreadCount: number
+  globalUserAgent: string
   loading: boolean
   onDraftChange: (patch: Partial<NewTaskAdvancedDraft>) => void
 }
@@ -38,6 +39,7 @@ function AdvancedField({
 export function NewTaskAdvancedForm({
   draft,
   defaultThreadCount,
+  globalUserAgent,
   loading,
   onDraftChange,
 }: NewTaskAdvancedFormProps) {
@@ -78,13 +80,18 @@ export function NewTaskAdvancedForm({
       </AdvancedField>
 
       <AdvancedField icon={<UserRound />} label="User-Agent">
-        <Input
-          value={draft.userAgentInput}
-          onChange={(event) => onDraftChange({ userAgentInput: event.target.value })}
-          disabled={loading}
-          placeholder="Mozilla/5.0"
-          className="h-12 rounded-lg bg-background/70 px-4 font-mono text-base"
-        />
+        <div className="space-y-2">
+          <Input
+            value={draft.userAgentInput}
+            onChange={(event) => onDraftChange({ userAgentInput: event.target.value })}
+            disabled={loading}
+            placeholder={globalUserAgent || "留空继承全局 UA"}
+            className="h-12 rounded-lg bg-background/70 px-4 font-mono text-base"
+          />
+          <p className="text-xs leading-5 text-muted-foreground">
+            {globalUserAgent ? `留空时继承全局 UA: ${globalUserAgent}` : "留空时使用下载引擎默认 UA"}
+          </p>
+        </div>
       </AdvancedField>
 
       <AdvancedField icon={<ExternalLink />} label="Referer">

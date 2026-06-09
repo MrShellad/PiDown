@@ -71,8 +71,16 @@ impl EngineWrapper {
     }
 
     /// Inspect HTTP metadata through gosh-dl's existing server probe.
-    pub async fn inspect_http(&self, url: &str) -> Result<DownloadInspection, String> {
-        let capabilities = probe_server(self.probe_pool.client(), url, &self.user_agent)
+    pub async fn inspect_http(
+        &self,
+        url: &str,
+        user_agent: Option<&str>,
+    ) -> Result<DownloadInspection, String> {
+        let effective_user_agent = user_agent
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or(&self.user_agent);
+        let capabilities = probe_server(self.probe_pool.client(), url, effective_user_agent)
             .await
             .map_err(|e| format!("Failed to inspect HTTP task: {}", e))?;
 

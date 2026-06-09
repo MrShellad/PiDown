@@ -37,12 +37,11 @@ pub fn run() {
                 tauri::async_runtime::block_on(AppState::new(&app_data_dir, &default_save_dir))
                     .map_err(std::io::Error::other)?;
 
+            app.manage(state.clone());
             if let Err(error) = start_native_bridge_server(app_data_dir.clone(), app_handle.clone())
             {
                 log::warn!("PiDownloader native bridge is unavailable: {error}");
             }
-
-            app.manage(state.clone());
             events::start_global_event_ticker(app_handle.clone(), state.clone());
             events::start_event_reporter(app_handle, state);
             log::info!("PiDownloader backend initialized successfully");
