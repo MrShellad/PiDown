@@ -116,10 +116,9 @@ function HeaderCell({
       className={cn(
         "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center justify-start px-4 text-sm font-medium leading-5 text-muted-foreground transition-colors active:cursor-grabbing",
         "hover:bg-muted/35 hover:text-foreground",
-        column.id === "name" && "grow",
         isDragging && "bg-muted/50 opacity-70"
       )}
-      style={{ width: column.width, minWidth: meta.minWidth }}
+      style={{ flexBasis: column.width, width: column.width, minWidth: meta.minWidth }}
       onClick={() => {
         if (meta.sortable) onSort(column.id)
       }}

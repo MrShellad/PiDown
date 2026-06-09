@@ -37,6 +37,24 @@ fn open_path(path: &Path) -> Result<(), String> {
 }
 
 impl super::AppState {
+    pub fn task_file_checksum_target(&self, gid: &str) -> Result<(String, PathBuf), String> {
+        let task = self
+            .db
+            .get_task(gid)
+            .map_err(|e| e.to_string())?
+            .ok_or_else(|| "Task not found".to_string())?;
+        let file_path = task_file_path(&task);
+
+        if !file_path.exists() {
+            return Err("File does not exist yet".to_string());
+        }
+        if !file_path.is_file() {
+            return Err("Task path is not a file".to_string());
+        }
+
+        Ok((task.name, file_path))
+    }
+
     pub fn open_task_file(&self, gid: &str) -> Result<(), String> {
         let task = self
             .db

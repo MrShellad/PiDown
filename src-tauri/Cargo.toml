@@ -32,3 +32,6 @@ uuid = { version = "1.0", features = ["v4", "serde"] }
 dirs = "6.0"
 arboard = { version = "3.6.1", default-features = false }
 rfd = "0.16.0"
+md5_digest = { package = "md-5", version = "0.10.6" }
+sha1 = "0.10.6"
+sha2 = "0.10.9"

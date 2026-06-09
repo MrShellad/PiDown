@@ -73,6 +73,14 @@ export interface TaskClassificationPreview {
 
 export type CloseAction = "float" | "exit";
 export type SpeedDisplayUnit = "auto" | "kib" | "mib" | "mb";
+export type FileChecksumAlgorithm = "MD5" | "SHA-1" | "SHA-256" | "SHA-512";
+
+export interface TaskFileChecksum {
+  name: string;
+  algorithm: FileChecksumAlgorithm;
+  checksum: string;
+  saved_checksum: string | null;
+}
 
 export interface MatchRules {
   domains: string[];
@@ -208,6 +216,13 @@ export async function openTaskFile(gid: string): Promise<void> {
 
 export async function openTaskFolder(gid: string): Promise<void> {
   return invoke<void>("open_task_folder", { gid });
+}
+
+export async function calculateTaskFileChecksum(
+  gid: string,
+  algorithm: FileChecksumAlgorithm
+): Promise<TaskFileChecksum> {
+  return invoke<TaskFileChecksum>("calculate_task_file_checksum", { gid, algorithm });
 }
 
 export async function restartTask(gid: string): Promise<string> {

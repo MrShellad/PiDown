@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FileText, FolderOpen, Pause, Play, RefreshCw, Trash2 } from "lucide-react"
+import { FileText, FolderOpen, Pause, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
 import { motion } from "motion/react"
 
 import { Checkbox } from "@/components/ui/checkbox"
@@ -21,6 +21,7 @@ import {
 } from "@/core/store/useTaskTableStore"
 import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
 import { cn } from "@/lib/utils"
+import TaskChecksumDialog from "./checksum/TaskChecksumDialog"
 import TaskDeleteConfirmDialog from "./TaskDeleteConfirmDialog"
 
 interface TaskTableRowProps {
@@ -266,6 +267,7 @@ export default function TaskTableRow({
   onOpenDetails,
 }: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
+  const [checksumOpen, setChecksumOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const storeTask = useDownloadStore((state) => state.tasks[gid])
   const categories = useDownloadStore((state) => state.categories)
@@ -412,11 +414,8 @@ export default function TaskTableRow({
           <div
             key={column.id}
             data-slot="task-table-cell"
-            className={cn(
-              "relative flex min-h-17 shrink-0 items-center px-4",
-              column.id === "name" && "grow"
-            )}
-            style={{ width: column.width }}
+            className="relative flex min-h-17 shrink-0 items-center px-4"
+            style={{ flexBasis: column.width, width: column.width }}
           >
             {index > 0 ? (
               <span
@@ -460,6 +459,10 @@ export default function TaskTableRow({
             <span>打开文件夹</span>
             <ContextMenuShortcut>Ctrl+F</ContextMenuShortcut>
           </ContextMenuItem>
+          <ContextMenuItem onSelect={() => setChecksumOpen(true)}>
+            <ShieldCheck className="size-5" />
+            <span>文件校验</span>
+          </ContextMenuItem>
           <ContextMenuItem
             disabled={task.status === "Downloading" || task.status === "Completed"}
             onSelect={() => toggleTask(gid)}
@@ -496,6 +499,7 @@ export default function TaskTableRow({
         onOpenChange={setDeleteConfirmOpen}
         onConfirm={(deleteLocalFiles) => removeTask(gid, deleteLocalFiles)}
       />
+      <TaskChecksumDialog open={checksumOpen} task={task} onOpenChange={setChecksumOpen} />
     </>
   )
 }

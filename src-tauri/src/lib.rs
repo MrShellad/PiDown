@@ -59,6 +59,7 @@ pub fn run() {
             commands::read_clipboard_text,
             commands::write_clipboard_text,
             commands::pick_download_directory,
+            commands::calculate_task_file_checksum,
             commands::pause_task,
             commands::resume_task,
             commands::cancel_task,
