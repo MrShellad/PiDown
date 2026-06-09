@@ -13,6 +13,14 @@ export interface DownloadMetadata {
   total_size: number | null;
 }
 
+export interface FileConflictCheck {
+  exists: boolean;
+  target_path: string;
+  filename: string;
+  suggested_filename: string;
+  suggested_path: string;
+}
+
 export interface DbCategory {
   id: number;
   name: string;
@@ -109,7 +117,8 @@ export async function createTask(
   filename?: string,
   categoryId?: number | null,
   categoryOverride = false,
-  totalSize?: number | null
+  totalSize?: number | null,
+  overwrite = false
 ): Promise<string> {
   return invoke<string>("create_task", {
     url,
@@ -118,7 +127,15 @@ export async function createTask(
     categoryId,
     categoryOverride,
     totalSize,
+    overwrite,
   });
+}
+
+export async function checkFileConflict(
+  path: string,
+  filename: string
+): Promise<FileConflictCheck> {
+  return invoke<FileConflictCheck>("check_file_conflict", { path, filename });
 }
 
 export async function inspectDownloadMetadata(url: string): Promise<DownloadMetadata> {

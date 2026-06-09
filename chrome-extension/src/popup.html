@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PiDownloader</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="popup">
+    <main class="popup-card">
+      <header class="popup-header">
+        <img src="../assets/logo.svg" alt="" class="popup-logo" />
+        <div>
+          <h1>PiDownloader</h1>
+          <p id="bridge-status">检测中...</p>
+        </div>
+      </header>
+
+      <label class="switch-row compact">
+        <input id="enabled" type="checkbox" />
+        <span>
+          <strong>桥接下载</strong>
+          <small id="enabled-hint">已暂停</small>
+        </span>
+      </label>
+
+      <div class="extension-id-row">
+        <span>扩展 ID</span>
+        <code id="extension-id">读取中...</code>
+      </div>
+
+      <button id="test-connection" class="full-button secondary-button">测试连接</button>
+      <p id="test-result" class="test-result" role="status"></p>
+
+      <button id="open-options" class="full-button">扩展设置</button>
+    </main>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { emit, listen } from "@tauri-apps/api/event";
-import { DEFAULT_THEME_FONT_ID, normalizeThemeFontId, type ThemeFontId } from "@/themes/fonts";
+import {
+  DEFAULT_THEME_FONT_ID,
+  getThemeFontOption,
+  normalizeThemeFontId,
+  type ThemeFontId,
+} from "@/themes/fonts";
 
 export type ThemeType = "modern";
 export type ThemeColorMode = "dark" | "light";
@@ -50,6 +55,36 @@ function broadcastThemeSync() {
   window.dispatchEvent(new CustomEvent(THEME_SYNC_EVENT));
   emit(THEME_SYNC_EVENT).catch(() => {
     // Browser preview does not provide the Tauri event bridge.
+  });
+}
+
+export function applyThemeToDocument({
+  theme,
+  colorMode,
+  fontId,
+}: Pick<ThemeState, "theme" | "colorMode" | "fontId">) {
+  const root = window.document.documentElement;
+  const font = getThemeFontOption(fontId);
+
+  root.setAttribute("data-theme", theme);
+  root.setAttribute("data-color-mode", colorMode);
+  root.setAttribute("data-font", font.id);
+  root.style.setProperty("--font-ui", font.stack);
+  root.style.setProperty("--font-heading", font.stack);
+
+  if (colorMode === "dark") {
+    root.classList.add("dark");
+  } else {
+    root.classList.remove("dark");
+  }
+}
+
+export function applyPersistedThemeToDocument() {
+  const state = readPersistedThemeState();
+  applyThemeToDocument({
+    theme: normalizeTheme(state?.theme),
+    colorMode: normalizeColorMode(state?.colorMode),
+    fontId: normalizeThemeFontId(state?.fontId),
   });
 }
 
@@ -110,6 +145,8 @@ export const useThemeStore = create<ThemeState>()(
 );
 
 if (typeof window !== "undefined") {
+  applyPersistedThemeToDocument();
+
   const syncFromStorage = () => {
     const state = readPersistedThemeState();
     if (!state) return;

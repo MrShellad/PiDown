@@ -32,7 +32,10 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
   lastSavedAt: null,
 
   load: async () => {
-    set({ loading: true, lastError: null });
+    set((state) => ({
+      loading: !state.settings,
+      lastError: null,
+    }));
     try {
       const settings = await getAppSettings();
       set({ settings, loading: false });

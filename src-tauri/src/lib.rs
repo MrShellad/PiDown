@@ -3,13 +3,20 @@ mod core;
 mod download;
 mod events;
 
+use core::app_paths::default_download_dir;
+use core::native_bridge::{remove_bridge_state, start_native_bridge_server};
 use core::state::AppState;
 use core::window_state::setup_main_window_state;
 use tauri::Manager;
 
+pub fn run_native_host() -> Result<(), String> {
+    let app_data_dir = core::app_paths::app_data_dir()?;
+    core::native_bridge::run_native_host(&app_data_dir)
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    tauri::Builder::default()
+    let app = tauri::Builder::default()
         .setup(|app| {
             // Initialize logging in debug mode
             if cfg!(debug_assertions) {
@@ -25,16 +32,17 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("Failed to resolve app data directory");
-            let default_save_dir = app_handle
-                .path()
-                .download_dir()
-                .unwrap_or_else(|_| app_data_dir.join("downloads"));
+            let default_save_dir = default_download_dir(&app_data_dir);
 
             let state =
                 tauri::async_runtime::block_on(AppState::new(&app_data_dir, &default_save_dir))
                     .map_err(std::io::Error::other)?;
 
             setup_main_window_state(&app_handle, &app_data_dir).map_err(std::io::Error::other)?;
+            if let Err(error) = start_native_bridge_server(app_data_dir.clone(), app_handle.clone())
+            {
+                log::warn!("PiDownloader native bridge is unavailable: {error}");
+            }
 
             app.manage(state.clone());
             events::start_global_event_ticker(app_handle.clone(), state.clone());
@@ -45,6 +53,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             commands::create_task,
+            commands::check_file_conflict,
             commands::inspect_download_metadata,
             commands::preview_task_classification,
             commands::pause_task,
@@ -75,6 +84,20 @@ pub fn run() {
             commands::update_app_settings,
             commands::list_system_fonts,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application");
+
+    let app_data_dir = app
+        .handle()
+        .path()
+        .app_data_dir()
+        .expect("Failed to resolve app data directory");
+    app.run(move |_app_handle, event| {
+        if matches!(
+            event,
+            tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
+        ) {
+            let _ = remove_bridge_state(&app_data_dir);
+        }
+    });
 }

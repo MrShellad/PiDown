@@ -1,8 +1,10 @@
 use crate::core::models::{
     CategoryInput, DbCategory, DbTag, TagInput, TaskClassificationPreview, TaskOverview,
 };
+use crate::core::state::task_format::sanitize_filename;
 use crate::core::state::AppState;
 use serde::Serialize;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tauri::State;
 
@@ -10,6 +12,15 @@ use tauri::State;
 pub struct DownloadMetadata {
     pub filename: Option<String>,
     pub total_size: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct FileConflictCheck {
+    pub exists: bool,
+    pub target_path: String,
+    pub filename: String,
+    pub suggested_filename: String,
+    pub suggested_path: String,
 }
 
 #[tauri::command]
@@ -21,7 +32,17 @@ pub async fn create_task(
     category_id: Option<i64>,
     category_override: Option<bool>,
     total_size: Option<u64>,
+    overwrite: Option<bool>,
 ) -> Result<String, String> {
+    let should_overwrite = overwrite.unwrap_or(false);
+    if !should_overwrite {
+        ensure_target_file_available(path.as_deref(), filename.as_deref())?;
+    }
+
+    if should_overwrite {
+        remove_existing_download_file(path.as_deref(), filename.as_deref())?;
+    }
+
     state
         .add_task(
             &url,
@@ -32,6 +53,148 @@ pub async fn create_task(
             total_size,
         )
         .await
+}
+
+#[tauri::command]
+pub async fn check_file_conflict(
+    path: String,
+    filename: String,
+) -> Result<FileConflictCheck, String> {
+    let save_dir = normalize_existing_path(&path)?;
+    let filename = sanitize_filename(filename.trim());
+    let target_path = save_dir.join(&filename);
+    let partial_path = partial_path_for(&target_path);
+    let suggested_filename = unique_filename(&save_dir, &filename);
+    let suggested_path = save_dir.join(&suggested_filename);
+
+    Ok(FileConflictCheck {
+        exists: target_path.exists() || partial_path.exists(),
+        target_path: target_path.to_string_lossy().to_string(),
+        filename,
+        suggested_filename,
+        suggested_path: suggested_path.to_string_lossy().to_string(),
+    })
+}
+
+fn normalize_existing_path(path: &str) -> Result<PathBuf, String> {
+    let trimmed = path.trim();
+    if trimmed.is_empty() {
+        return Err("Download path is required".to_string());
+    }
+
+    Ok(PathBuf::from(trimmed))
+}
+
+fn partial_path_for(target_path: &Path) -> PathBuf {
+    target_path.with_extension(
+        target_path
+            .extension()
+            .map(|extension| format!("{}.part", extension.to_string_lossy()))
+            .unwrap_or_else(|| "part".to_string()),
+    )
+}
+
+fn remove_existing_download_file(path: Option<&str>, filename: Option<&str>) -> Result<(), String> {
+    let Some(filename) = normalize_filename_input(filename) else {
+        return Ok(());
+    };
+
+    let save_dir = normalize_existing_path(path.unwrap_or_default())?;
+    let target_path = save_dir.join(filename);
+    let partial_path = partial_path_for(&target_path);
+
+    remove_file_if_exists(&target_path)?;
+    remove_file_if_exists(&partial_path)?;
+    Ok(())
+}
+
+fn ensure_target_file_available(path: Option<&str>, filename: Option<&str>) -> Result<(), String> {
+    let Some(filename) = normalize_filename_input(filename) else {
+        return Ok(());
+    };
+
+    let save_dir = normalize_existing_path(path.unwrap_or_default())?;
+    let target_path = save_dir.join(filename);
+    let partial_path = partial_path_for(&target_path);
+
+    if target_path.exists() || partial_path.exists() {
+        Err("Target file already exists".to_string())
+    } else {
+        Ok(())
+    }
+}
+
+fn normalize_filename_input(filename: Option<&str>) -> Option<String> {
+    filename
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(sanitize_filename)
+}
+
+fn remove_file_if_exists(path: &Path) -> Result<(), String> {
+    match std::fs::remove_file(path) {
+        Ok(()) => Ok(()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(error) => Err(format!("Failed to remove existing file: {error}")),
+    }
+}
+
+fn unique_filename(save_dir: &Path, filename: &str) -> String {
+    let target_path = save_dir.join(filename);
+    if !target_path.exists() && !partial_path_for(&target_path).exists() {
+        return filename.to_string();
+    }
+
+    let path = Path::new(filename);
+    let stem = path
+        .file_stem()
+        .and_then(|value| value.to_str())
+        .filter(|value| !value.trim().is_empty())
+        .unwrap_or("download");
+    let extension = path.extension().and_then(|value| value.to_str());
+
+    for index in 1..10_000 {
+        let candidate = match extension {
+            Some(extension) if !extension.is_empty() => format!("{stem} ({index}).{extension}"),
+            _ => format!("{stem} ({index})"),
+        };
+
+        let candidate_path = save_dir.join(&candidate);
+        if !candidate_path.exists() && !partial_path_for(&candidate_path).exists() {
+            return candidate;
+        }
+    }
+
+    format!("{stem} ({})", chrono::Utc::now().timestamp())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unique_filename_adds_numeric_suffix_for_existing_file() {
+        let temp_dir = test_temp_dir("existing-file");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(temp_dir.join("file.zip"), b"existing").unwrap();
+
+        assert_eq!(unique_filename(&temp_dir, "file.zip"), "file (1).zip");
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    #[test]
+    fn unique_filename_avoids_partial_download_files() {
+        let temp_dir = test_temp_dir("partial-file");
+        std::fs::create_dir_all(&temp_dir).unwrap();
+        std::fs::write(temp_dir.join("file.zip.part"), b"partial").unwrap();
+
+        assert_eq!(unique_filename(&temp_dir, "file.zip"), "file (1).zip");
+        let _ = std::fs::remove_dir_all(temp_dir);
+    }
+
+    fn test_temp_dir(name: &str) -> PathBuf {
+        std::env::temp_dir().join(format!("pidownloader-{name}-{}", uuid::Uuid::new_v4()))
+    }
 }
 
 #[tauri::command]

@@ -1,0 +1,276 @@
+:root {
+  color-scheme: light;
+  --bg: #eaf5ff;
+  --panel: #ffffff;
+  --ink: #14213d;
+  --muted: #60708d;
+  --line: #cddff3;
+  --primary: #2d79e6;
+  --primary-dark: #174ea6;
+  --danger: #d12d47;
+  --ok: #16885d;
+  --shadow: 0 20px 60px rgba(26, 49, 105, 0.16);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 18% 16%, rgba(117, 200, 255, 0.35), transparent 28rem),
+    linear-gradient(135deg, #f7fcff, var(--bg));
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.page {
+  min-height: 100vh;
+  padding: 40px;
+}
+
+.panel {
+  width: min(860px, 100%);
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.hero {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 28px;
+  border-bottom: 1px solid var(--line);
+  background: linear-gradient(135deg, rgba(225, 243, 253, 0.85), rgba(182, 218, 251, 0.72));
+}
+
+.logo {
+  width: 72px;
+  height: 72px;
+}
+
+h1 {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+p {
+  margin: 8px 0 0;
+  color: var(--muted);
+}
+
+.form {
+  display: grid;
+  gap: 18px;
+  padding: 28px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field input {
+  width: 100%;
+  height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 14px;
+  color: var(--ink);
+  background: #f8fbff;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 4px rgba(45, 121, 230, 0.13);
+}
+
+.switch-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.switch-row.compact {
+  padding: 14px;
+}
+
+.switch-row input {
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+  accent-color: var(--primary);
+}
+
+.switch-row span {
+  display: grid;
+  gap: 4px;
+}
+
+.switch-row strong {
+  font-size: 14px;
+}
+
+.switch-row small {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 6px;
+}
+
+button {
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0 16px;
+  color: var(--ink);
+  background: #fff;
+  cursor: pointer;
+}
+
+button[type="submit"],
+.full-button {
+  border-color: var(--primary);
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.secondary-button {
+  color: var(--primary-dark);
+  background: #eef6ff;
+}
+
+.status {
+  min-height: 26px;
+  margin: 0;
+  padding: 0 28px 24px;
+  font-size: 13px;
+}
+
+.status[data-kind="success"] {
+  color: var(--ok);
+}
+
+.status[data-kind="error"] {
+  color: var(--danger);
+}
+
+.popup {
+  width: 320px;
+  min-height: 210px;
+  background: #f5fbff;
+}
+
+.popup-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.popup-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.popup-logo {
+  width: 48px;
+  height: 48px;
+}
+
+.popup h1 {
+  font-size: 17px;
+}
+
+.popup p {
+  margin-top: 4px;
+  font-size: 12px;
+}
+
+#bridge-status[data-kind="connected"] {
+  color: var(--ok);
+}
+
+#bridge-status[data-kind="unavailable"] {
+  color: var(--danger);
+}
+
+.full-button {
+  width: 100%;
+}
+
+.extension-id-row {
+  display: grid;
+  gap: 6px;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.extension-id-row span {
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.extension-id-row code {
+  overflow-wrap: anywhere;
+  color: var(--primary-dark);
+  font-family: Consolas, "SFMono-Regular", monospace;
+  font-size: 11px;
+}
+
+.test-result {
+  min-height: 18px;
+  margin: -4px 0 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.test-result[data-kind="pending"] {
+  color: var(--muted);
+}
+
+.test-result[data-kind="success"] {
+  color: var(--ok);
+}
+
+.test-result[data-kind="error"] {
+  color: var(--danger);
+}

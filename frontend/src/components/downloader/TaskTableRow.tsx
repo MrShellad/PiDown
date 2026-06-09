@@ -34,6 +34,10 @@ import { cn } from "@/lib/utils"
 
 interface TaskTableRowProps {
   gid: string
+  animateEntry?: boolean
+  selected?: boolean
+  onSelect?: (gid: string) => void
+  onContextSelect?: (gid: string) => void
 }
 
 function statusText(status: Task["status"]) {
@@ -94,19 +98,12 @@ function TaskContextMenuTitle({ name }: { name: string }) {
 }
 
 function NameCell({
-  gid,
   task,
   category,
-  toggleTask,
-  onRequestDelete,
 }: {
-  gid: string
   task: Task
   category?: Category
-  toggleTask: (gid: string) => Promise<void>
-  onRequestDelete: () => void
 }) {
-  const canToggle = task.status === "Downloading" || task.status === "Paused" || task.status === "Failed"
   const categoryColor = category?.color ?? "var(--muted-foreground)"
 
   return (
@@ -125,32 +122,6 @@ function NameCell({
         <span className="block truncate text-sm font-semibold leading-5 text-foreground">
           {task.name}
         </span>
-      </div>
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 opacity-0 transition-opacity group-hover/task-row:opacity-100 group-focus-within/task-row:opacity-100">
-        {canToggle ? (
-          <Button
-            size="icon"
-            variant="ghost"
-            aria-label={task.status === "Downloading" ? UI_TEXT.dashboard.pause : UI_TEXT.dashboard.resume}
-            onClick={() => toggleTask(gid)}
-            className="size-8 rounded-sm"
-          >
-            {task.status === "Downloading" ? (
-              <Pause className="size-4" />
-            ) : (
-              <Play className="size-4" />
-            )}
-          </Button>
-        ) : null}
-        <Button
-          size="icon"
-          variant="ghost"
-          aria-label={UI_TEXT.dashboard.delete}
-          onClick={onRequestDelete}
-          className="size-8 rounded-sm text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-        >
-          <Trash2 className="size-4" />
-        </Button>
       </div>
     </div>
   )
@@ -235,7 +206,13 @@ function Cell({
   }
 }
 
-export default function TaskTableRow({ gid }: TaskTableRowProps) {
+export default function TaskTableRow({
+  gid,
+  animateEntry = false,
+  selected = false,
+  onSelect,
+  onContextSelect,
+}: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleteLocalFiles, setDeleteLocalFiles] = useState(false)
@@ -271,14 +248,18 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
       <ContextMenu open={contextMenuOpen} onOpenChange={setContextMenuOpen}>
         <ContextMenuTrigger asChild>
           <motion.div
-      layout
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.98 }}
+      layout={animateEntry}
+      initial={animateEntry ? { opacity: 0, y: 10, scale: 0.985 } : false}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={animateEntry ? { opacity: 0, scale: 0.98 } : undefined}
           transition={{ duration: 0.18, ease: "easeOut" }}
           data-slot="task-table-row"
+          role="row"
+          aria-selected={selected}
+          onClick={() => onSelect?.(gid)}
+          onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
-            "group/task-row relative flex min-h-17 items-center overflow-hidden rounded-lg bg-card/80 text-sm leading-5 shadow-surface-raised transition-colors hover:bg-card",
+            "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/80 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-card"
           )}
           style={{ minWidth: tableWidth }}
@@ -296,6 +277,30 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
         animate={{ scaleX: showProgressOverlay ? safeProgress / 100 : 0 }}
         transition={{ type: "spring", stiffness: 150, damping: 24, mass: 0.7 }}
       />
+          <motion.div
+            aria-hidden="true"
+            className="task-selection-overlay pointer-events-none absolute inset-0"
+            initial={false}
+            animate={{ opacity: selected ? 1 : 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="task-selection-ring pointer-events-none absolute inset-0 rounded-lg"
+            initial={false}
+            animate={{ opacity: selected ? 1 : 0 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          />
+          <motion.div
+            aria-hidden="true"
+            className="task-selection-indicator pointer-events-none absolute left-0 top-1/2 h-9 w-1 origin-center -translate-y-1/2 rounded-r-full"
+            initial={false}
+            animate={{
+              opacity: selected ? 1 : 0,
+              scaleY: selected ? 1 : 0.35,
+            }}
+            transition={{ type: "spring", stiffness: 420, damping: 32, mass: 0.45 }}
+          />
           <div
             aria-hidden="true"
             className={cn(
@@ -307,7 +312,30 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
         className="relative z-10 flex min-h-17 shrink-0 items-center justify-center"
         style={{ width: TASK_TABLE_SELECT_COLUMN_WIDTH }}
       >
-        <Checkbox aria-label={`选择任务 ${task.name}`} className="size-5" />
+        <motion.div
+          className="relative grid size-9 place-items-center"
+          initial={false}
+          animate={{ scale: selected ? 1.08 : 1 }}
+          transition={{ type: "spring", stiffness: 520, damping: 26, mass: 0.35 }}
+        >
+          <motion.span
+            aria-hidden="true"
+            className="task-selection-control-halo pointer-events-none absolute inset-0 rounded-full"
+            initial={false}
+            animate={{
+              opacity: selected ? 1 : 0,
+              scale: selected ? 1 : 0.7,
+            }}
+            transition={{ type: "spring", stiffness: 480, damping: 28, mass: 0.35 }}
+          />
+        <Checkbox
+          checked={selected}
+          aria-label={`选择任务 ${task.name}`}
+          className="relative z-10 size-5"
+          onClick={(event) => event.stopPropagation()}
+          onCheckedChange={() => onSelect?.(gid)}
+        />
+        </motion.div>
       </div>
 
       <div className="relative z-10 flex min-w-0 flex-1 overflow-hidden">
@@ -326,11 +354,8 @@ export default function TaskTableRow({ gid }: TaskTableRowProps) {
             ) : null}
             {column.id === "name" ? (
               <NameCell
-                gid={gid}
                 task={task}
                 category={category}
-                toggleTask={toggleTask}
-                onRequestDelete={requestDelete}
               />
             ) : (
               <Cell

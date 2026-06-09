@@ -10,6 +10,13 @@ export type TaskTableColumnId =
   | "createdAt"
   | "tags"
 
+export type TaskTableSortDirection = "asc" | "desc"
+
+export interface TaskTableSortState {
+  id: TaskTableColumnId
+  direction: TaskTableSortDirection
+}
+
 export interface TaskTableColumnState {
   id: TaskTableColumnId
   width: number
@@ -30,8 +37,10 @@ export const DEFAULT_TASK_TABLE_COLUMNS: TaskTableColumnState[] = [
 
 interface TaskTableState {
   columns: TaskTableColumnState[]
+  sort: TaskTableSortState | null
   resizeColumn: (id: TaskTableColumnId, width: number) => void
   moveColumn: (sourceId: TaskTableColumnId, targetId: TaskTableColumnId) => void
+  toggleSortColumn: (id: TaskTableColumnId) => void
   resetColumns: () => void
 }
 
@@ -62,10 +71,20 @@ function normalizeColumns(columns: TaskTableColumnState[]) {
   return normalized
 }
 
+function normalizeSortState(sort: TaskTableSortState | null | undefined): TaskTableSortState | null {
+  if (!sort) return null
+
+  const validColumn = DEFAULT_TASK_TABLE_COLUMNS.some((column) => column.id === sort.id)
+  const validDirection = sort.direction === "asc" || sort.direction === "desc"
+
+  return validColumn && validDirection ? sort : null
+}
+
 export const useTaskTableStore = create<TaskTableState>()(
   persist(
     (set) => ({
       columns: DEFAULT_TASK_TABLE_COLUMNS,
+      sort: null,
 
       resizeColumn: (id, width) => {
         set((state) => ({
@@ -95,16 +114,28 @@ export const useTaskTableStore = create<TaskTableState>()(
         })
       },
 
+      toggleSortColumn: (id) => {
+        set((state) => {
+          if (state.sort?.id !== id) return { sort: { id, direction: "asc" } }
+          if (state.sort.direction === "asc") return { sort: { id, direction: "desc" } }
+          return { sort: null }
+        })
+      },
+
       resetColumns: () => set({ columns: DEFAULT_TASK_TABLE_COLUMNS }),
     }),
     {
       name: "pidownloader-task-table",
-      partialize: (state) => ({ columns: normalizeColumns(state.columns) }),
+      partialize: (state) => ({
+        columns: normalizeColumns(state.columns),
+        sort: normalizeSortState(state.sort),
+      }),
       merge: (persisted, current) => {
         const persistedState = persisted as Partial<TaskTableState> | undefined
         return {
           ...current,
           columns: normalizeColumns(persistedState?.columns ?? current.columns),
+          sort: normalizeSortState(persistedState?.sort ?? current.sort),
         }
       },
     }

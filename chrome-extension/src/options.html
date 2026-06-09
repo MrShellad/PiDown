@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PiDownloader 扩展设置</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body class="page">
+    <main class="panel">
+      <header class="hero">
+        <img src="../assets/logo.svg" alt="" class="logo" />
+        <div>
+          <h1>PiDownloader 下载桥接</h1>
+          <p>在你开启后，把 Chrome 创建的 HTTP/HTTPS 下载任务发送到 PiDownloader。</p>
+        </div>
+      </header>
+
+      <form id="options-form" class="form">
+        <label class="switch-row">
+          <input id="enabled" type="checkbox" />
+          <span>
+            <strong>启用下载桥接</strong>
+            <small>开启后，扩展会尝试把 HTTP/HTTPS 下载交给 PiDownloader。</small>
+          </span>
+        </label>
+
+        <label class="field">
+          <span>Native Host 名称</span>
+          <input id="hostName" type="text" spellcheck="false" />
+        </label>
+
+        <label class="switch-row">
+          <input id="fallbackToBrowserDownload" type="checkbox" />
+          <span>
+            <strong>桥接失败时继续使用 Chrome 下载</strong>
+            <small>建议保持开启，直到 PiDownloader native bridge 完整接入。</small>
+          </span>
+        </label>
+
+        <label class="switch-row">
+          <input id="pauseDuringHandoff" type="checkbox" />
+          <span>
+            <strong>交接期间暂停 Chrome 下载</strong>
+            <small>可减少 Chrome 已下载的临时数据，但部分站点可能不支持恢复。</small>
+          </span>
+        </label>
+
+        <label class="switch-row">
+          <input id="eraseCancelledDownload" type="checkbox" />
+          <span>
+            <strong>发送成功后移除 Chrome 下载记录</strong>
+            <small>PiDownloader 已接收任务后，清理 Chrome 下载列表中的原任务。</small>
+          </span>
+        </label>
+
+        <label class="switch-row">
+          <input id="showNotifications" type="checkbox" />
+          <span>
+            <strong>显示发送通知</strong>
+            <small>PiDownloader 成功接收任务时显示系统通知。</small>
+          </span>
+        </label>
+
+        <label class="switch-row">
+          <input id="captureIncognito" type="checkbox" />
+          <span>
+            <strong>桥接隐身窗口下载</strong>
+            <small>需要先在 Chrome 扩展详情中允许隐身模式。</small>
+          </span>
+        </label>
+
+        <div class="grid">
+          <label class="field">
+            <span>最小文件大小 Bytes</span>
+            <input id="minBytes" type="number" min="0" step="1" />
+          </label>
+          <label class="field">
+            <span>只桥接这些扩展名</span>
+            <input id="allowExtensions" type="text" placeholder="zip, mp4, pdf" />
+          </label>
+          <label class="field">
+            <span>忽略这些扩展名</span>
+            <input id="blockExtensions" type="text" placeholder="crdownload, tmp" />
+          </label>
+        </div>
+
+        <footer class="actions">
+          <button type="button" id="reset">恢复默认</button>
+          <button type="submit">保存设置</button>
+        </footer>
+      </form>
+
+      <p id="status" class="status" role="status"></p>
+    </main>
+
+    <script type="module" src="./options.js"></script>
+  </body>
+</html>

@@ -1,10 +1,9 @@
-import React, { useEffect } from "react";
-import { useThemeStore } from "@/core/store/useThemeStore";
+import React, { useEffect, useLayoutEffect } from "react";
+import { applyThemeToDocument, useThemeStore } from "@/core/store/useThemeStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { setupTauriEvents } from "@/core/bridge/tauri-events";
 import { ToastViewport } from "@/components/ui/toast";
-import { getThemeFontOption } from "@/themes/fonts";
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -16,23 +15,9 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
   const colorMode = useThemeStore((state) => state.colorMode);
   const fontId = useThemeStore((state) => state.fontId);
 
-  // Sync theme attribute on document root
-  useEffect(() => {
-    const root = window.document.documentElement;
-    const font = getThemeFontOption(fontId);
-
-    root.setAttribute("data-theme", theme);
-    root.setAttribute("data-color-mode", colorMode);
-    root.setAttribute("data-font", font.id);
-    root.style.setProperty("--font-ui", font.stack);
-    root.style.setProperty("--font-heading", font.stack);
-    
-    // Toggle dark class depending on color mode.
-    if (colorMode === "dark") {
-      root.classList.add("dark");
-    } else {
-      root.classList.remove("dark");
-    }
+  // Apply before paint so secondary windows don't flash with default theme tokens.
+  useLayoutEffect(() => {
+    applyThemeToDocument({ theme, colorMode, fontId });
   }, [colorMode, fontId, theme]);
 
   // Hook up Tauri event listener and fetch initial task list

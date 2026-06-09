@@ -105,6 +105,46 @@ function FontDropdownSkeleton() {
   );
 }
 
+function SettingsWindowSkeleton() {
+  return (
+    <div className="flex min-h-0 flex-1 overflow-hidden bg-transparent select-none">
+      <aside
+        className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
+        style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
+      >
+        <div className="space-y-2">
+          {[0, 1, 2, 3].map((item) => (
+            <div key={item} className="flex items-center gap-3 rounded-lg border border-transparent px-3 py-3">
+              <div className="size-9 rounded-md bg-secondary/80" />
+              <div className="h-4 w-20 rounded-full bg-muted/70" />
+            </div>
+          ))}
+        </div>
+      </aside>
+
+      <main className="min-w-0 flex-1 px-6 pt-4 pb-6">
+        <div className="mx-auto max-w-5xl rounded-xl border border-border bg-card/82 p-5 shadow-surface-raised backdrop-blur-xl">
+          <div className="mb-6 flex items-start justify-between gap-4">
+            <div className="space-y-3">
+              <div className="h-5 w-28 rounded-full bg-muted/75" />
+              <div className="h-4 w-80 max-w-full rounded-full bg-muted/55" />
+            </div>
+            <div className="h-9 w-20 rounded-lg bg-muted/65" />
+          </div>
+          <div className="space-y-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="rounded-lg border border-border bg-secondary/40 p-4">
+                <div className="h-4 w-32 rounded-full bg-muted/75" />
+                <div className="mt-3 h-3 w-64 max-w-full rounded-full bg-muted/55" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
 function ResetSettingsButton({ onClick }: { onClick: () => void }) {
   return (
     <Button variant="destructive" onClick={onClick}>
@@ -162,7 +202,10 @@ export default function SettingsWindow() {
 
   useEffect(() => {
     if (!settings) return;
-    const timer = window.setTimeout(() => {
+    let cancelled = false;
+
+    window.queueMicrotask(() => {
+      if (cancelled) return;
       setDraft(settings);
       setDownloadLimitInput(
         settings.transfer.download_speed_limit_kib == null
@@ -174,9 +217,11 @@ export default function SettingsWindow() {
           ? ""
           : String(settings.transfer.upload_speed_limit_kib)
       );
-    }, 0);
+    });
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      cancelled = true;
+    };
   }, [settings]);
 
   const normalizedDraft = useMemo<AppSettings | null>(() => {
@@ -248,11 +293,15 @@ export default function SettingsWindow() {
 
   if (loading || !draft) {
     return (
-      <div className="flex h-screen items-center justify-center bg-transparent text-foreground select-none">
-        <div className="rounded-xl border border-border bg-card/90 px-6 py-5 text-sm font-medium shadow-glow-effect backdrop-blur-xl">
-          {UI_TEXT.settings.loading}
-        </div>
-      </div>
+      <motion.div
+        className="flex min-h-0 flex-1 overflow-hidden"
+        initial={prefersReducedMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.12, ease: "easeOut" }}
+        aria-label={UI_TEXT.settings.loading}
+      >
+        <SettingsWindowSkeleton />
+      </motion.div>
     );
   }
 
@@ -263,7 +312,12 @@ export default function SettingsWindow() {
     : { duration: 0.2, ease: [0.16, 1, 0.3, 1] as const };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text">
+    <motion.div
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text"
+      initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+    >
       <div className="flex min-h-0 flex-1">
         <aside
           className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
@@ -809,6 +863,6 @@ export default function SettingsWindow() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </motion.div>
   );
 }

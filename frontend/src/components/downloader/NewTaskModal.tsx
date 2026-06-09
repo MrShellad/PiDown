@@ -8,10 +8,13 @@ import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTi
 import { IconPreview } from "@/components/ui/icon-picker";
 import { ActionInput, Input } from "@/components/ui/input";
 import {
+  checkFileConflict,
   createTask,
   inspectDownloadMetadata,
   previewTaskClassification,
+  type FileConflictCheck,
 } from "@/core/bridge/tauri-commands";
+import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore, type Category, type Tag } from "@/core/store/useDownloadStore";
@@ -19,9 +22,20 @@ import { useDownloadStore, type Category, type Tag } from "@/core/store/useDownl
 interface NewTaskModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialRequest?: ExternalDownloadRequest | null;
+  onInitialRequestConsumed?: () => void;
 }
 
 type NewTaskStep = "link" | "details";
+
+interface PendingTaskCreate {
+  url: string;
+  savePath: string;
+  filename: string;
+  categoryId: number | null;
+  categoryTouched: boolean;
+  totalSize: number | null;
+}
 
 function inferFileName(url: string) {
   try {
@@ -65,7 +79,12 @@ function RuleIconPreview({
   return <FolderOpen className="size-7 text-muted-foreground" />;
 }
 
-export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) {
+export default function NewTaskModal({
+  open,
+  onOpenChange,
+  initialRequest,
+  onInitialRequestConsumed,
+}: NewTaskModalProps) {
   const [step, setStep] = useState<NewTaskStep>("link");
   const [url, setUrl] = useState("");
   const [filename, setFilename] = useState("");
@@ -76,6 +95,8 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
   const [totalSize, setTotalSize] = useState<number | null>(null);
   const [metadataLoading, setMetadataLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [conflictCheck, setConflictCheck] = useState<FileConflictCheck | null>(null);
+  const [pendingTaskCreate, setPendingTaskCreate] = useState<PendingTaskCreate | null>(null);
 
   const tags = useDownloadStore((state) => state.tags);
   const categories = useDownloadStore((state) => state.categories);
@@ -127,6 +148,8 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     setTotalSize(null);
     setMetadataLoading(false);
     setLoading(false);
+    setConflictCheck(null);
+    setPendingTaskCreate(null);
   }, []);
 
   const closeModal = useCallback(() => {
@@ -150,7 +173,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     }
   };
 
-  const inspectMetadata = async (nextUrl: string, fallbackFilename: string) => {
+  const inspectMetadata = useCallback(async (nextUrl: string, fallbackFilename: string) => {
     setMetadataLoading(true);
     setTotalSize(null);
 
@@ -168,7 +191,53 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     } finally {
       setMetadataLoading(false);
     }
-  };
+  }, [applyClassificationPreview]);
+
+  const openDetailsDraft = useCallback((
+    nextUrl: string,
+    fallbackFilename: string,
+    nextTotalSize: number | null,
+    options?: { inspectMetadata?: boolean }
+  ) => {
+    setUrl(nextUrl);
+    setFilename(fallbackFilename);
+    setTotalSize(nextTotalSize);
+    setCategoryTouched(false);
+    setMetadataLoading(false);
+    setLoading(false);
+    applyClassificationPreview(nextUrl, fallbackFilename, nextTotalSize, null, false).catch(console.error);
+    setStep("details");
+
+    if (options?.inspectMetadata !== false) {
+      inspectMetadata(nextUrl, fallbackFilename).catch(console.error);
+    }
+  }, [applyClassificationPreview, inspectMetadata]);
+
+  useEffect(() => {
+    if (!open || !initialRequest) return;
+
+    let cancelled = false;
+    window.queueMicrotask(() => {
+      if (cancelled) return;
+
+      const nextUrl = initialRequest.url.trim();
+      if (!nextUrl) {
+        onInitialRequestConsumed?.();
+        return;
+      }
+
+      const nextFilename = inferFileName(nextUrl);
+
+      openDetailsDraft(nextUrl, nextFilename, null, {
+        inspectMetadata: true,
+      });
+      onInitialRequestConsumed?.();
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialRequest, onInitialRequestConsumed, open, openDetailsDraft]);
 
   const prepareDetails = () => {
     const trimmedUrl = url.trim();
@@ -176,11 +245,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
 
     const fallbackFilename = inferFileName(trimmedUrl);
 
-    setFilename(fallbackFilename);
-    setCategoryTouched(false);
-    applyClassificationPreview(trimmedUrl, fallbackFilename, null, null, false).catch(console.error);
-    setStep("details");
-    inspectMetadata(trimmedUrl, fallbackFilename).catch(console.error);
+    openDetailsDraft(trimmedUrl, fallbackFilename, null);
   };
 
   const handleCategoryChange = (nextCategoryId: number | null) => {
@@ -195,20 +260,17 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     ).catch(console.error);
   };
 
-  const handleCreateTask = async () => {
-    if (!url.trim()) return;
-
+  const submitTaskCreate = useCallback(async (task: PendingTaskCreate, overwrite = false) => {
     setLoading(true);
     try {
-      const finalSavePath = savePath.trim() || globalSaveDir;
-      const finalFilename = filename.trim() || inferFileName(url.trim());
       await createTask(
-        url.trim(),
-        finalSavePath || undefined,
-        finalFilename,
-        categoryId,
-        categoryTouched,
-        totalSize
+        task.url,
+        task.savePath || undefined,
+        task.filename,
+        task.categoryId,
+        task.categoryTouched,
+        task.totalSize,
+        overwrite
       );
 
       await useDownloadStore.getState().fetchTasks();
@@ -220,6 +282,65 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
     } finally {
       setLoading(false);
     }
+  }, [closeModal]);
+
+  const handleCreateTask = async () => {
+    if (!url.trim()) return;
+
+    setLoading(true);
+    try {
+      const nextTask: PendingTaskCreate = {
+        url: url.trim(),
+        savePath: savePath.trim() || globalSaveDir,
+        filename: filename.trim() || inferFileName(url.trim()),
+        categoryId,
+        categoryTouched,
+        totalSize,
+      };
+
+      const conflict = await checkFileConflict(nextTask.savePath, nextTask.filename);
+      if (conflict.exists) {
+        setPendingTaskCreate(nextTask);
+        setConflictCheck(conflict);
+        setLoading(false);
+        return;
+      }
+
+      await submitTaskCreate(nextTask);
+    } catch (err) {
+      console.error("Failed to create download task:", err);
+      alert(UI_TEXT.newTask.errorAlert);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUseSuggestedFilename = () => {
+    if (!pendingTaskCreate || !conflictCheck) return;
+
+    const nextTask = {
+      ...pendingTaskCreate,
+      filename: conflictCheck.suggested_filename,
+    };
+
+    setFilename(conflictCheck.suggested_filename);
+    setConflictCheck(null);
+    setPendingTaskCreate(null);
+    submitTaskCreate(nextTask).catch(console.error);
+  };
+
+  const handleOverwriteExistingFile = () => {
+    if (!pendingTaskCreate) return;
+
+    const nextTask = pendingTaskCreate;
+    setConflictCheck(null);
+    setPendingTaskCreate(null);
+    submitTaskCreate(nextTask, true).catch(console.error);
+  };
+
+  const handleRenameManually = () => {
+    setConflictCheck(null);
+    setPendingTaskCreate(null);
   };
 
   const handleSubmit = (event: FormEvent) => {
@@ -233,6 +354,7 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : closeModal())}>
       <DialogContent
         variant="modal"
@@ -389,5 +511,41 @@ export default function NewTaskModal({ open, onOpenChange }: NewTaskModalProps) 
         </form>
       </DialogContent>
     </Dialog>
+
+      <Dialog
+        open={Boolean(conflictCheck)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) handleRenameManually();
+        }}
+      >
+        <DialogContent variant="alert" size="lg" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>文件已存在</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="text-left">
+            <p className="text-sm leading-6 text-muted-foreground">
+              目标目录中已经存在同名文件，请选择处理方式后继续创建下载任务。
+            </p>
+            {conflictCheck ? (
+              <div className="space-y-2 rounded-lg border border-border bg-background/70 p-3 font-mono text-xs leading-5 text-muted-foreground">
+                <div className="truncate text-foreground">{conflictCheck.target_path}</div>
+                <div className="truncate">建议：{conflictCheck.suggested_filename}</div>
+              </div>
+            ) : null}
+          </DialogBody>
+          <DialogFooter className="sm:[&_[data-slot=button]]:w-auto">
+            <Button type="button" variant="outline" onClick={handleRenameManually}>
+              手动重命名
+            </Button>
+            <Button type="button" onClick={handleUseSuggestedFilename}>
+              添加数字后缀
+            </Button>
+            <Button type="button" variant="destructive" onClick={handleOverwriteExistingFile}>
+              覆盖
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

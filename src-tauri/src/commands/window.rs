@@ -53,8 +53,8 @@ pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
     settings_win
         .eval("window.location.replace('/settings')")
         .map_err(|e| e.to_string())?;
-    settings_win.show().map_err(|e| e.to_string())?;
     settings_win.center().map_err(|e| e.to_string())?;
+    settings_win.show().map_err(|e| e.to_string())?;
     settings_win.set_focus().map_err(|e| e.to_string())?;
 
     Ok(())
