@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { IconPreview } from "@/components/ui/icon-picker"
+import { writeClipboardText } from "@/core/bridge/tauri-commands"
 import { UI_TEXT } from "@/core/locale"
 import type { Category, Task } from "@/core/store/useDownloadStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
@@ -106,17 +107,16 @@ export default function TaskDetailsDrawer({
     if (!task?.url) return
 
     try {
-      await navigator.clipboard.writeText(task.url)
+      await writeClipboardText(task.url)
       pushToast({
         title: "链接已复制",
         description: "下载链接已复制到剪贴板。",
         variant: "success",
       })
-    } catch {
-      window.prompt("复制下载链接", task.url)
+    } catch (error) {
       pushToast({
-        title: "请手动复制链接",
-        description: "当前环境无法直接写入剪贴板。",
+        title: "复制链接失败",
+        description: String(error),
         variant: "warning",
       })
     }

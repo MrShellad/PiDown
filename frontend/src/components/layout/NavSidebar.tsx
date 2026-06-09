@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   ChevronDown,
@@ -30,11 +30,11 @@ interface NavSidebarProps {
 }
 
 type NavItemKind = "system" | "category" | "tag";
-
 export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarProps) {
   const tasks = useDownloadStore((state) => state.tasks);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
+  const fetchCategoryTree = useDownloadStore((state) => state.fetchCategoryTree);
 
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({
     all: false,
@@ -63,7 +63,19 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
   const unboundTags = tagsByCategory.get(null) ?? [];
   const filterContext = useMemo(() => ({ categories, tags }), [categories, tags]);
 
+  useEffect(() => {
+    fetchCategoryTree().catch((error) => {
+      console.error("Failed to load navigation tree:", error);
+    });
+  }, [fetchCategoryTree]);
+
   const toggleGroup = (groupId: string) => {
+    if ((groupId === "all" || groupId.startsWith("category:")) && categories.length === 0) {
+      fetchCategoryTree(true).catch((error) => {
+        console.error("Failed to refresh navigation tree:", error);
+      });
+    }
+
     setCollapsed((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 

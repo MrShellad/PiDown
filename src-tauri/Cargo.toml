@@ -30,3 +30,4 @@ rusqlite = { version = "0.38.0", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.0", features = ["v4", "serde"] }
 dirs = "6.0"
+arboard = { version = "3.6.1", default-features = false }

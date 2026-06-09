@@ -1,12 +1,20 @@
 use super::*;
 use crate::core::categories::{CATEGORY_DOCUMENT, CATEGORY_VIDEO};
 use crate::core::models::{CategoryInput, DbTask, MatchRules, TagInput};
-use rusqlite::Connection;
+use rusqlite::{params, Connection};
 use std::path::PathBuf;
 use uuid::Uuid;
 
 fn path_text(path: PathBuf) -> String {
     path.to_string_lossy().to_string()
+}
+
+fn index_exists(store: &DbStore, name: &str) -> bool {
+    let conn = store.conn.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = ?1")
+        .unwrap();
+    stmt.exists(params![name]).unwrap()
 }
 
 #[test]
@@ -18,6 +26,27 @@ fn test_db_store_initialization() {
     assert!(categories
         .iter()
         .any(|category| category.name == CATEGORY_DOCUMENT));
+}
+
+#[test]
+fn test_db_store_creates_query_indexes() {
+    let store = DbStore::new(":memory:").unwrap();
+
+    for index in [
+        "idx_categories_sort_order",
+        "idx_tag_groups_sort_order",
+        "idx_tags_category_id",
+        "idx_tasks_engine_id",
+        "idx_tasks_created_at",
+        "idx_tasks_status_created_at",
+        "idx_tasks_category_created_at",
+        "idx_task_tags_tag_id",
+    ] {
+        assert!(
+            index_exists(&store, index),
+            "missing database index: {index}"
+        );
+    }
 }
 
 #[test]

@@ -43,36 +43,6 @@ pub async fn switch_to_main(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn open_settings_window(app: AppHandle) -> Result<(), String> {
-    use tauri::Manager;
-
-    let settings_win = app
-        .get_webview_window("settings")
-        .ok_or("Settings window not found")?;
-
-    settings_win
-        .eval("window.location.replace('/settings')")
-        .map_err(|e| e.to_string())?;
-    settings_win.center().map_err(|e| e.to_string())?;
-    settings_win.show().map_err(|e| e.to_string())?;
-    settings_win.set_focus().map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn close_settings_window(app: AppHandle) -> Result<(), String> {
-    use tauri::Manager;
-
-    let settings_win = app
-        .get_webview_window("settings")
-        .ok_or("Settings window not found")?;
-
-    settings_win.hide().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
-#[tauri::command]
 pub async fn close_main_window(
     app: AppHandle,
     state: State<'_, Arc<AppState>>,

@@ -10,6 +10,23 @@ window.addEventListener('contextmenu', (event) => {
   event.preventDefault();
 });
 
+if (import.meta.env.PROD) {
+  window.addEventListener(
+    'keydown',
+    (event) => {
+      const key = event.key.toLowerCase();
+      const isRefreshShortcut =
+        event.key === 'F5' || ((event.ctrlKey || event.metaKey) && key === 'r');
+
+      if (!isRefreshShortcut) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    { capture: true },
+  );
+}
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

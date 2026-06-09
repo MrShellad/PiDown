@@ -104,6 +104,29 @@ impl super::DbStore {
             [],
         )?;
 
+        conn.execute_batch(
+            "CREATE INDEX IF NOT EXISTS idx_categories_sort_order
+             ON categories(sort_order, id);
+
+             CREATE INDEX IF NOT EXISTS idx_tag_groups_sort_order
+             ON tag_groups(sort_order, id);
+
+             CREATE INDEX IF NOT EXISTS idx_tags_category_id
+             ON tags(category_id, id);
+
+             CREATE INDEX IF NOT EXISTS idx_tasks_created_at
+             ON tasks(created_at DESC);
+
+             CREATE INDEX IF NOT EXISTS idx_tasks_status_created_at
+             ON tasks(status, created_at DESC);
+
+             CREATE INDEX IF NOT EXISTS idx_tasks_category_created_at
+             ON tasks(category_id, created_at DESC);
+
+             CREATE INDEX IF NOT EXISTS idx_task_tags_tag_id
+             ON task_tags(tag_id, task_id);",
+        )?;
+
         Ok(())
     }
 

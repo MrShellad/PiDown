@@ -41,12 +41,9 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
       console.error("Failed to initial fetch tasks:", err);
     });
 
-    // Fetch categories and tags from SQLite database
-    useDownloadStore.getState().fetchCategories().catch(err => {
-      console.error("Failed to initial fetch categories:", err);
-    });
-    useDownloadStore.getState().fetchTags().catch(err => {
-      console.error("Failed to initial fetch tags:", err);
+    // Fetch category navigation tree from SQLite database
+    useDownloadStore.getState().fetchCategoryTree().catch(err => {
+      console.error("Failed to initial fetch category tree:", err);
     });
 
     return () => {

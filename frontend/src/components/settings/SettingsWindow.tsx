@@ -101,7 +101,7 @@ function FontDropdownSkeleton() {
 
 function SettingsWindowSkeleton() {
   return (
-    <div className="flex min-h-0 flex-1 overflow-hidden bg-transparent select-none">
+    <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-transparent select-none">
       <aside
         className="flex min-h-0 shrink-0 flex-col border-r border-border bg-card/70 px-3 py-4 backdrop-blur-xl"
         style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
@@ -288,7 +288,7 @@ export default function SettingsWindow() {
   if (loading || !draft) {
     return (
       <motion.div
-        className="flex min-h-0 flex-1 overflow-hidden"
+        className="flex h-full min-h-0 flex-1 overflow-hidden"
         initial={prefersReducedMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.12, ease: "easeOut" }}
@@ -307,7 +307,7 @@ export default function SettingsWindow() {
 
   return (
     <motion.div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text"
+      className="flex h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent select-none [user-select:none] [&_input]:select-text"
       initial={prefersReducedMotion ? false : { opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}

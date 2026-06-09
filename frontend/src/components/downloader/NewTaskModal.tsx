@@ -12,12 +12,15 @@ import {
   createTask,
   inspectDownloadMetadata,
   previewTaskClassification,
+  readClipboardText,
   type FileConflictCheck,
 } from "@/core/bridge/tauri-commands";
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore, type Category, type Tag } from "@/core/store/useDownloadStore";
+import { useToastStore } from "@/core/store/useToastStore";
+import { cn } from "@/lib/utils";
 
 interface NewTaskModalProps {
   open: boolean;
@@ -82,13 +85,15 @@ function RuleIconPreview({
 function MetadataProbeCard({
   loading,
   hasMetadata,
+  className,
 }: {
   loading: boolean;
   hasMetadata: boolean;
+  className?: string;
 }) {
   return (
     <motion.div
-      className="relative overflow-hidden rounded-lg border border-border bg-secondary/25 px-4 py-3 text-sm"
+      className={cn("relative overflow-hidden rounded-lg border border-border bg-secondary/25 px-3 py-2.5 text-sm", className)}
       initial={false}
       animate={{
         borderColor: loading ? "color-mix(in oklab, var(--primary) 42%, var(--border))" : "var(--border)",
@@ -103,19 +108,19 @@ function MetadataProbeCard({
           transition={{ duration: 1.35, repeat: Infinity, ease: "easeInOut" }}
         />
       ) : null}
-      <div className="relative flex gap-3">
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+      <div className="relative flex gap-2.5">
+        <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
           {loading ? <LoaderCircle className="size-4 animate-spin" /> : <Radar className="size-4" />}
         </span>
         <div className="min-w-0">
-          <div className="font-semibold leading-5 text-foreground">
+          <div className="text-xs font-semibold leading-4 text-foreground">
             {loading
               ? UI_TEXT.newTask.metadataProbeTitle
               : hasMetadata
                 ? UI_TEXT.newTask.metadataProbeDone
                 : UI_TEXT.newTask.metadataProbeFallbackTitle}
           </div>
-          <p className="mt-1 leading-6 text-muted-foreground">
+          <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
             {loading
               ? UI_TEXT.newTask.metadataProbeDesc
               : hasMetadata
@@ -149,6 +154,7 @@ export default function NewTaskModal({
 
   const tags = useDownloadStore((state) => state.tags);
   const categories = useDownloadStore((state) => state.categories);
+  const pushToast = useToastStore((state) => state.pushToast);
   const settings = useAppSettingsStore((state) => state.settings);
   const loadSettings = useAppSettingsStore((state) => state.load);
   const globalSaveDir = settings?.download.default_save_dir ?? "";
@@ -212,13 +218,16 @@ export default function NewTaskModal({
   }, [loadSettings, open, settings]);
 
   const pasteFromClipboard = async () => {
-    if (!navigator.clipboard) return;
-
     try {
-      const text = await navigator.clipboard.readText();
+      const text = await readClipboardText();
       if (text.trim()) setUrl(text.trim());
     } catch (err) {
       console.error("Failed to read clipboard:", err);
+      pushToast({
+        title: "读取剪贴板失败",
+        description: String(err),
+        variant: "warning",
+      });
     }
   };
 
@@ -417,7 +426,7 @@ export default function NewTaskModal({
         </DialogHeader>
 
         <form onSubmit={handleSubmit}>
-          <DialogBody className="px-8 py-6">
+          <DialogBody className="px-8 py-5">
             {step === "link" ? (
               <motion.div
                 className="mx-auto w-full"
@@ -441,14 +450,12 @@ export default function NewTaskModal({
               </motion.div>
             ) : (
               <motion.div
-                className="grid gap-5 md:grid-cols-[1fr_8rem]"
+                className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_13.5rem]"
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.16, ease: "easeOut" }}
               >
                 <div className="space-y-3">
-                  <MetadataProbeCard loading={metadataLoading} hasMetadata={Boolean(totalSize)} />
-
                   <ActionInput
                     type="text"
                     value={url}
@@ -462,8 +469,8 @@ export default function NewTaskModal({
                     required
                   />
 
-                  <div className="grid gap-3 md:grid-cols-[auto_1fr] md:items-center">
-                    <label className="flex h-10 items-center text-sm font-medium text-foreground">
+                  <div className="grid h-12 gap-3 md:grid-cols-[auto_1fr] md:items-center">
+                    <label className="flex h-12 items-center text-sm font-medium text-foreground">
                       分类到
                     </label>
                     <CategoryDropdown
@@ -472,7 +479,7 @@ export default function NewTaskModal({
                       onValueChange={handleCategoryChange}
                       disabled={loading}
                       noCategoryLabel="不分类"
-                      triggerClassName="bg-background/70"
+                      triggerClassName="h-12 bg-background/70 px-4 text-base"
                     />
                   </div>
 
@@ -498,24 +505,29 @@ export default function NewTaskModal({
                   />
                 </div>
 
-                <aside className="flex min-w-32 flex-col items-center justify-center gap-4 rounded-lg bg-background/35 px-4 py-4 text-sm text-muted-foreground">
-                  <div className="grid size-14 place-items-center rounded-lg bg-muted/70">
+                <aside className="flex h-[228px] min-w-0 flex-col gap-3 rounded-lg bg-background/35 px-3.5 py-3 text-sm text-muted-foreground">
+                  <div className="mx-auto grid size-12 place-items-center rounded-lg bg-muted/70">
                     <RuleIconPreview category={selectedCategory} tag={matchedTag} />
                   </div>
-                  <div className="max-w-28 truncate text-center text-sm font-medium text-foreground">
+                  <div className="max-w-full truncate text-center text-sm font-medium text-foreground">
                     {ruleLabel}
                   </div>
-                  <div className="h-px w-full bg-border/70" />
-                  <div className="flex flex-col items-center gap-1">
-                    <div className="flex items-center gap-2">
+                  <div className="h-px w-full bg-border/60" />
+                  <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/20 px-3 py-2">
+                    <div className="flex min-w-0 items-center gap-2">
                       <Grid2X2Plus className="size-4" />
                       <span className="text-xs">文件大小</span>
                     </div>
-                    <span className="flex items-center gap-1 font-mono text-sm text-foreground">
+                    <span className="flex shrink-0 items-center gap-1 font-mono text-sm text-foreground">
                       {metadataLoading ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
                       {metadataLoading ? "识别中" : formatBytes(totalSize)}
                     </span>
                   </div>
+                  <MetadataProbeCard
+                    loading={metadataLoading}
+                    hasMetadata={Boolean(totalSize)}
+                    className="w-full text-left"
+                  />
                 </aside>
               </motion.div>
             )}

@@ -101,6 +101,8 @@ interface DownloadState {
   globalUploadSpeed: string;
   globalTransferSpeed: string;
   activeTasksCount: number;
+  categoryTreeLoaded: boolean;
+  categoryTreeLoading: boolean;
   
   // Actions
   addTask: (gid: string, url: string, name: string) => void;
@@ -114,6 +116,7 @@ interface DownloadState {
   fetchTasks: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchTags: () => Promise<void>;
+  fetchCategoryTree: (force?: boolean) => Promise<void>;
   createCategory: (input: CategoryInput) => Promise<void>;
   updateCategoryConfig: (categoryId: number, input: CategoryInput) => Promise<void>;
   deleteCategory: (categoryId: number) => Promise<void>;
@@ -167,8 +170,7 @@ const mapTask = (task: TaskOverview): Task => ({
   })),
 });
 
-export const useDownloadStore = create<DownloadState>()(
-    (set, get) => ({
+export const useDownloadStore = create<DownloadState>()((set, get) => ({
       tasks: {},
       categories: [],
       tags: [],
@@ -177,6 +179,8 @@ export const useDownloadStore = create<DownloadState>()(
       globalUploadSpeed: "0 B/s",
       globalTransferSpeed: "0 B/s",
       activeTasksCount: 0,
+      categoryTreeLoaded: false,
+      categoryTreeLoading: false,
 
       addTask: (gid, url, name) => {
         set((state) => ({
@@ -392,6 +396,7 @@ export const useDownloadStore = create<DownloadState>()(
           set({ categories: cats.map(mapCategory) });
         } catch (e) {
           console.error("Failed to fetch categories", e);
+          throw e;
         }
       },
 
@@ -401,6 +406,21 @@ export const useDownloadStore = create<DownloadState>()(
           set({ tags: tgs.map(mapTag) });
         } catch (e) {
           console.error("Failed to fetch tags", e);
+          throw e;
+        }
+      },
+
+      fetchCategoryTree: async (force = false) => {
+        const state = get();
+        if (state.categoryTreeLoading) return;
+        if (!force && state.categoryTreeLoaded) return;
+
+        set({ categoryTreeLoading: true });
+        try {
+          await Promise.all([state.fetchCategories(), state.fetchTags()]);
+          set({ categoryTreeLoaded: true });
+        } finally {
+          set({ categoryTreeLoading: false });
         }
       },
 
@@ -429,7 +449,7 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await createCategory({ ...input, rules: normalizeRules(input.rules) });
           const store = get();
-          await store.fetchCategories();
+          await store.fetchCategoryTree(true);
         } catch (e) {
           console.error("Failed to create category", e);
         }
@@ -439,7 +459,7 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await updateCategoryConfig(categoryId, { ...input, rules: normalizeRules(input.rules) });
           const store = get();
-          await store.fetchCategories();
+          await store.fetchCategoryTree(true);
           await store.fetchTasks();
         } catch (e) {
           console.error("Failed to update category", e);
@@ -450,8 +470,7 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await deleteCategory(categoryId);
           const store = get();
-          await store.fetchCategories();
-          await store.fetchTags();
+          await store.fetchCategoryTree(true);
           await store.fetchTasks();
         } catch (e) {
           console.error("Failed to delete category", e);
@@ -482,7 +501,7 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await createTag({ ...input, rules: normalizeRules(input.rules) });
           const store = get();
-          await store.fetchTags();
+          await store.fetchCategoryTree(true);
         } catch (e) {
           console.error("Failed to create tag", e);
         }
@@ -492,7 +511,7 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await updateTagConfig(tagId, { ...input, rules: normalizeRules(input.rules) });
           const store = get();
-          await store.fetchTags();
+          await store.fetchCategoryTree(true);
           await store.fetchTasks();
         } catch (e) {
           console.error("Failed to update tag", e);
@@ -503,11 +522,10 @@ export const useDownloadStore = create<DownloadState>()(
         try {
           await deleteTag(tagId);
           const store = get();
-          await store.fetchTags();
+          await store.fetchCategoryTree(true);
           await store.fetchTasks();
         } catch (e) {
           console.error("Failed to delete tag", e);
         }
       },
-    })
-);
+    }));

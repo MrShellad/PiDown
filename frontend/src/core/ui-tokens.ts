@@ -1,6 +1,12 @@
 export const UI_TOKENS = {
   sidebarWidth: "220px",
   settingsSidebarWidth: "240px",
+  settingsDialog: {
+    width: "1040px",
+    height: "720px",
+    maxWidth: "calc(100vw - 2rem)",
+    maxHeight: "calc(100vh - 2rem)",
+  },
   frameHeights: {
     modern: "44px",
   },

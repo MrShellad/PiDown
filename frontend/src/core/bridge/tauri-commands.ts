@@ -144,6 +144,14 @@ export async function inspectDownloadMetadata(url: string): Promise<DownloadMeta
   return invoke<DownloadMetadata>("inspect_download_metadata", { url });
 }
 
+export async function readClipboardText(): Promise<string> {
+  return invoke<string>("read_clipboard_text");
+}
+
+export async function writeClipboardText(text: string): Promise<void> {
+  return invoke<void>("write_clipboard_text", { text });
+}
+
 export async function previewTaskClassification(
   url: string,
   filename: string,
@@ -194,14 +202,6 @@ export async function switchToFloat(): Promise<void> {
 
 export async function switchToMain(): Promise<void> {
   return invoke<void>("switch_to_main");
-}
-
-export async function openSettingsWindow(): Promise<void> {
-  return invoke<void>("open_settings_window");
-}
-
-export async function closeSettingsWindow(): Promise<void> {
-  return invoke<void>("close_settings_window");
 }
 
 export async function closeMainWindow(): Promise<void> {

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { closeMainWindow, closeSettingsWindow, openSettingsWindow } from "@/core/bridge/tauri-commands";
+import { closeMainWindow } from "@/core/bridge/tauri-commands";
 import { UI_TEXT } from "@/core/locale";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { Download, FolderOpen, Info, Menu, Minus, Settings, Square, X } from "lucide-react";
@@ -9,7 +9,7 @@ interface WindowFrameProps {
   title: string;
   showMenu?: boolean;
   showSettingsButton?: boolean;
-  closeAction?: "main" | "settings";
+  onOpenSettings?: () => void;
 }
 
 const WINDOW_MENU_ITEMS = [
@@ -62,7 +62,7 @@ export default function WindowFrame({
   title,
   showMenu = true,
   showSettingsButton = true,
-  closeAction = "main",
+  onOpenSettings,
 }: WindowFrameProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -84,11 +84,7 @@ export default function WindowFrame({
 
   const handleClose = async () => {
     try {
-      if (closeAction === "settings") {
-        await closeSettingsWindow();
-      } else {
-        await closeMainWindow();
-      }
+      await closeMainWindow();
     } catch (e) {
       console.warn("Tauri close window API failed. Closing window directly:", e);
       try {
@@ -102,14 +98,6 @@ export default function WindowFrame({
   const toggleMenu = useCallback(() => {
     setMenuOpen((prev) => !prev);
   }, []);
-
-  const handleOpenSettings = async () => {
-    try {
-      await openSettingsWindow();
-    } catch (e) {
-      console.warn("Failed to open settings window:", e);
-    }
-  };
 
   return (
     <div className="relative select-none" style={{ zIndex: 100 }}>
@@ -144,7 +132,8 @@ export default function WindowFrame({
         <div className="ml-auto flex h-full items-center" style={{ zIndex: 10 }}>
           {showSettingsButton ? (
             <button
-              onClick={handleOpenSettings}
+              onClick={onOpenSettings}
+              disabled={!onOpenSettings}
               className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
             >
               <Settings size={14} />

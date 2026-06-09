@@ -6,8 +6,8 @@
   "build": {
     "frontendDist": "../frontend/dist",
     "devUrl": "http://localhost:5173",
-    "beforeDevCommand": "npm --prefix frontend run dev",
-    "beforeBuildCommand": "npm --prefix frontend run build"
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
   },
 
   "app": {
@@ -32,18 +32,6 @@
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": false
-      },
-      {
-        "label": "settings",
-        "title": "PiDownloader Settings",
-        "width": 980,
-        "height": 720,
-        "minWidth": 860,
-        "minHeight": 620,
-        "resizable": true,
-        "decorations": false,
-        "transparent": true,
         "visible": false
       }
     ],
