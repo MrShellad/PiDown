@@ -76,10 +76,36 @@ impl super::AppState {
             .get_task(gid)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Task not found".to_string())?;
+        let file_path = task_file_path(&task);
         let folder_path = Path::new(&task.save_path);
 
         if !folder_path.exists() {
             return Err("Download folder does not exist".to_string());
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if file_path.exists() {
+                let result = Command::new("explorer")
+                    .arg(format!("/select,{}", file_path.to_string_lossy()))
+                    .spawn();
+                return result
+                    .map(|_| ())
+                    .map_err(|e| format!("Failed to locate file: {e}"));
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            if file_path.exists() {
+                let result = Command::new("open")
+                    .arg("-R")
+                    .arg(&file_path)
+                    .spawn();
+                return result
+                    .map(|_| ())
+                    .map_err(|e| format!("Failed to locate file: {e}"));
+            }
         }
 
         open_path(folder_path)

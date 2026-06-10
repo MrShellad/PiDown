@@ -138,7 +138,7 @@ export function NewTaskBasicForm({
           required
         />
 
-        <div className="grid h-12 gap-3 md:grid-cols-[auto_1fr] md:items-center">
+        <div className="grid h-auto md:h-12 gap-3 md:grid-cols-[auto_1fr] md:items-center">
           <label className="flex h-12 items-center text-sm font-medium text-foreground">
             分类到
           </label>

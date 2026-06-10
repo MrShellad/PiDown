@@ -15,6 +15,7 @@ pub struct DbTask {
     pub created_at: i64,
     pub started_at: Option<i64>,
     pub completed_at: Option<i64>,
+    pub error_message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -103,6 +104,10 @@ pub struct TaskOverview {
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub created_at: i64,
+    pub started_at: Option<i64>,
+    pub completed_at: Option<i64>,
+    pub upload_speed: String,
+    pub error_message: Option<String>,
     pub save_path: String,
     pub category_id: Option<i64>,
     pub tags: Vec<DbTag>,

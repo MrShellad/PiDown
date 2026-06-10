@@ -1,28 +1,14 @@
+use crate::core::state::AppState;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
-use std::path::{Path, PathBuf};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use crate::core::state::{AppState, TaskCreateOptions};
+use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{AppHandle, Manager};
-use uuid::Uuid;
+use std::time::Duration;
+use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-const BRIDGE_STATE_FILE_NAME: &str = "native-bridge.json";
-const MAX_NATIVE_MESSAGE_BYTES: usize = 1024 * 1024;
 const MAX_HTTP_BODY_BYTES: usize = 1024 * 1024;
 const HEADER_LIMIT_BYTES: usize = 16 * 1024;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct BridgeStateFile {
-    version: u32,
-    host: String,
-    port: u16,
-    token: String,
-    pid: u32,
-    created_at: i64,
-}
 
 #[derive(Debug, Deserialize)]
 struct BridgeHttpRequest {
@@ -81,37 +67,25 @@ impl NativeResponse {
 }
 
 pub fn start_native_bridge_server(
-    app_data_dir: PathBuf,
+    _app_data_dir: PathBuf,
     app_handle: AppHandle,
 ) -> Result<(), String> {
-    remove_bridge_state(&app_data_dir)?;
+    let state = app_handle
+        .try_state::<Arc<AppState>>()
+        .ok_or_else(|| "PiDownloader AppState is unavailable".to_string())?;
 
-    let listener = TcpListener::bind(("127.0.0.1", 0))
-        .map_err(|e| format!("Failed to bind native bridge: {e}"))?;
-    let port = listener
-        .local_addr()
-        .map_err(|e| format!("Failed to read native bridge address: {e}"))?
-        .port();
-    let token = Uuid::new_v4().to_string();
+    let settings = state.get_settings();
+    let port = settings.download.browser_extension_port;
 
-    write_bridge_state(
-        &app_data_dir,
-        &BridgeStateFile {
-            version: 1,
-            host: "127.0.0.1".to_string(),
-            port,
-            token: token.clone(),
-            pid: std::process::id(),
-            created_at: unix_timestamp(),
-        },
-    )?;
+    let listener = TcpListener::bind(("127.0.0.1", port))
+        .map_err(|e| format!("Failed to bind native bridge HTTP server on port {port}: {e}"))?;
 
     std::thread::Builder::new()
         .name("pidownloader-native-bridge".to_string())
         .spawn(move || {
             for stream in listener.incoming() {
                 match stream {
-                    Ok(stream) => handle_bridge_stream(stream, app_handle.clone(), token.clone()),
+                    Ok(stream) => handle_bridge_stream(stream, app_handle.clone()),
                     Err(error) => log::warn!("Native bridge connection failed: {error}"),
                 }
             }
@@ -121,50 +95,42 @@ pub fn start_native_bridge_server(
     Ok(())
 }
 
-pub fn remove_bridge_state(app_data_dir: &Path) -> Result<(), String> {
-    let path = bridge_state_path(app_data_dir);
-    match std::fs::remove_file(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
-        Err(error) => Err(error.to_string()),
-    }
-}
-
-pub fn run_native_host(app_data_dir: &Path) -> Result<(), String> {
-    let mut stdin = std::io::stdin().lock();
-    let mut stdout = std::io::stdout().lock();
-
-    loop {
-        let Some(message) = read_native_message(&mut stdin)? else {
-            return Ok(());
-        };
-        let response = forward_native_message(app_data_dir, message);
-        write_native_message(&mut stdout, &response)?;
-        stdout.flush().map_err(|e| e.to_string())?;
-    }
-}
-
-fn handle_bridge_stream(mut stream: TcpStream, app_handle: AppHandle, token: String) {
-    let response = match read_http_request(&mut stream) {
+fn handle_bridge_stream(mut stream: TcpStream, app_handle: AppHandle) {
+    match read_http_request(&mut stream) {
         Ok(request) => match request {
-            ParsedHttpRequest::PostBridge(body) => handle_bridge_body(&app_handle, &token, body),
-            ParsedHttpRequest::Unsupported => NativeResponse::error("Unsupported request"),
+            ParsedHttpRequest::Options => {
+                let _ = write_options_response(&mut stream);
+            }
+            ParsedHttpRequest::PostBridge(body) => {
+                let response = handle_bridge_body(&app_handle, body);
+                let _ = write_http_response(&mut stream, &response);
+            }
+            ParsedHttpRequest::Unsupported => {
+                let response = NativeResponse::error("Unsupported request");
+                let _ = write_http_response(&mut stream, &response);
+            }
         },
-        Err(error) => NativeResponse::error(error),
-    };
-
-    let _ = write_http_response(&mut stream, &response);
+        Err(error) => {
+            let response = NativeResponse::error(error);
+            let _ = write_http_response(&mut stream, &response);
+        }
+    }
 }
 
 fn handle_bridge_body(
     app_handle: &AppHandle,
-    expected_token: &str,
     body: Vec<u8>,
 ) -> NativeResponse {
     let request = match serde_json::from_slice::<BridgeHttpRequest>(&body) {
         Ok(request) => request,
         Err(error) => return NativeResponse::error(format!("Invalid bridge request: {error}")),
     };
+
+    let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
+        return NativeResponse::error("PiDownloader state is unavailable");
+    };
+
+    let expected_token = state.get_settings().download.browser_extension_token.clone();
 
     if request.token != expected_token {
         return NativeResponse::error("Native bridge token mismatch");
@@ -180,6 +146,7 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
             let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
                 return NativeResponse::error("PiDownloader state is unavailable");
             };
+
             if !state.get_settings().download.browser_extension_integration_enabled {
                 return NativeResponse::error("Browser extension integration is disabled");
             }
@@ -190,123 +157,55 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
                 return NativeResponse::error("Unsupported or missing download URL");
             }
 
-            match tauri::async_runtime::block_on(state.add_task(
-                &url,
-                None,
-                download.filename.as_deref(),
-                None,
-                false,
-                download.total_size,
-                TaskCreateOptions {
-                    user_agent: download.user_agent,
-                    referer: download.referer,
-                    cookies: download.cookies.unwrap_or_default(),
-                    ..TaskCreateOptions::default()
-                },
-            )) {
-                Ok(gid) => {
-                    focus_main_window(app_handle);
-                    NativeResponse {
-                        ok: true,
-                        gid: Some(gid),
-                        error: None,
-                    }
+            let filename = download.filename.unwrap_or_default();
+            let user_agent = download.user_agent.unwrap_or_default();
+            let referer = download.referer.unwrap_or_default();
+            let cookies = download.cookies.unwrap_or_default().join(";");
+            let total_size = download.total_size.unwrap_or(0);
+
+            // Construct query parameters
+            let url_encoded = urlencoding::encode(&url);
+            let filename_encoded = urlencoding::encode(&filename);
+            let user_agent_encoded = urlencoding::encode(&user_agent);
+            let referer_encoded = urlencoding::encode(&referer);
+            let cookies_encoded = urlencoding::encode(&cookies);
+
+            let window_url = format!(
+                "index.html?new_task=1&url={}&filename={}&userAgent={}&referer={}&cookies={}&totalSize={}",
+                url_encoded, filename_encoded, user_agent_encoded, referer_encoded, cookies_encoded, total_size
+            );
+
+            let label = format!("new_task_{}", uuid::Uuid::new_v4());
+
+            let win_builder = WebviewWindowBuilder::new(
+                app_handle,
+                &label,
+                WebviewUrl::App(window_url.into()),
+            )
+            .title("新建下载任务")
+            .inner_size(800.0, 560.0)
+            .resizable(false)
+            .decorations(false)
+            .transparent(true);
+
+            match win_builder.build() {
+                Ok(window) => {
+                    let disable_shadow = state.get_settings().interface.disable_window_shadow;
+                    let _ = crate::commands::window::set_window_shadow(&window, disable_shadow);
+                    
+                    let _ = window.show();
+                    let _ = window.set_focus();
+
+                    NativeResponse::ok()
                 }
-                Err(error) => NativeResponse::error(error),
+                Err(error) => NativeResponse::error(format!("Failed to build new task window: {error}")),
             }
         }
     }
 }
 
-fn focus_main_window(app_handle: &AppHandle) {
-    let Some(window) = app_handle.get_webview_window("main") else {
-        return;
-    };
-
-    if let Err(error) = window.show() {
-        log::warn!("Failed to show main window for external download request: {error}");
-    }
-    if let Err(error) = window.set_focus() {
-        log::warn!("Failed to focus main window for external download request: {error}");
-    }
-}
-
-fn forward_native_message(app_data_dir: &Path, message: Value) -> NativeResponse {
-    let bridge = match read_bridge_state(app_data_dir) {
-        Ok(bridge) => bridge,
-        Err(error) => {
-            let _ = remove_bridge_state(app_data_dir);
-            return NativeResponse::error(error);
-        }
-    };
-
-    let mut payload = match message {
-        Value::Object(map) => map,
-        _ => return NativeResponse::error("Native message must be a JSON object"),
-    };
-    payload.insert("token".to_string(), Value::String(bridge.token));
-
-    let body = match serde_json::to_vec(&Value::Object(payload)) {
-        Ok(body) => body,
-        Err(error) => return NativeResponse::error(format!("Failed to encode request: {error}")),
-    };
-
-    match post_bridge_request(&bridge.host, bridge.port, &body) {
-        Ok(response) => response,
-        Err(error) => {
-            let _ = remove_bridge_state(app_data_dir);
-            NativeResponse::error(error)
-        }
-    }
-}
-
-fn read_bridge_state(app_data_dir: &Path) -> Result<BridgeStateFile, String> {
-    let path = bridge_state_path(app_data_dir);
-    let raw = std::fs::read_to_string(&path)
-        .map_err(|_| "PiDownloader is not running or native bridge is unavailable".to_string())?;
-    serde_json::from_str(&raw).map_err(|e| format!("Invalid native bridge state: {e}"))
-}
-
-fn write_bridge_state(app_data_dir: &Path, state: &BridgeStateFile) -> Result<(), String> {
-    std::fs::create_dir_all(app_data_dir).map_err(|e| e.to_string())?;
-    let raw = serde_json::to_string_pretty(state).map_err(|e| e.to_string())?;
-    std::fs::write(bridge_state_path(app_data_dir), raw).map_err(|e| e.to_string())
-}
-
-fn bridge_state_path(app_data_dir: &Path) -> PathBuf {
-    app_data_dir.join(BRIDGE_STATE_FILE_NAME)
-}
-
-fn post_bridge_request(host: &str, port: u16, body: &[u8]) -> Result<NativeResponse, String> {
-    let mut stream = TcpStream::connect((host, port)).map_err(|e| {
-        format!(
-            "PiDownloader native bridge is stale or unavailable at {host}:{port}: {e}. Please restart PiDownloader."
-        )
-    })?;
-    stream
-        .set_read_timeout(Some(Duration::from_secs(6)))
-        .map_err(|e| e.to_string())?;
-    stream
-        .set_write_timeout(Some(Duration::from_secs(6)))
-        .map_err(|e| e.to_string())?;
-
-    let request = format!(
-        "POST /native-bridge HTTP/1.1\r\nHost: {host}:{port}\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    stream
-        .write_all(request.as_bytes())
-        .and_then(|_| stream.write_all(body))
-        .map_err(|e| e.to_string())?;
-
-    let mut response = Vec::new();
-    stream
-        .read_to_end(&mut response)
-        .map_err(|e| e.to_string())?;
-    parse_http_response(&response)
-}
-
 enum ParsedHttpRequest {
+    Options,
     PostBridge(Vec<u8>),
     Unsupported,
 }
@@ -338,6 +237,10 @@ fn read_http_request(stream: &mut TcpStream) -> Result<ParsedHttpRequest, String
         .map_err(|_| "Bridge request headers must be UTF-8".to_string())?;
     let mut lines = headers.lines();
     let request_line = lines.next().unwrap_or_default();
+    
+    if request_line.starts_with("OPTIONS /native-bridge HTTP/1.1") {
+        return Ok(ParsedHttpRequest::Options);
+    }
     if request_line != "POST /native-bridge HTTP/1.1" {
         return Ok(ParsedHttpRequest::Unsupported);
     }
@@ -361,22 +264,24 @@ fn read_http_request(stream: &mut TcpStream) -> Result<ParsedHttpRequest, String
     ))
 }
 
-fn parse_http_response(response: &[u8]) -> Result<NativeResponse, String> {
-    let header_end =
-        find_header_end(response).ok_or_else(|| "Invalid bridge response".to_string())?;
-    let header = std::str::from_utf8(&response[..header_end])
-        .map_err(|_| "Bridge response headers must be UTF-8".to_string())?;
-    if !header.starts_with("HTTP/1.1 200") {
-        return Err("Native bridge rejected request".to_string());
-    }
-    let body = &response[header_end + 4..];
-    serde_json::from_slice(body).map_err(|e| format!("Invalid bridge response body: {e}"))
+fn write_options_response(stream: &mut TcpStream) -> Result<(), String> {
+    let response = "HTTP/1.1 204 No Content\r\n\
+                    Access-Control-Allow-Origin: *\r\n\
+                    Access-Control-Allow-Methods: POST, OPTIONS\r\n\
+                    Access-Control-Allow-Headers: Content-Type, Authorization, X-PiDownloader-Token\r\n\
+                    Connection: close\r\n\
+                    \r\n";
+    stream.write_all(response.as_bytes()).map_err(|e| e.to_string())
 }
 
 fn write_http_response(stream: &mut TcpStream, response: &NativeResponse) -> Result<(), String> {
     let body = serde_json::to_vec(response).map_err(|e| e.to_string())?;
     let header = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
+        "HTTP/1.1 200 OK\r\n\
+         Content-Type: application/json\r\n\
+         Content-Length: {}\r\n\
+         Access-Control-Allow-Origin: *\r\n\
+         Connection: close\r\n\r\n",
         body.len()
     );
     stream
@@ -403,64 +308,14 @@ fn find_header_end(buffer: &[u8]) -> Option<usize> {
     buffer.windows(4).position(|window| window == b"\r\n\r\n")
 }
 
-fn read_native_message<R: Read>(reader: &mut R) -> Result<Option<Value>, String> {
-    let mut length_bytes = [0u8; 4];
-    match reader.read_exact(&mut length_bytes) {
-        Ok(()) => {}
-        Err(error) if error.kind() == std::io::ErrorKind::UnexpectedEof => return Ok(None),
-        Err(error) => return Err(error.to_string()),
-    }
-
-    let length = u32::from_le_bytes(length_bytes) as usize;
-    if length > MAX_NATIVE_MESSAGE_BYTES {
-        return Err("Native message is too large".to_string());
-    }
-
-    let mut body = vec![0u8; length];
-    reader.read_exact(&mut body).map_err(|e| e.to_string())?;
-    serde_json::from_slice(&body)
-        .map(Some)
-        .map_err(|e| format!("Invalid native message JSON: {e}"))
-}
-
-fn write_native_message<W: Write>(writer: &mut W, response: &NativeResponse) -> Result<(), String> {
-    let body = serde_json::to_vec(response).map_err(|e| e.to_string())?;
-    let length =
-        u32::try_from(body.len()).map_err(|_| "Native response is too large".to_string())?;
-    writer
-        .write_all(&length.to_le_bytes())
-        .and_then(|_| writer.write_all(&body))
-        .map_err(|e| e.to_string())
-}
-
 fn is_supported_url(url: &str) -> bool {
     let lower = url.trim().to_ascii_lowercase();
     lower.starts_with("http://") || lower.starts_with("https://")
 }
 
-fn unix_timestamp() -> i64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs() as i64)
-        .unwrap_or(0)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn native_message_roundtrip_uses_chrome_length_prefix() {
-        let response = NativeResponse::ok();
-        let mut buffer = Vec::new();
-        write_native_message(&mut buffer, &response).unwrap();
-
-        let mut cursor = std::io::Cursor::new(buffer);
-        let message = read_native_message(&mut cursor).unwrap().unwrap();
-
-        assert_eq!(message["ok"], true);
-        assert!(message.get("gid").is_none());
-    }
 
     #[test]
     fn unsupported_urls_are_rejected() {

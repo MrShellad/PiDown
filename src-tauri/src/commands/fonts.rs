@@ -292,3 +292,33 @@ fn read_u32(data: &[u8], offset: usize) -> Option<u32> {
     let bytes = data.get(offset..offset + 4)?;
     Some(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
 }
+
+#[tauri::command]
+pub async fn save_theme_font(
+    app_handle: tauri::AppHandle,
+    theme_id: String,
+    font_filename: String,
+    font_data_base64: String,
+) -> Result<String, String> {
+    use base64::{Engine as _, engine::general_purpose::STANDARD};
+    use tauri::Manager;
+
+    let app_data_dir = app_handle
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("Failed to resolve app data dir: {e}"))?;
+
+    let theme_dir = app_data_dir.join("theme").join(&theme_id);
+    fs::create_dir_all(&theme_dir)
+        .map_err(|e| format!("Failed to create theme directory: {e}"))?;
+
+    let decoded = STANDARD
+        .decode(&font_data_base64)
+        .map_err(|e| format!("Failed to decode base64 font: {e}"))?;
+
+    let file_path = theme_dir.join(&font_filename);
+    fs::write(&file_path, &decoded)
+        .map_err(|e| format!("Failed to write font file: {e}"))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}

@@ -1,9 +1,10 @@
-import React, { useEffect, useLayoutEffect } from "react";
+import React, { useEffect, useLayoutEffect, useRef } from "react";
 import { applyThemeToDocument, useThemeStore } from "@/core/store/useThemeStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { setupTauriEvents } from "@/core/bridge/tauri-events";
 import { ToastViewport } from "@/components/ui/toast";
+import { motion } from "motion/react";
 
 interface ThemeProviderProps {
   children: React.ReactNode;
@@ -14,11 +15,28 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
   const theme = useThemeStore((state) => state.theme);
   const colorMode = useThemeStore((state) => state.colorMode);
   const fontId = useThemeStore((state) => state.fontId);
+  const effectsEnabled = useThemeStore((state) => state.effectsEnabled);
+
+  const prevColorModeRef = useRef(colorMode);
 
   // Apply before paint so secondary windows don't flash with default theme tokens.
   useLayoutEffect(() => {
+    if (prevColorModeRef.current !== colorMode) {
+      if (effectsEnabled) {
+        document.documentElement.classList.add("theme-transitioning");
+      }
+      prevColorModeRef.current = colorMode;
+    }
+
     applyThemeToDocument({ theme, colorMode, fontId });
-  }, [colorMode, fontId, theme]);
+
+    if (effectsEnabled) {
+      const timer = setTimeout(() => {
+        document.documentElement.classList.remove("theme-transitioning");
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [colorMode, fontId, theme, effectsEnabled]);
 
   // Hook up Tauri event listener and fetch initial task list
   useEffect(() => {
@@ -53,8 +71,17 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
 
   return (
     <>
-      {children}
+      <motion.div
+        key={colorMode}
+        initial={effectsEnabled ? { opacity: 0.95 } : false}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
+        className="h-full w-full"
+      >
+        {children}
+      </motion.div>
       <ToastViewport />
     </>
   );
 }
+

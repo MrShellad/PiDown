@@ -12,6 +12,7 @@ interface WindowFrameProps {
   showMenu?: boolean;
   showSettingsButton?: boolean;
   onOpenSettings?: () => void;
+  onClose?: () => void;
 }
 
 const WINDOW_MENU_ITEMS = [
@@ -80,6 +81,7 @@ export default function WindowFrame({
   showMenu = true,
   showSettingsButton = true,
   onOpenSettings,
+  onClose,
 }: WindowFrameProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const colorMode = useThemeStore((state) => state.colorMode);
@@ -104,6 +106,10 @@ export default function WindowFrame({
   };
 
   const handleClose = async () => {
+    if (onClose) {
+      onClose();
+      return;
+    }
     try {
       await closeMainWindow();
     } catch (e) {

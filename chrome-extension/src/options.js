@@ -8,9 +8,11 @@ const DEFAULT_OPTIONS = {
   minBytes: 0,
   allowExtensions: "",
   blockExtensions: "",
+  serverPort: 18388,
+  serverToken: "",
+  contextMenuEnabled: true,
 };
 
-const SEGMENT_IDS = ["allowlist", "blocklist", "size-limit"];
 const EXTENSION_PRESETS = [
   { label: "压缩包", values: ["zip", "rar", "7z", "tar", "gz", "tgz", "bz2", "xz", "iso"] },
   { label: "文档", values: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "txt", "md", "csv", "rtf", "epub"] },
@@ -24,86 +26,224 @@ const EXTENSION_PRESETS = [
 const form = document.querySelector("#options-form");
 const statusEl = document.querySelector("#status");
 const resetButton = document.querySelector("#reset");
-const segmentButtons = Array.from(document.querySelectorAll("[data-segment-target]"));
-const segmentPanels = Array.from(document.querySelectorAll("[data-segment-panel]"));
+const testButton = document.querySelector("#test-connection");
+const themeBtn = document.querySelector("#themeToggle");
+const connectionStatus = document.querySelector("#connection-status");
+const largeFileToggle = document.querySelector("#largeFileToggle");
+const minBytesField = document.querySelector("#minBytesField");
+const minBytesMbInput = document.querySelector("#minBytesMb");
+const apiUrlInput = document.querySelector("#apiUrl");
+const serverTokenInput = document.querySelector("#serverToken");
 
-const fields = Object.keys(DEFAULT_OPTIONS);
+const extVersionEl = document.querySelector("#ext-version");
+const clientVersionEl = document.querySelector("#client-version");
+const openClientBtn = document.querySelector("#open-client");
+const officialSiteBtn = document.querySelector("#official-site");
+
+// Set extension version from manifest
+if (extVersionEl) {
+  extVersionEl.textContent = chrome.runtime.getManifest().version;
+}
 
 init().catch((error) => {
   showStatus(`加载失败：${error instanceof Error ? error.message : String(error)}`, "error");
 });
 
+async function init() {
+  // Initialize options
+  const options = await chrome.storage.sync.get(DEFAULT_OPTIONS);
+  writeForm(options);
+  
+  // Initialize theme
+  initTheme();
+
+  // Test connection
+  updateConnectionStatus();
+
+  // Presets
+  renderPresetChips();
+}
+
+// Show/hide minBytes field based on toggle
+largeFileToggle.addEventListener("change", () => {
+  minBytesField.style.display = largeFileToggle.checked ? "block" : "none";
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  await chrome.storage.sync.set(readForm());
+  const options = readForm();
+  await chrome.storage.sync.set(options);
   showStatus("设置已保存", "success");
+  updateConnectionStatus();
 });
 
 resetButton.addEventListener("click", async () => {
   await chrome.storage.sync.set(DEFAULT_OPTIONS);
   writeForm(DEFAULT_OPTIONS);
-  activateSegment("allowlist");
   showStatus("已恢复默认设置", "success");
+  updateConnectionStatus();
 });
 
-for (const button of segmentButtons) {
-  button.addEventListener("click", () => {
-    activateSegment(button.dataset.segmentTarget || "allowlist");
-  });
-}
+testButton.addEventListener("click", async () => {
+  testButton.disabled = true;
+  connectionStatus.textContent = "● 正在测试...";
+  connectionStatus.className = "badge";
+  
+  // Save first to ensure the port/token are tested correctly
+  const options = readForm();
+  await chrome.storage.sync.set(options);
 
-renderPresetChips();
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "pidownloader:test-connection",
+    });
 
-async function init() {
-  const options = await chrome.storage.sync.get(DEFAULT_OPTIONS);
-  writeForm(options);
-  activateSegment("allowlist");
+    if (response?.ok) {
+      connectionStatus.textContent = "● 已连接";
+      connectionStatus.className = "badge success";
+      showStatus("连接测试成功！", "success");
+      if (clientVersionEl) {
+        clientVersionEl.textContent = "已连接 (0.1.0)";
+      }
+    } else {
+      connectionStatus.textContent = "● 未连接";
+      connectionStatus.className = "badge error";
+      showStatus("连接失败，请检查设置", "error");
+      if (clientVersionEl) {
+        clientVersionEl.textContent = "未连接";
+      }
+    }
+  } catch (error) {
+    connectionStatus.textContent = "● 未连接";
+    connectionStatus.className = "badge error";
+    showStatus("通信异常", "error");
+    if (clientVersionEl) {
+      clientVersionEl.textContent = "通信异常";
+    }
+  } finally {
+    testButton.disabled = false;
+  }
+});
+
+openClientBtn.addEventListener("click", () => {
+  window.open(apiUrlInput.value || "http://127.0.0.1:18388", "_blank");
+});
+
+officialSiteBtn.addEventListener("click", () => {
+  window.open("https://github.com/MrShellad/PiDown", "_blank");
+});
+
+async function updateConnectionStatus() {
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "pidownloader:test-connection",
+    });
+    if (response?.ok) {
+      connectionStatus.textContent = "● 已连接";
+      connectionStatus.className = "badge success";
+      if (clientVersionEl) {
+        clientVersionEl.textContent = "已连接 (0.1.0)";
+      }
+    } else {
+      connectionStatus.textContent = "● 未连接";
+      connectionStatus.className = "badge error";
+      if (clientVersionEl) {
+        clientVersionEl.textContent = "未连接";
+      }
+    }
+  } catch {
+    connectionStatus.textContent = "● 未连接";
+    connectionStatus.className = "badge error";
+    if (clientVersionEl) {
+      clientVersionEl.textContent = "未连接";
+    }
+  }
 }
 
 function writeForm(options) {
-  for (const field of fields) {
-    const element = document.querySelector(`#${field}`);
-    if (!element) continue;
-    if (element.type === "checkbox") {
-      element.checked = Boolean(options[field]);
-    } else {
-      element.value = options[field] ?? "";
+  // Simple checkboxes
+  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled"]) {
+    const input = document.querySelector(`#${field}`);
+    if (input) {
+      input.checked = Boolean(options[field]);
     }
+  }
+
+  // Extensions
+  for (const field of ["allowExtensions", "blockExtensions"]) {
+    const input = document.querySelector(`#${field}`);
+    if (input) {
+      input.value = options[field] || "";
+    }
+  }
+
+  // API Url and Token
+  apiUrlInput.value = `http://127.0.0.1:${options.serverPort || 18388}`;
+  serverTokenInput.value = options.serverToken || "";
+
+  // Large file toggle & size
+  const minBytes = Number(options.minBytes || 0);
+  if (minBytes > 0) {
+    largeFileToggle.checked = true;
+    minBytesField.style.display = "block";
+    minBytesMbInput.value = Math.round(minBytes / (1024 * 1024));
+  } else {
+    largeFileToggle.checked = false;
+    minBytesField.style.display = "none";
+    minBytesMbInput.value = 10; // default placeholder
   }
 }
 
 function readForm() {
-  return fields.reduce((next, field) => {
-    const element = document.querySelector(`#${field}`);
-    if (!element) return next;
-    next[field] = element.type === "checkbox" ? element.checked : element.value;
-    if (field === "minBytes") {
-      next[field] = Math.max(0, Number(element.value || 0));
+  const options = {};
+  
+  // Simple checkboxes
+  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled"]) {
+    const input = document.querySelector(`#${field}`);
+    if (input) {
+      options[field] = input.checked;
     }
-    return next;
-  }, {});
-}
-
-function activateSegment(segmentId) {
-  const activeId = SEGMENT_IDS.includes(segmentId) ? segmentId : "allowlist";
-
-  for (const button of segmentButtons) {
-    const active = button.dataset.segmentTarget === activeId;
-    button.classList.toggle("is-active", active);
-    button.setAttribute("aria-selected", String(active));
-    button.tabIndex = active ? 0 : -1;
   }
 
-  for (const panel of segmentPanels) {
-    const active = panel.dataset.segmentPanel === activeId;
-    panel.classList.toggle("is-active", active);
-    panel.hidden = !active;
+  // Extensions
+  for (const field of ["allowExtensions", "blockExtensions"]) {
+    const input = document.querySelector(`#${field}`);
+    if (input) {
+      options[field] = input.value;
+    }
   }
+
+  // API Url -> Parse Port
+  let port = 18388;
+  const rawUrl = apiUrlInput.value.trim();
+  try {
+    const parsed = new URL(rawUrl.startsWith("http") ? rawUrl : "http://" + rawUrl);
+    port = Number(parsed.port) || (parsed.protocol === "https:" ? 443 : 80);
+  } catch {
+    const match = rawUrl.match(/:(\d+)$/);
+    if (match) {
+      port = Number(match[1]);
+    }
+  }
+  options.serverPort = port;
+  options.serverToken = serverTokenInput.value.trim();
+
+  // Large file toggle & size
+  if (largeFileToggle.checked) {
+    const mb = Math.max(0, Number(minBytesMbInput.value || 0));
+    options.minBytes = mb * 1024 * 1024;
+  } else {
+    options.minBytes = 0;
+  }
+
+  return options;
 }
 
+// Presets rendering and event handling
 function renderPresetChips() {
   const containers = document.querySelectorAll("[data-preset-container]");
   for (const container of containers) {
+    container.innerHTML = ""; // Clear existing
     const field = container.dataset.presetContainer;
     if (!field) continue;
 
@@ -146,8 +286,43 @@ function normalizeExtension(value) {
 function showStatus(message, kind) {
   statusEl.textContent = message;
   statusEl.dataset.kind = kind;
+  statusEl.style.color = kind === "success" ? "var(--success)" : "var(--danger)";
+  
   window.setTimeout(() => {
     statusEl.textContent = "";
     delete statusEl.dataset.kind;
-  }, 2400);
+  }, 3000);
+}
+
+// Theme handling
+function initTheme() {
+  const root = document.documentElement;
+  const storedTheme = localStorage.getItem("options_theme") || "auto";
+  
+  if (storedTheme === "auto") {
+    applySystemTheme();
+  } else {
+    root.setAttribute("data-theme", storedTheme);
+    updateThemeButton(storedTheme);
+  }
+
+  themeBtn.addEventListener("click", () => {
+    const current = root.getAttribute("data-theme");
+    const next = current === "dark" ? "light" : "dark";
+    root.setAttribute("data-theme", next);
+    localStorage.setItem("options_theme", next);
+    updateThemeButton(next);
+  });
+}
+
+function applySystemTheme() {
+  const root = document.documentElement;
+  const dark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  const theme = dark ? "dark" : "light";
+  root.setAttribute("data-theme", theme);
+  updateThemeButton(theme);
+}
+
+function updateThemeButton(theme) {
+  themeBtn.textContent = theme === "dark" ? "☀️" : "🌙";
 }

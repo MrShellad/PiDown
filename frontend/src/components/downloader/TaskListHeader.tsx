@@ -262,7 +262,7 @@ export default function TaskListHeader({
       data-slot="task-list-header"
       className={cn(
         "flex h-13 shrink-0 items-center overflow-hidden",
-        embedded ? "rounded-lg bg-card/95 shadow-none" : "rounded-lg bg-card/95 shadow-surface-raised",
+        embedded ? "rounded-lg bg-card/80 backdrop-blur-md shadow-md border border-border/40" : "rounded-lg bg-card/95 shadow-surface-raised",
         className
       )}
       style={{ width: "100%", minWidth: tableWidth }}

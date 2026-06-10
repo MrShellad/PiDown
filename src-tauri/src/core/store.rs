@@ -4,6 +4,7 @@ mod schema;
 mod settings_store;
 mod task_tags;
 mod tasks;
+pub mod backgrounds;
 
 #[cfg(test)]
 mod tests;

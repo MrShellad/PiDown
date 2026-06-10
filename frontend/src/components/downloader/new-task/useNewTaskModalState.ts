@@ -190,7 +190,7 @@ export function useNewTaskModalState({
   ) => {
     setUrl(nextUrl)
     setFilename(fallbackFilename)
-    setTotalSize(nextTotalSize)
+    setTotalSize(nextTotalSize === null || nextTotalSize <= 0 ? null : nextTotalSize)
     setCategoryTouched(false)
     setMetadataLoading(false)
     setLoading(false)
@@ -220,10 +220,20 @@ export function useNewTaskModalState({
         return
       }
 
-      const nextFilename = inferFileName(nextUrl)
+      const nextFilename = initialRequest.filename?.trim() || inferFileName(nextUrl)
+      const nextTotalSize = initialRequest.totalSize ?? null
 
-      openDetailsDraft(nextUrl, nextFilename, null, {
-        inspectMetadata: true,
+      if (initialRequest.userAgent || initialRequest.referer || initialRequest.cookies) {
+        setAdvancedDraft((current) => ({
+          ...current,
+          userAgentInput: initialRequest.userAgent || current.userAgentInput,
+          refererInput: initialRequest.referer || current.refererInput,
+          cookiesInput: initialRequest.cookies?.join("\n") || current.cookiesInput,
+        }))
+      }
+
+      openDetailsDraft(nextUrl, nextFilename, nextTotalSize, {
+        inspectMetadata: nextTotalSize === null || nextTotalSize <= 0,
       })
       onInitialRequestConsumed?.()
     })

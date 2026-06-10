@@ -4,14 +4,10 @@ mod download;
 mod events;
 
 use core::app_paths::default_download_dir;
-use core::native_bridge::{remove_bridge_state, start_native_bridge_server};
+use core::native_bridge::start_native_bridge_server;
 use core::state::AppState;
 use tauri::Manager;
 
-pub fn run_native_host() -> Result<(), String> {
-    let app_data_dir = core::app_paths::app_data_dir()?;
-    core::native_bridge::run_native_host(&app_data_dir)
-}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -43,7 +39,17 @@ pub fn run() {
                 log::warn!("PiDownloader native bridge is unavailable: {error}");
             }
             events::start_global_event_ticker(app_handle.clone(), state.clone());
-            events::start_event_reporter(app_handle, state);
+            events::start_event_reporter(app_handle, state.clone());
+
+            let settings = state.get_settings();
+            let disable_shadow = settings.interface.disable_window_shadow;
+            if let Some(main_win) = app.get_webview_window("main") {
+                let _ = commands::window::set_window_shadow(&main_win, disable_shadow);
+            }
+            if let Some(float_win) = app.get_webview_window("float") {
+                let _ = commands::window::set_window_shadow(&float_win, disable_shadow);
+            }
+
             log::info!("PiDownloader backend initialized successfully");
 
             Ok(())
@@ -83,7 +89,14 @@ pub fn run() {
             commands::get_app_settings,
             commands::update_app_settings,
             commands::list_system_fonts,
+            commands::save_theme_font,
+            commands::get_backgrounds,
+            commands::pick_background_file,
+            commands::import_background_file,
+            commands::import_background_url,
+            commands::delete_background,
         ])
+
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 if window.label() == "main" {
@@ -102,17 +115,5 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 
-    let app_data_dir = app
-        .handle()
-        .path()
-        .app_data_dir()
-        .expect("Failed to resolve app data directory");
-    app.run(move |_app_handle, event| {
-        if matches!(
-            event,
-            tauri::RunEvent::Exit | tauri::RunEvent::ExitRequested { .. }
-        ) {
-            let _ = remove_bridge_state(&app_data_dir);
-        }
-    });
+    app.run(|_app_handle, _event| {});
 }

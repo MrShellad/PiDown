@@ -45,6 +45,8 @@ pub struct DownloadSettings {
     pub auto_categorize: bool,
     pub global_user_agent: String,
     pub browser_extension_integration_enabled: bool,
+    pub browser_extension_port: u16,
+    pub browser_extension_token: String,
 }
 
 impl Default for DownloadSettings {
@@ -55,6 +57,8 @@ impl Default for DownloadSettings {
             auto_categorize: true,
             global_user_agent: String::new(),
             browser_extension_integration_enabled: true,
+            browser_extension_port: 18388,
+            browser_extension_token: uuid::Uuid::new_v4().to_string(),
         }
     }
 }
@@ -108,6 +112,13 @@ impl TransferSettings {
 pub struct InterfaceSettings {
     pub close_action: CloseAction,
     pub minimize_on_close_with_tasks: bool,
+    pub background_id: Option<i64>,
+    pub background_blur: u32,
+    pub background_mask_color: String,
+    pub background_mask_opacity: u32,
+    pub background_opacity: u32,
+    pub hide_border_and_bg: bool,
+    pub disable_window_shadow: bool,
 }
 
 impl Default for InterfaceSettings {
@@ -115,9 +126,19 @@ impl Default for InterfaceSettings {
         Self {
             close_action: CloseAction::Float,
             minimize_on_close_with_tasks: false,
+            background_id: None,
+            background_blur: 0,
+            background_mask_color: "#000000".to_string(),
+            background_mask_opacity: 0,
+            background_opacity: 100,
+            hide_border_and_bg: false,
+            disable_window_shadow: false,
         }
     }
 }
+
+
+
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
@@ -134,6 +155,14 @@ impl AppSettings {
         }
 
         self.download.global_user_agent = self.download.global_user_agent.trim().to_string();
+        
+        if self.download.browser_extension_port == 0 {
+            self.download.browser_extension_port = 18388;
+        }
+        if self.download.browser_extension_token.trim().is_empty() {
+            self.download.browser_extension_token = uuid::Uuid::new_v4().to_string();
+        }
+
         self.transfer.normalize();
     }
 }

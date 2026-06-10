@@ -62,6 +62,10 @@ export interface TaskOverview {
   downloaded_bytes: number;
   total_bytes: number;
   created_at: number;
+  started_at: number | null;
+  completed_at: number | null;
+  upload_speed: string;
+  error_message: string | null;
   save_path: string;
   category_id: number | null;
   tags: DbTag[];
@@ -117,6 +121,8 @@ export interface AppSettings {
     auto_categorize: boolean;
     global_user_agent: string;
     browser_extension_integration_enabled: boolean;
+    browser_extension_port: number;
+    browser_extension_token: string;
   };
   transfer: {
     max_concurrent_downloads: number;
@@ -130,8 +136,28 @@ export interface AppSettings {
   interface: {
     close_action: CloseAction;
     minimize_on_close_with_tasks: boolean;
+    background_id: number | null;
+    background_blur: number;
+    background_mask_color: string;
+    background_mask_opacity: number;
+    background_opacity: number;
+    hide_border_and_bg: boolean;
+    disable_window_shadow: boolean;
   };
 }
+
+
+
+export interface DbBackground {
+  id: number;
+  path: string;
+  type: "image" | "video";
+  is_online: boolean;
+  created_at: number;
+  thumbnail: string | null;
+}
+
+
 
 export async function createTask(
   url: string,
@@ -313,6 +339,8 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       auto_categorize: true,
       global_user_agent: "",
       browser_extension_integration_enabled: true,
+      browser_extension_port: 18388,
+      browser_extension_token: "",
     },
     transfer: {
       max_concurrent_downloads: 3,
@@ -326,10 +354,52 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
     interface: {
       close_action: "float",
       minimize_on_close_with_tasks: false,
+      background_id: null,
+      background_blur: 0,
+      background_mask_color: "#000000",
+      background_mask_opacity: 0,
+      background_opacity: 100,
+      hide_border_and_bg: false,
+      disable_window_shadow: false,
     },
+
+
   };
 }
 
 export async function updateAppSettings(settings: AppSettings): Promise<AppSettings> {
   return invoke<AppSettings>("update_app_settings", { settings });
 }
+
+export async function saveThemeFont(
+  themeId: string,
+  fontFilename: string,
+  fontDataBase64: string
+): Promise<string> {
+  return invoke<string>("save_theme_font", {
+    themeId,
+    fontFilename,
+    fontDataBase64,
+  });
+}
+
+export async function getBackgrounds(): Promise<DbBackground[]> {
+  return invoke<DbBackground[]>("get_backgrounds");
+}
+
+export async function pickBackgroundFile(): Promise<string | null> {
+  return invoke<string | null>("pick_background_file");
+}
+
+export async function importBackgroundFile(filePath: string): Promise<DbBackground> {
+  return invoke<DbBackground>("import_background_file", { filePath });
+}
+
+export async function importBackgroundUrl(url: string): Promise<DbBackground> {
+  return invoke<DbBackground>("import_background_url", { url });
+}
+
+export async function deleteBackground(id: number): Promise<void> {
+  return invoke<void>("delete_background", { id });
+}
+

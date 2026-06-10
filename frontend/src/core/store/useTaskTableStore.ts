@@ -38,10 +38,12 @@ export const DEFAULT_TASK_TABLE_COLUMNS: TaskTableColumnState[] = [
 interface TaskTableState {
   columns: TaskTableColumnState[]
   sort: TaskTableSortState | null
+  pageSize: number
   resizeColumn: (id: TaskTableColumnId, width: number) => void
   moveColumn: (sourceId: TaskTableColumnId, targetId: TaskTableColumnId) => void
   toggleSortColumn: (id: TaskTableColumnId) => void
   resetColumns: () => void
+  setPageSize: (size: number) => void
 }
 
 function clampWidth(width: number) {
@@ -85,6 +87,7 @@ export const useTaskTableStore = create<TaskTableState>()(
     (set) => ({
       columns: DEFAULT_TASK_TABLE_COLUMNS,
       sort: null,
+      pageSize: 10,
 
       resizeColumn: (id, width) => {
         set((state) => ({
@@ -123,12 +126,15 @@ export const useTaskTableStore = create<TaskTableState>()(
       },
 
       resetColumns: () => set({ columns: DEFAULT_TASK_TABLE_COLUMNS }),
+
+      setPageSize: (size) => set({ pageSize: size }),
     }),
     {
       name: "pidownloader-task-table",
       partialize: (state) => ({
         columns: normalizeColumns(state.columns),
         sort: normalizeSortState(state.sort),
+        pageSize: state.pageSize,
       }),
       merge: (persisted, current) => {
         const persistedState = persisted as Partial<TaskTableState> | undefined
@@ -136,6 +142,7 @@ export const useTaskTableStore = create<TaskTableState>()(
           ...current,
           columns: normalizeColumns(persistedState?.columns ?? current.columns),
           sort: normalizeSortState(persistedState?.sort ?? current.sort),
+          pageSize: persistedState?.pageSize ?? current.pageSize ?? 10,
         }
       },
     }

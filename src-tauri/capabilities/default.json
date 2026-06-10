@@ -5,7 +5,8 @@
   "windows": [
     "main",
     "float",
-    "settings"
+    "settings",
+    "new_task_*"
   ],
   "permissions": [
     "core:default",

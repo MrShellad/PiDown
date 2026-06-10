@@ -1,5 +1,5 @@
 export interface ThemeMeta {
-  id: "modern";
+  id: string;
   name: string;
   description: string;
   hasCanvasBg: boolean;

@@ -4,8 +4,153 @@
 @import "@fontsource-variable/geist";
 @import "./themes/skins/modern-fluid/variables.css";
 
-@custom-variant dark (&:is(.dark *));
+@property --background {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
+@property --foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.145 0 0);
+}
+@property --card {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
+@property --card-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.145 0 0);
+}
+@property --popover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
+@property --popover-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.145 0 0);
+}
+@property --primary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+@property --primary-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.985 0 0);
+}
+@property --secondary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.97 0 0);
+}
+@property --secondary-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+@property --muted {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.97 0 0);
+}
+@property --muted-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.556 0 0);
+}
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.97 0 0);
+}
+@property --accent-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+@property --destructive {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.577 0.245 27.325);
+}
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.922 0 0);
+}
+@property --input {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.922 0 0);
+}
+@property --ring {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.708 0 0);
+}
+@property --sidebar {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.985 0 0);
+}
+@property --sidebar-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.145 0 0);
+}
+@property --sidebar-primary {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+@property --sidebar-primary-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.985 0 0);
+}
+@property --sidebar-accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.97 0 0);
+}
+@property --sidebar-accent-foreground {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.205 0 0);
+}
+@property --sidebar-border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.922 0 0);
+}
+@property --sidebar-ring {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.708 0 0);
+}
+@property --task-progress-active {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: color-mix(in oklab, oklch(0.205 0 0) 22%, transparent);
+}
+@property --task-progress-paused {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: color-mix(in oklab, oklch(0.72 0.16 75) 24%, transparent);
+}
+@property --task-progress-failed {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: color-mix(in oklab, oklch(0.577 0.245 27.325) 22%, transparent);
+}
 
+@custom-variant dark (&:is(.dark *));
 
 @theme inline {
     --font-heading: var(--font-ui);
@@ -213,7 +358,8 @@
     overflow: hidden;
   }
   body {
-    @apply bg-background text-foreground;
+    background-color: transparent !important;
+    @apply text-foreground;
   }
   html, body, #root, input, button, select, textarea {
     -webkit-font-smoothing: antialiased;
@@ -346,3 +492,36 @@
     background-color: var(--scrollbar-thumb-active);
   }
 }
+
+.theme-transitioning {
+  transition: --background 400ms ease,
+              --foreground 400ms ease,
+              --card 400ms ease,
+              --card-foreground 400ms ease,
+              --popover 400ms ease,
+              --popover-foreground 400ms ease,
+              --primary 400ms ease,
+              --primary-foreground 400ms ease,
+              --secondary 400ms ease,
+              --secondary-foreground 400ms ease,
+              --muted 400ms ease,
+              --muted-foreground 400ms ease,
+              --accent 400ms ease,
+              --accent-foreground 400ms ease,
+              --destructive 400ms ease,
+              --border 400ms ease,
+              --input 400ms ease,
+              --ring 400ms ease,
+              --sidebar 400ms ease,
+              --sidebar-foreground 400ms ease,
+              --sidebar-primary 400ms ease,
+              --sidebar-primary-foreground 400ms ease,
+              --sidebar-accent 400ms ease,
+              --sidebar-accent-foreground 400ms ease,
+              --sidebar-border 400ms ease,
+              --sidebar-ring 400ms ease,
+              --task-progress-active 400ms ease,
+              --task-progress-paused 400ms ease,
+              --task-progress-failed 400ms ease !important;
+}
+

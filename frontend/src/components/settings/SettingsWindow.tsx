@@ -8,6 +8,8 @@ import {
   Gauge,
   MonitorCog,
   Paintbrush,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OptionDropdown } from "@/components/common";
@@ -28,11 +30,26 @@ import {
   listSystemFonts,
   type AppSettings,
   type SpeedDisplayUnit,
+  getBackgrounds,
+  pickBackgroundFile,
+  importBackgroundFile,
+  importBackgroundUrl,
+  deleteBackground,
+  type DbBackground,
 } from "@/core/bridge/tauri-commands";
+import { convertFileSrc } from "@tauri-apps/api/core";
+
 import { UI_TEXT } from "@/core/locale";
 import { useAppSettingsStore, type SettingsSectionId } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
-import { useThemeStore } from "@/core/store/useThemeStore";
+import {
+  useThemeStore,
+  getModernThemeStyles,
+  parseThemeZip,
+  type CustomTheme,
+} from "@/core/store/useThemeStore";
+import { useToastStore } from "@/core/store/useToastStore";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseNullableSpeedLimit } from "@/core/transfer";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { THEME_REGISTRY } from "@/themes/config";
@@ -169,6 +186,9 @@ export default function SettingsWindow() {
   const setEffectsEnabled = useThemeStore((state) => state.setEffectsEnabled);
   const soundEnabled = useThemeStore((state) => state.soundEnabled);
   const setSoundEnabled = useThemeStore((state) => state.setSoundEnabled);
+  const customThemes = useThemeStore((state) => state.customThemes);
+  const importTheme = useThemeStore((state) => state.importTheme);
+  const deleteTheme = useThemeStore((state) => state.deleteTheme);
   const fetchCategories = useDownloadStore((state) => state.fetchCategories);
   const fetchTags = useDownloadStore((state) => state.fetchTags);
 
@@ -184,6 +204,60 @@ export default function SettingsWindow() {
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
   const fontOptions = useMemo(() => createFontOptions(systemFonts), [systemFonts]);
   const selectedFont = getThemeFontOption(fontId, fontOptions);
+
+  const [backgrounds, setBackgrounds] = useState<DbBackground[]>([]);
+  const [onlineUrl, setOnlineUrl] = useState("");
+  const [importingUrl, setImportingUrl] = useState(false);
+
+
+  const allThemes = useMemo(() => {
+    const { dark, light } = getModernThemeStyles();
+    const modernMeta = THEME_REGISTRY.find((t) => t.id === "modern")!;
+
+    const modernTheme: CustomTheme = {
+      id: "modern",
+      name: modernMeta.name,
+      description: modernMeta.description,
+      author: "PiDown Team",
+      version: "1.0.0",
+      created_at: "2026-06-10",
+      updated_at: "2026-06-10",
+      hasCanvasBg: modernMeta.hasCanvasBg,
+      hasSpecialSound: modernMeta.hasSpecialSound,
+      accent: modernMeta.accent,
+      previewClassName: modernMeta.previewClassName,
+      styles: { dark, light },
+      font: {
+        id: "builtin:geist",
+        name: "Geist",
+        stack: "'Geist Variable', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif",
+      },
+      sounds: {
+        success: {
+          type: "synth",
+          oscillator: "sine",
+          notes: [
+            { freq: 659.25, duration: 0.15, delay: 0 },
+            { freq: 880.0, duration: 0.25, delay: 0.15 },
+          ],
+          gain: 0.08,
+          duration: 0.4,
+        },
+        warning: {
+          type: "synth",
+          oscillator: "sine",
+          notes: [
+            { freq: 600.0, duration: 0.05, delay: 0 },
+            { freq: 400.0, duration: 0.01, delay: 0.05 },
+          ],
+          gain: 0.05,
+          duration: 0.06,
+        },
+      },
+    };
+
+    return [modernTheme, ...customThemes];
+  }, [customThemes]);
 
   useEffect(() => {
     load().catch(console.error);
@@ -265,6 +339,197 @@ export default function SettingsWindow() {
     } finally {
       setResetting(false);
     }
+  };
+
+  const loadBackgrounds = () => {
+    getBackgrounds()
+      .then(setBackgrounds)
+      .catch((err) => console.error("Failed to load backgrounds:", err));
+  };
+
+  useEffect(() => {
+    loadBackgrounds();
+  }, []);
+
+  const handlePickAndImportFile = async () => {
+    try {
+      const selected = await pickBackgroundFile();
+      if (!selected) return;
+
+      useToastStore.getState().pushToast({
+        title: "正在导入",
+        description: "正在复制并缓存背景文件...",
+      });
+
+      const bg = await importBackgroundFile(selected);
+      loadBackgrounds();
+
+      updateDraft((prev) => ({
+        ...prev,
+        interface: {
+          ...prev.interface,
+          background_id: bg.id,
+        },
+      }));
+
+      useToastStore.getState().pushToast({
+        title: "导入成功",
+        description: "已成功导入背景并应用",
+        variant: "success",
+      });
+    } catch (err) {
+      useToastStore.getState().pushToast({
+        title: "导入失败",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleImportUrl = async () => {
+    if (!onlineUrl.trim()) return;
+    setImportingUrl(true);
+    try {
+      useToastStore.getState().pushToast({
+        title: "正在下载",
+        description: "正在从链接下载背景文件并缓存...",
+      });
+
+      const bg = await importBackgroundUrl(onlineUrl.trim());
+      loadBackgrounds();
+      setOnlineUrl("");
+
+      updateDraft((prev) => ({
+        ...prev,
+        interface: {
+          ...prev.interface,
+          background_id: bg.id,
+        },
+      }));
+
+      useToastStore.getState().pushToast({
+        title: "导入成功",
+        description: "已成功下载背景并应用",
+        variant: "success",
+      });
+    } catch (err) {
+      useToastStore.getState().pushToast({
+        title: "下载失败",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setImportingUrl(false);
+    }
+  };
+
+  const handleDeleteBackground = async (bgId: number) => {
+    try {
+      await deleteBackground(bgId);
+
+      if (draft?.interface?.background_id === bgId) {
+        updateDraft((prev) => ({
+          ...prev,
+          interface: {
+            ...prev.interface,
+            background_id: null,
+          },
+        }));
+      }
+
+      loadBackgrounds();
+      useToastStore.getState().pushToast({
+        title: "删除成功",
+        description: "已从数据库移除该背景",
+        variant: "success",
+      });
+    } catch (err) {
+      useToastStore.getState().pushToast({
+        title: "删除失败",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    }
+  };
+
+
+  const exportThemeTemplate = (themeToExport: CustomTheme) => {
+    try {
+      const jsonStr = JSON.stringify(themeToExport, null, 2);
+      const blob = new Blob([jsonStr], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+
+      link.href = url;
+      link.download = `${themeToExport.id}-theme-template.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      useToastStore.getState().pushToast({
+        title: "导出成功",
+        description: `主题模板 "${themeToExport.name}" 已成功导出为 JSON 文件`,
+        variant: "success",
+      });
+    } catch (error) {
+      console.error(error);
+      useToastStore.getState().pushToast({
+        title: "导出失败",
+        description: error instanceof Error ? error.message : String(error),
+        variant: "destructive",
+      });
+    }
+  };
+
+  const triggerImportTheme = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json,.zip";
+    input.onchange = (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      const isZip = file.name.endsWith(".zip");
+      const reader = new FileReader();
+
+      reader.onload = async (event) => {
+        try {
+          if (isZip) {
+            const buffer = event.target?.result as ArrayBuffer;
+            const themeObj = await parseThemeZip(buffer);
+            importTheme(themeObj);
+          } else {
+            const content = event.target?.result as string;
+            const parsed = JSON.parse(content) as CustomTheme;
+            if (!parsed.id || !parsed.name || !parsed.styles) {
+              throw new Error("无效的主题模板文件：缺少核心属性 (id, name, styles)");
+            }
+            importTheme(parsed);
+          }
+
+          useToastStore.getState().pushToast({
+            title: "导入成功",
+            description: `主题模板 "${file.name}" 已成功导入并可用`,
+            variant: "success",
+          });
+        } catch (error) {
+          console.error(error);
+          useToastStore.getState().pushToast({
+            title: "导入失败",
+            description: error instanceof Error ? error.message : String(error),
+            variant: "destructive",
+          });
+        }
+      };
+
+      if (isZip) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    };
+    input.click();
   };
 
   useEffect(() => {
@@ -464,7 +729,7 @@ export default function SettingsWindow() {
                       />
                       <SettingsListItem
                         title="浏览器扩展联动"
-                        description="允许 Chrome/Chromium 扩展通过 Native Host 向下载器发起新建任务。关闭后，扩展将不再接管浏览器下载。"
+                        description="允许 Chrome/Chromium 扩展通过 HTTP 监听向下载器发起新建任务。关闭后，扩展将不再接管浏览器下载。"
                         action={
                           <Switch
                             checked={draft.download.browser_extension_integration_enabled}
@@ -480,6 +745,85 @@ export default function SettingsWindow() {
                           />
                         }
                       />
+                      {draft.download.browser_extension_integration_enabled && (
+                        <SettingsListItem
+                          title="服务端口与安全令牌"
+                          description="应用与浏览器扩展进行 HTTP 通信的监听端口及身份凭证（修改端口需重启应用生效）。"
+                        >
+                          <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">端口</span>
+                              <SettingsInput
+                                type="number"
+                                min={1024}
+                                max={65535}
+                                value={draft.download.browser_extension_port ?? 18388}
+                                onChange={(event) => {
+                                  const val = parseInt(event.target.value, 10);
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    download: {
+                                      ...prev.download,
+                                      browser_extension_port: isNaN(val) ? 18388 : val,
+                                    },
+                                  }));
+                                }}
+                                placeholder="18388"
+                                className="w-24 font-mono text-center"
+                              />
+                            </div>
+                            <div className="flex items-center gap-2 flex-1 min-w-0">
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">安全令牌</span>
+                              <SettingsInput
+                                value={draft.download.browser_extension_token || ""}
+                                onChange={(event) =>
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    download: {
+                                      ...prev.download,
+                                      browser_extension_token: event.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="安全令牌"
+                                className="font-mono flex-1 min-w-0"
+                              />
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const newToken = crypto.randomUUID();
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    download: {
+                                      ...prev.download,
+                                      browser_extension_token: newToken,
+                                    },
+                                  }));
+                                }}
+                                className="shrink-0"
+                              >
+                                随机
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(draft.download.browser_extension_token || "");
+                                  useToastStore.getState().pushToast({
+                                    title: "已复制",
+                                    description: "安全令牌已复制到剪贴板",
+                                    variant: "success",
+                                  });
+                                }}
+                                className="shrink-0"
+                              >
+                                复制
+                              </Button>
+                            </div>
+                          </div>
+                        </SettingsListItem>
+                      )}
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -735,12 +1079,22 @@ export default function SettingsWindow() {
                   />
 
                   <div className="mt-5">
-                    <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      {UI_TEXT.settings.groupTheme}
+                    <div className="mb-3 mt-5 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      <span>{UI_TEXT.settings.groupTheme}</span>
+                      <Button
+                        variant="outline"
+                        size="xs"
+                        leftIcon={<Plus className="size-3" />}
+                        onClick={triggerImportTheme}
+                        className="normal-case tracking-normal h-7 font-normal"
+                      >
+                        导入主题
+                      </Button>
                     </div>
                     <div className="flex flex-wrap gap-4">
-                      {THEME_REGISTRY.map((item) => {
+                      {allThemes.map((item) => {
                         const active = theme === item.id;
+                        const isCustom = item.id !== "modern";
 
                         return (
                           <article
@@ -751,13 +1105,22 @@ export default function SettingsWindow() {
                                 : "border-border hover:border-primary/45 hover:bg-card"
                             }`}
                           >
-                            <div className={`relative h-28 overflow-hidden ${item.previewClassName}`}>
+                            <div className="relative h-28 overflow-hidden">
+                              {item.previewImage ? (
+                                <img
+                                  src={item.previewImage}
+                                  alt={item.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <div className={`h-full w-full ${item.previewClassName || "bg-gradient-to-br from-primary/30 to-accent/30"}`} />
+                              )}
                               <div className="absolute inset-x-4 top-4 h-6 rounded-t-lg border border-primary-foreground/30 bg-primary/85 shadow-surface-raised" />
                               <div className="absolute inset-x-4 bottom-4 h-14 rounded-b-lg border border-border/70 bg-card/82 shadow-surface-strong backdrop-blur-sm" />
                               <div className="absolute bottom-6 left-7 h-2 w-16 rounded-full bg-primary/70" />
                               <div className="absolute bottom-6 right-7 h-2 w-8 rounded-full bg-accent/70" />
                               <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
-                                {item.accent}
+                                {item.accent || "自定义"}
                               </div>
                             </div>
 
@@ -785,16 +1148,53 @@ export default function SettingsWindow() {
                                 <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
                                   {item.hasSpecialSound ? "主题音效" : "默认音效"}
                                 </span>
+                                {item.font && (
+                                  <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                    字体: {item.font.name}
+                                  </span>
+                                )}
                               </div>
 
-                              <Button
-                                variant={active ? "default" : "outline"}
-                                size="sm"
-                                className="mt-auto w-full"
-                                onClick={() => setTheme(item.id)}
-                              >
-                                {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
-                              </Button>
+                              <div className="mt-auto flex w-full gap-2">
+                                <Button
+                                  variant={active ? "default" : "outline"}
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => setTheme(item.id)}
+                                >
+                                  {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
+                                </Button>
+                                
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      variant="outline"
+                                      size="icon"
+                                      className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                      onClick={() => exportThemeTemplate(item)}
+                                    >
+                                      <Download className="size-4" />
+                                    </Button>
+                                  </TooltipTrigger>
+                                  <TooltipContent>导出主题模板</TooltipContent>
+                                </Tooltip>
+
+                                {isCustom && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="destructive"
+                                        size="icon"
+                                        className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                        onClick={() => deleteTheme(item.id)}
+                                      >
+                                        <Trash2 className="size-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>删除主题</TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
                             </div>
                           </article>
                         );
@@ -878,9 +1278,315 @@ export default function SettingsWindow() {
                           />
                         }
                       />
+                      <SettingsListItem
+                        title="无边框透明穿透模式"
+                        description="隐藏顶部标题栏及背景图片/视频，将透明区域转化为可点击穿透的桌面视窗"
+                        action={
+                          <Switch
+                            checked={draft.interface.hide_border_and_bg ?? false}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  hide_border_and_bg: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title="关闭窗口阴影"
+                        description="调用 Win32 API 隐藏窗口的系统投影（常在启用无边框透明穿透模式时开启，以防止屏幕上出现透明窗口的投影痕迹）"
+                        action={
+                          <Switch
+                            checked={draft.interface.disable_window_shadow ?? false}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  disable_window_shadow: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
                     </SettingsList>
+
+                    <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      背景修改与管理
+                    </div>
+                    <div className="space-y-6 rounded-xl border border-border/60 bg-secondary/15 p-4 shadow-inner">
+                      {/* Control Panel: Add/Import Backgrounds */}
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                        <div className="flex-1">
+                          <label className="block text-sm font-semibold leading-5 text-foreground mb-1.5">
+                            在线背景链接
+                          </label>
+                          <div className="flex gap-2">
+                            <SettingsInput
+                              value={onlineUrl}
+                              onChange={(e) => setOnlineUrl(e.target.value)}
+                              placeholder="粘贴在线图片或视频的 URL 链接..."
+                              className="flex-1 bg-card/60 border-border/80 focus:border-primary/50"
+                              disabled={importingUrl}
+                            />
+                            <Button
+                              onClick={handleImportUrl}
+                              loading={importingUrl}
+                              loadingText="正在下载"
+                              disabled={!onlineUrl.trim() || importingUrl}
+                            >
+                              导入
+                            </Button>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col justify-end">
+                          <label className="block text-sm font-semibold leading-5 text-foreground mb-1.5 sm:text-transparent select-none pointer-events-none">
+                            本地导入
+                          </label>
+                          <Button
+                            variant="outline"
+                            leftIcon={<FolderOpen className="size-4" />}
+                            onClick={handlePickAndImportFile}
+                            className="w-full sm:w-auto"
+                          >
+                            导入本地文件
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Config Options: Blur, Mask Color, Mask Opacity */}
+                      <div className="grid gap-6 md:grid-cols-2">
+                        <div className="space-y-4">
+                          <Slider
+                            label="背景模糊"
+                            description="调整背景的模糊半径以提升前台文本可读性"
+                            value={draft.interface.background_blur ?? 0}
+                            min={0}
+                            max={40}
+                            step={1}
+                            valueText={`${draft.interface.background_blur ?? 0} px`}
+                            onValueChange={(val) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  background_blur: val,
+                                },
+                              }))
+                            }
+                          />
+
+                          <Slider
+                            label="遮罩不透明度"
+                            description="调整背景遮罩的不透明度"
+                            value={draft.interface.background_mask_opacity ?? 0}
+                            min={0}
+                            max={100}
+                            step={1}
+                            valueText={`${draft.interface.background_mask_opacity ?? 0} %`}
+                            onValueChange={(val) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  background_mask_opacity: val,
+                                },
+                              }))
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <span className="block text-sm font-semibold leading-5 text-foreground">
+                              遮罩颜色
+                            </span>
+                            <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                              设置背景上的叠加遮罩颜色
+                            </p>
+                            <div className="mt-3 flex items-center gap-3">
+                              <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
+                                <input
+                                  type="color"
+                                  value={draft.interface.background_mask_color || "#000000"}
+                                  onChange={(e) =>
+                                    updateDraft((prev) => ({
+                                      ...prev,
+                                      interface: {
+                                        ...prev.interface,
+                                        background_mask_color: e.target.value,
+                                      },
+                                    }))
+                                  }
+                                  className="absolute -inset-2 size-[150%] cursor-pointer border-0 bg-transparent p-0"
+                                />
+                              </div>
+                              <SettingsInput
+                                value={draft.interface.background_mask_color || "#000000"}
+                                onChange={(e) =>
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    interface: {
+                                      ...prev.interface,
+                                      background_mask_color: e.target.value,
+                                    },
+                                  }))
+                                }
+                                placeholder="#000000"
+                                className="max-w-[120px] font-mono text-sm uppercase bg-card/60"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="pt-2">
+                            <Slider
+                              label="整体背景不透明度"
+                              description="调整整体背景不透明度以穿透显示桌面（需要系统窗口透明支持）"
+                              value={draft.interface.background_opacity ?? 100}
+                              min={0}
+                              max={100}
+                              step={1}
+                              valueText={`${draft.interface.background_opacity ?? 100} %`}
+                              onValueChange={(val) =>
+                                updateDraft((prev) => ({
+                                  ...prev,
+                                  interface: {
+                                    ...prev.interface,
+                                    background_opacity: val,
+                                  },
+                                }))
+                              }
+                            />
+                          </div>
+                        </div>
+
+                      </div>
+
+                      {/* Background List Manager Grid */}
+                      <div>
+                        <span className="block text-sm font-semibold leading-5 text-foreground mb-3">
+                          已导入的背景
+                        </span>
+                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+                          {/* Option A: Default (None) Background */}
+                          <button
+                            onClick={() =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  background_id: null,
+                                },
+                              }))
+                            }
+                            className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm text-left transition-all cursor-pointer ${
+                              draft.interface.background_id === null
+                                ? "border-primary ring-2 ring-primary/25"
+                                : "border-border hover:border-primary/45 hover:bg-card"
+                            }`}
+                          >
+                            <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center">
+                              <span className="text-sm font-bold text-foreground">无 / 默认背景</span>
+                              <span className="mt-1 text-xs text-muted-foreground">使用主题自带特效</span>
+                            </div>
+                            {draft.interface.background_id === null && (
+                              <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                                使用中
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Option B: Custom Backgrounds List */}
+                          {backgrounds.map((bg) => {
+                            const active = draft.interface.background_id === bg.id;
+                            const assetUrl = bg.path ? convertFileSrc(bg.path) : "";
+                            const thumbUrl = bg.thumbnail ? convertFileSrc(bg.thumbnail) : assetUrl;
+
+                            return (
+                              <div
+                                key={bg.id}
+                                className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm transition-all ${
+                                  active
+                                    ? "border-primary ring-2 ring-primary/25"
+                                    : "border-border hover:border-primary/45"
+                                }`}
+                              >
+                                {/* Background thumbnail render */}
+                                <button
+                                  onClick={() =>
+                                    updateDraft((prev) => ({
+                                      ...prev,
+                                      interface: {
+                                        ...prev.interface,
+                                        background_id: bg.id,
+                                      },
+                                    }))
+                                  }
+                                  className="h-full w-full focus:outline-none cursor-pointer"
+                                >
+                                  {bg.type === "video" ? (
+                                    <video
+                                      src={assetUrl}
+                                      muted
+                                      loop
+                                      className="h-full w-full object-cover"
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.play().catch(() => {});
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.pause();
+                                        e.currentTarget.currentTime = 0;
+                                      }}
+                                    />
+                                  ) : (
+                                    <img
+                                      src={thumbUrl}
+                                      alt="background"
+                                      className="h-full w-full object-cover"
+                                    />
+                                  )}
+                                </button>
+
+
+                                {/* Badges */}
+                                {active && (
+                                  <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm z-10">
+                                    已应用
+                                  </div>
+                                )}
+
+                                {bg.is_online && (
+                                  <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm z-10">
+                                    在线
+                                  </div>
+                                )}
+
+                                {/* Delete Overlay / Button */}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDeleteBackground(bg.id);
+                                  }}
+                                  className="absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-opacity group-hover:opacity-100 shadow-sm z-20 cursor-pointer"
+                                  title="删除背景记录"
+                                >
+                                  <Trash2 className="size-4" />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </SettingsSectionCard>
+
               ) : null}
                 </motion.div>
               </AnimatePresence>

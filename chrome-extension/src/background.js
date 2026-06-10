@@ -1,5 +1,3 @@
-const NATIVE_HOST_NAME = "com.pidownloader.bridge";
-
 const DEFAULT_OPTIONS = {
   enabled: false,
   fallbackToBrowserDownload: true,
@@ -10,6 +8,9 @@ const DEFAULT_OPTIONS = {
   minBytes: 0,
   allowExtensions: "",
   blockExtensions: "",
+  serverPort: 18388,
+  serverToken: "",
+  contextMenuEnabled: true,
 };
 
 const CAPTURE_RETRY_DELAYS_MS = [0, 250, 750, 1500, 3000, 5000];
@@ -305,17 +306,27 @@ function normalizeOptions(options) {
   return next;
 }
 
-function sendToNativeHost(payload) {
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, payload, (response) => {
-      const error = chrome.runtime.lastError;
-      if (error) {
-        reject(new Error(error.message));
-        return;
-      }
-      resolve(response);
-    });
+async function sendToNativeHost(payload) {
+  const options = await getOptions();
+  const port = options.serverPort || 18388;
+  const token = options.serverToken || "";
+
+  const response = await fetch(`http://127.0.0.1:${port}/native-bridge`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      token,
+      ...payload,
+    }),
   });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
 }
 
 async function pingNativeHost() {
@@ -431,3 +442,83 @@ async function getCookiesForDownload(downloadItem) {
     return [];
   }
 }
+
+function updateContextMenu(enabled) {
+  chrome.contextMenus.removeAll(() => {
+    const _ = chrome.runtime.lastError;
+    if (enabled) {
+      chrome.contextMenus.create({
+        id: "pidownloader:download-link",
+        title: "使用 PiDownloader 下载此链接",
+        contexts: ["link"],
+      }, () => {
+        const _ = chrome.runtime.lastError;
+      });
+    }
+  });
+}
+
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === "pidownloader:download-link" && info.linkUrl) {
+    captureContextLink(info.linkUrl, tab).catch((error) => {
+      console.warn("[PiDownloader] failed to handle context link capture:", error);
+    });
+  }
+});
+
+async function captureContextLink(linkUrl, tab) {
+  const options = await getOptions();
+  if (!options.enabled) return;
+
+  const cookies = await getCookiesForDownload({ url: linkUrl });
+  
+  const payload = {
+    type: "create_task",
+    version: 1,
+    download: {
+      url: linkUrl,
+      filename: getFilenameFromUrl(linkUrl),
+      totalSize: null,
+      referer: tab?.url || null,
+      userAgent: navigator.userAgent || null,
+      cookies,
+    },
+  };
+
+  try {
+    const response = await sendToNativeHost(payload);
+    if (response?.ok) {
+      if (options.showNotifications) {
+        await notify("PiDownloader 已接管下载", "下载任务已经提交给 PiDownloader。");
+      }
+    } else {
+      if (options.showNotifications) {
+        await notify("PiDownloader 接管失败", response?.error || "服务拒绝接收任务");
+      }
+    }
+  } catch (error) {
+    if (options.showNotifications) {
+      await notify("PiDownloader 连接失败", "无法连接到本地服务端，请确保 PiDownloader 正在运行。");
+    }
+  }
+}
+
+function getFilenameFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const basename = parsed.pathname.split("/").filter(Boolean).pop();
+    return basename || "download";
+  } catch {
+    return "download";
+  }
+}
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync" && changes.contextMenuEnabled) {
+    updateContextMenu(changes.contextMenuEnabled.newValue);
+  }
+});
+
+getOptions().then((options) => {
+  updateContextMenu(options.contextMenuEnabled);
+}).catch(console.error);

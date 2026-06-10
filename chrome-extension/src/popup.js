@@ -34,11 +34,11 @@ testButton.addEventListener("click", async () => {
 
     if (response?.ok) {
       renderBridgeStatus("connected");
-      testResult.textContent = "连接正常：扩展、Native Host、PiDownloader 均可通信。";
+      testResult.textContent = "连接正常：扩展与 PiDownloader 本地服务端已建立连接。";
       testResult.dataset.kind = "success";
     } else {
       renderBridgeStatus("unavailable");
-      testResult.textContent = formatConnectionError(response?.error || "Native bridge 未连接");
+      testResult.textContent = formatConnectionError(response?.error || "本地服务端未连接");
       testResult.dataset.kind = "error";
     }
   } catch (error) {
@@ -71,14 +71,14 @@ function renderEnabled(enabled) {
 
 function renderBridgeStatus(status) {
   const connected = status === "connected";
-  bridgeStatus.textContent = connected ? "Native bridge 已连接" : "Native bridge 未连接";
+  bridgeStatus.textContent = connected ? "本地服务端已连接" : "本地服务端未连接";
   bridgeStatus.dataset.kind = connected ? "connected" : "unavailable";
 }
 
 function formatConnectionError(error) {
   const message = String(error || "");
-  if (message.includes("Specified native messaging host not found")) {
-    return `连接失败：未找到 Native Host。请在当前系统中注册名称为 com.pidownloader.bridge 的 Native Messaging Host，并把扩展 ID ${chrome.runtime.id} 加入 allowed_origins。`;
+  if (message.includes("Failed to fetch") || message.includes("NetworkError") || message.includes("Failed to execute 'fetch'")) {
+    return "连接失败：无法访问 PiDownloader 本地服务端。请确保 PiDownloader 正在运行并且在设置中启用了浏览器扩展联动，且端口和 Token 配置正确。";
   }
   return `连接失败：${message}`;
 }

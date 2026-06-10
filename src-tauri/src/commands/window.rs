@@ -70,3 +70,47 @@ pub async fn close_main_window(
 ) -> Result<(), String> {
     handle_close_action(&app, &state).await
 }
+
+#[cfg(target_os = "windows")]
+pub fn set_window_shadow(window: &tauri::WebviewWindow, disable: bool) -> Result<(), String> {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+
+    let handle = window.window_handle().map_err(|e| e.to_string())?;
+    let hwnd = match handle.as_raw() {
+        RawWindowHandle::Win32(h) => h.hwnd.get() as *mut std::ffi::c_void,
+        _ => return Err("Not running on Windows".to_string()),
+    };
+
+    #[link(name = "dwmapi")]
+    extern "system" {
+        fn DwmSetWindowAttribute(
+            hwnd: *mut std::ffi::c_void,
+            dwAttribute: u32,
+            pvAttribute: *const std::ffi::c_void,
+            cbAttribute: u32,
+        ) -> i32;
+    }
+
+    let attribute = 2; // DWMWA_NCRENDERING_POLICY
+    let policy: i32 = if disable { 1 } else { 2 }; // 1 = DWMNCRP_DISABLED, 2 = DWMNCRP_ENABLED
+
+    unsafe {
+        let hr = DwmSetWindowAttribute(
+            hwnd,
+            attribute,
+            &policy as *const i32 as *const std::ffi::c_void,
+            std::mem::size_of::<i32>() as u32,
+        );
+        if hr != 0 {
+            return Err(format!("DwmSetWindowAttribute failed with HRESULT: 0x{:X}", hr));
+        }
+    }
+
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+pub fn set_window_shadow(_window: &tauri::WebviewWindow, _disable: bool) -> Result<(), String> {
+    Ok(())
+}
+

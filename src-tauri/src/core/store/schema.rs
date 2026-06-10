@@ -80,6 +80,7 @@ impl super::DbStore {
             [],
         )?;
         self.ensure_column(&conn, "tasks", "engine_id", "TEXT")?;
+        self.ensure_column(&conn, "tasks", "error_message", "TEXT")?;
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_engine_id
              ON tasks(engine_id)
@@ -103,6 +104,20 @@ impl super::DbStore {
             );",
             [],
         )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS backgrounds (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                path TEXT NOT NULL,
+                type TEXT NOT NULL,
+                is_online INTEGER NOT NULL DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                thumbnail TEXT
+            );",
+            [],
+        )?;
+        self.ensure_column(&conn, "backgrounds", "thumbnail", "TEXT")?;
+
 
         conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_categories_sort_order

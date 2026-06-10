@@ -1,166 +1,195 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-theme="auto">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PiDownloader 扩展设置</title>
+    <title>PiDownloader Extension</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
-  <body class="page">
-    <main class="panel">
-      <header class="hero">
-        <img src="../assets/logo.svg" alt="" class="logo" />
+  <body>
+    <div class="container">
+      <div class="header">
         <div>
-          <h1>PiDownloader 下载桥接</h1>
-          <p>开启后，扩展会把符合条件的 HTTP/HTTPS 下载交给 PiDownloader。</p>
+          <div class="logo">PiDownloader</div>
+          <div class="subtitle">Browser Extension Settings</div>
         </div>
-      </header>
+        <button class="theme-btn" id="themeToggle" type="button">🌙</button>
+      </div>
 
-      <form id="options-form" class="form">
-        <section class="stack">
-          <label class="switch-row">
-            <input id="enabled" type="checkbox" />
-            <span>
-              <strong>启用下载桥接</strong>
-              <small>开启后，扩展会尝试把浏览器下载发送到 PiDownloader。</small>
-            </span>
-          </label>
+      <form id="options-form" class="grid">
+        <!-- Card 1: 客户端连接 -->
+        <div class="card">
+          <div class="card-title">客户端连接</div>
 
-          <div class="info-card">
-            <strong>Native Host</strong>
-            <small>
-              扩展固定使用 <code>com.pidownloader.bridge</code>。请在当前系统中注册同名 Native
-              Messaging Host。
-            </small>
-          </div>
-        </section>
-
-        <section class="stack">
-          <div class="section-heading">
-            <h2>基础行为</h2>
-            <p>控制接管失败时的回退方式，以及桥接期间的下载处理策略。</p>
+          <div class="field">
+            <label>连接状态</label>
+            <span class="badge error" id="connection-status">● 未连接</span>
           </div>
 
-          <label class="switch-row">
-            <input id="fallbackToBrowserDownload" type="checkbox" />
-            <span>
-              <strong>桥接失败时继续使用浏览器下载</strong>
-              <small>建议保持开启，直到本机 Native Host 和 PiDownloader 都已正确配置。</small>
-            </span>
-          </label>
-
-          <label class="switch-row">
-            <input id="pauseDuringHandoff" type="checkbox" />
-            <span>
-              <strong>交接期间暂停浏览器下载</strong>
-              <small>可以减少浏览器提前写入的临时数据，但部分站点可能不支持恢复。</small>
-            </span>
-          </label>
-
-          <label class="switch-row">
-            <input id="eraseCancelledDownload" type="checkbox" />
-            <span>
-              <strong>接管成功后移除浏览器下载记录</strong>
-              <small>PiDownloader 接收任务后，清理浏览器下载列表中的原始下载项。</small>
-            </span>
-          </label>
-
-          <label class="switch-row">
-            <input id="showNotifications" type="checkbox" />
-            <span>
-              <strong>显示系统通知</strong>
-              <small>当 PiDownloader 成功接收任务时显示一条通知。</small>
-            </span>
-          </label>
-
-          <label class="switch-row">
-            <input id="captureIncognito" type="checkbox" />
-            <span>
-              <strong>桥接无痕窗口下载</strong>
-              <small>需要先在浏览器扩展详情页中允许无痕模式访问。</small>
-            </span>
-          </label>
-        </section>
-
-        <section class="stack">
-          <div class="section-heading">
-            <h2>过滤规则</h2>
-            <p>按扩展名和文件大小控制哪些下载会被桥接到 PiDownloader。</p>
+          <div class="field">
+            <label>API 地址</label>
+            <input id="apiUrl" type="text" placeholder="http://127.0.0.1:18388" value="http://127.0.0.1:18388" />
           </div>
 
-          <div class="segmented" role="tablist" aria-label="过滤规则类型">
-            <button type="button" class="segment is-active" data-segment-target="allowlist" role="tab" aria-selected="true">
-              白名单
-            </button>
-            <button type="button" class="segment" data-segment-target="blocklist" role="tab" aria-selected="false">
-              黑名单
-            </button>
-            <button type="button" class="segment" data-segment-target="size-limit" role="tab" aria-selected="false">
-              文件大小
-            </button>
+          <div class="field">
+            <label>安全令牌 (Token)</label>
+            <input id="serverToken" type="text" placeholder="请输入安全令牌" />
           </div>
 
-          <div class="segment-panels">
-            <section class="segment-panel is-active" data-segment-panel="allowlist" role="tabpanel">
-              <label class="field">
-                <span>仅桥接这些扩展名</span>
-                <input id="allowExtensions" type="text" placeholder="zip, mp4, pdf" />
-              </label>
-              <div class="preset-group">
-                <span class="preset-label">常用预设</span>
-                <div class="preset-chips" data-preset-container="allowExtensions"></div>
-              </div>
-              <p class="panel-hint">留空表示不限制。多个扩展名用英文逗号分隔，输入时可省略点号。</p>
-            </section>
-
-            <section class="segment-panel" data-segment-panel="blocklist" role="tabpanel" hidden>
-              <label class="field">
-                <span>忽略这些扩展名</span>
-                <input id="blockExtensions" type="text" placeholder="crdownload, tmp" />
-              </label>
-              <div class="preset-group">
-                <span class="preset-label">常用预设</span>
-                <div class="preset-chips" data-preset-container="blockExtensions"></div>
-              </div>
-              <p class="panel-hint">命中黑名单时不会桥接。适合排除临时文件、浏览器中间文件或特殊后缀。</p>
-            </section>
-
-            <section class="segment-panel" data-segment-panel="size-limit" role="tabpanel" hidden>
-              <label class="field">
-                <span>最小文件大小限制（Bytes）</span>
-                <input id="minBytes" type="number" min="0" step="1" />
-              </label>
-              <p class="panel-hint">大于 0 时，仅桥接已知大小且不小于该值的下载。留空或填 0 表示不限制。</p>
-            </section>
+          <div class="button-group">
+            <button class="btn btn-primary" type="button" id="test-connection">测试连接</button>
+            <button class="btn btn-secondary" type="button" id="reset">恢复默认</button>
           </div>
-        </section>
+        </div>
 
-        <section class="stack">
-          <div class="section-heading">
-            <h2>连接说明</h2>
-            <p>扩展本身跨平台可用；Native Host 需要按当前系统完成注册。</p>
-          </div>
+        <!-- Card 2: 下载接管 -->
+        <div class="card">
+          <div class="card-title">下载接管</div>
 
-          <div class="info-list">
-            <div class="info-card">
-              <strong>Windows</strong>
-              <small>可使用仓库中的 <code>native-host/register-windows.example.ps1</code> 作为开发示例。</small>
+          <div class="row">
+            <div class="label">
+              自动接管下载
+              <small>开启后将符合接管条件的下载任务发送到 PiDownloader</small>
             </div>
-            <div class="info-card">
-              <strong>macOS / Linux</strong>
-              <small>请将同名 Native Host manifest 放到浏览器支持的 Native Messaging 路径，并指向本机可执行文件。</small>
+            <label class="switch">
+              <input id="enabled" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              交接期间暂停浏览器下载
+              <small>可以减少浏览器提前写入的临时数据，但部分站点可能不支持恢复</small>
+            </div>
+            <label class="switch">
+              <input id="pauseDuringHandoff" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              接管成功后移除浏览器下载记录
+              <small>PiDownloader 接收任务后，清理浏览器下载列表中的原始下载项</small>
+            </div>
+            <label class="switch">
+              <input id="eraseCancelledDownload" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              失败时回退到浏览器下载
+              <small>当 PiDownloader 无法接管时，由浏览器继续完成下载</small>
+            </div>
+            <label class="switch">
+              <input id="fallbackToBrowserDownload" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              允许无痕窗口下载
+              <small>需要先在浏览器扩展详情页中允许无痕模式访问</small>
+            </div>
+            <label class="switch">
+              <input id="captureIncognito" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="row">
+            <div class="label">
+              大文件接管
+              <small>仅接管超过指定大小的文件</small>
+            </div>
+            <label class="switch">
+              <input id="largeFileToggle" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="field" id="minBytesField" style="display: none;">
+            <label>最小文件大小 (MB)</label>
+            <input id="minBytesMb" type="number" min="0" placeholder="10" />
+          </div>
+        </div>
+
+        <!-- Card 3: 浏览器集成 -->
+        <div class="card">
+          <div class="card-title">浏览器集成</div>
+
+          <div class="row">
+            <div class="label">
+              右键菜单下载
+              <small>在网页链接上点击右键，可以使用 PiDownloader 下载该链接</small>
+            </div>
+            <label class="switch">
+              <input id="contextMenuEnabled" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Card 4: 过滤规则 -->
+        <div class="card">
+          <div class="card-title">过滤规则</div>
+
+          <div class="field">
+            <label>仅接管这些扩展名</label>
+            <input id="allowExtensions" type="text" placeholder="例如: zip, mp4, pdf (留空不限制)" />
+            <div class="preset-group">
+              <span class="preset-label">常用预设</span>
+              <div class="preset-chips" data-preset-container="allowExtensions"></div>
             </div>
           </div>
-        </section>
 
-        <footer class="actions">
-          <button type="button" id="reset">恢复默认</button>
-          <button type="submit">保存设置</button>
-        </footer>
+          <div class="field">
+            <label>排除这些扩展名</label>
+            <input id="blockExtensions" type="text" placeholder="例如: crdownload, tmp" />
+            <div class="preset-group">
+              <span class="preset-label">常用预设</span>
+              <div class="preset-chips" data-preset-container="blockExtensions"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card 4: 关于与保存 -->
+        <div class="card">
+          <div class="card-title">关于与控制</div>
+
+          <div class="row">
+            <div class="label">
+              显示系统通知
+              <small>当 PiDownloader 成功接收任务时显示通知</small>
+            </div>
+            <label class="switch">
+              <input id="showNotifications" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="version" style="margin-top: 14px;">
+            Extension Version: <span id="ext-version">0.1.0</span>
+          </div>
+
+          <div class="version" style="margin-top: 6px;">
+            Client Version: <span id="client-version">0.1.0</span>
+          </div>
+
+          <div class="button-group" style="margin-top: 22px;">
+            <button class="btn btn-secondary" type="button" id="open-client">打开客户端</button>
+            <button class="btn btn-secondary" type="button" id="official-site">官方网站</button>
+            <button class="btn btn-primary" type="submit" style="margin-left: auto;">保存设置</button>
+          </div>
+        </div>
       </form>
 
-      <p id="status" class="status" role="status"></p>
-    </main>
+      <p id="status" class="status" role="status" style="text-align: center; margin-top: 18px; min-height: 24px; font-weight: 600;"></p>
+    </div>
 
     <script type="module" src="./options.js"></script>
   </body>

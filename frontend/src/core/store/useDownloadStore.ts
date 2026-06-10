@@ -41,6 +41,10 @@ export interface Task {
   downloadedBytes: number;
   totalBytes: number;
   createdAt?: number;
+  startedAt?: number | null;
+  completedAt?: number | null;
+  uploadSpeed?: string;
+  errorMessage?: string | null;
   savePath?: string;
   connections?: number;
   categoryId?: number | null;
@@ -77,6 +81,7 @@ export interface TaskProgressPayload {
   connections?: number;
   speed_bps?: number;
   eta_seconds?: number | null;
+  upload_speed: string;
 }
 
 export interface DownloadSpeedPayload {
@@ -167,6 +172,10 @@ const mapTask = (task: TaskOverview): Task => ({
   downloadedBytes: task.downloaded_bytes,
   totalBytes: task.total_bytes,
   createdAt: task.created_at,
+  startedAt: task.started_at,
+  completedAt: task.completed_at,
+  uploadSpeed: task.upload_speed,
+  errorMessage: task.error_message,
   savePath: task.save_path,
   connections: 0,
   categoryId: task.category_id,
@@ -252,6 +261,15 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               newActiveGids.add(activeTask.gid);
             }
 
+            let startedAt = existing ? existing.startedAt : undefined;
+            let completedAt = existing ? existing.completedAt : undefined;
+            if (status === "Downloading" && !startedAt) {
+              startedAt = Math.floor(Date.now() / 1000);
+            }
+            if (status === "Completed" && !completedAt) {
+              completedAt = Math.floor(Date.now() / 1000);
+            }
+
             updatedTasks[activeTask.gid] = {
               gid: activeTask.gid,
               name: existing ? existing.name : `Task_${activeTask.gid.substring(0, 8)}`,
@@ -265,6 +283,10 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               downloadedBytes: activeTask.downloaded_bytes,
               totalBytes: activeTask.total_bytes,
               createdAt: existing ? existing.createdAt : undefined,
+              startedAt,
+              completedAt,
+              uploadSpeed: activeTask.upload_speed,
+              errorMessage: existing ? existing.errorMessage : null,
               savePath: existing ? existing.savePath : "",
               connections: activeTask.connections ?? existing?.connections ?? 0,
               categoryId: existing ? existing.categoryId : null,

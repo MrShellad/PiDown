@@ -48,7 +48,6 @@ export function DownloadToolbarActions({
         icon={<Link />}
         actionIcon={<CloudDownload />}
         aria-label={UI_TEXT.dashboard.newDownload}
-        tooltip={UI_TEXT.dashboard.newDownload}
       >
         {UI_TEXT.dashboard.newDownload}
       </ToolbarPrimaryButton>
@@ -60,7 +59,6 @@ export function DownloadToolbarActions({
           icon={<Play />}
           onClick={onResumeSelected}
           disabled={!canResumeSelected}
-          tooltip={UI_TEXT.dashboard.resume}
         >
           {selectedResumeCount > 0
             ? `${UI_TEXT.dashboard.resume} (${selectedResumeCount})`
@@ -70,7 +68,6 @@ export function DownloadToolbarActions({
           icon={<Pause />}
           onClick={onPauseSelected}
           disabled={!canPauseSelected}
-          tooltip={UI_TEXT.dashboard.pause}
         >
           {selectedPauseCount > 0
             ? `${UI_TEXT.dashboard.pause} (${selectedPauseCount})`
@@ -81,13 +78,13 @@ export function DownloadToolbarActions({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ToolbarButton icon={<ListStart />} disabled tooltip={UI_TEXT.dashboard.startQueue}>
+        <ToolbarButton icon={<ListStart />} disabled>
           {UI_TEXT.dashboard.startQueue}
         </ToolbarButton>
-        <ToolbarButton icon={<ListEnd />} disabled tooltip={UI_TEXT.dashboard.stopQueue}>
+        <ToolbarButton icon={<ListEnd />} disabled>
           {UI_TEXT.dashboard.stopQueue}
         </ToolbarButton>
-        <ToolbarButton icon={<ListPlus />} disabled tooltip={UI_TEXT.dashboard.queue}>
+        <ToolbarButton icon={<ListPlus />} disabled>
           {UI_TEXT.dashboard.queue}
         </ToolbarButton>
       </ToolbarGroup>
@@ -95,7 +92,7 @@ export function DownloadToolbarActions({
       <ToolbarSeparator />
 
       <ToolbarGroup>
-        <ToolbarButton icon={<Square />} disabled tooltip={UI_TEXT.dashboard.stopAll}>
+        <ToolbarButton icon={<Square />} disabled>
           {UI_TEXT.dashboard.stopAll}
         </ToolbarButton>
       </ToolbarGroup>
@@ -107,7 +104,6 @@ export function DownloadToolbarActions({
           icon={<Trash2 />}
           onClick={onDeleteSelected}
           disabled={!canDeleteSelected}
-          tooltip={UI_TEXT.dashboard.delete}
           className="text-destructive hover:text-destructive focus-visible:ring-destructive/30 disabled:text-muted-foreground [&_[data-slot=toolbar-button-icon]]:text-current [&_[data-slot=toolbar-button-icon]]:group-hover/toolbar-button:text-current"
         >
           {selectedTaskCount > 0

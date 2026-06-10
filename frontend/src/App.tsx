@@ -11,9 +11,11 @@ import { useDownloadStore } from "./core/store/useDownloadStore";
 import { UI_TEXT } from "./core/locale";
 import { UI_TOKENS } from "./core/ui-tokens";
 import { parseNavFilter, type NavFilter } from "./core/taskFilters";
+import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
+import NewTaskWindow from "./components/downloader/NewTaskWindow";
 
 function resolveActiveFilter(
   filter: NavFilter,
@@ -40,6 +42,23 @@ export default function App() {
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const visibleFilter = resolveActiveFilter(activeFilter, categories, tags);
+  const settings = useAppSettingsStore((state) => state.settings);
+  const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
+
+
+  const params = new URLSearchParams(window.location.search);
+  const isNewTask = path === "/new-task" || path.startsWith("/new-task") || params.has("new_task");
+
+  if (isNewTask) {
+    return (
+      <ThemeProvider taskRuntime>
+        <TooltipProvider>
+          <ActiveBackground />
+          <NewTaskWindow />
+        </TooltipProvider>
+      </ThemeProvider>
+    );
+  }
 
   if (path === "/float") {
     return (
@@ -57,9 +76,15 @@ export default function App() {
       <TooltipProvider>
         <div className="flex h-screen flex-col overflow-hidden bg-transparent">
           <ActiveBackground />
-          <WindowFrame title="PiDownloader" onOpenSettings={() => setSettingsOpen(true)} />
+          {!hideBorderAndBg && (
+            <WindowFrame title="PiDownloader" onOpenSettings={() => setSettingsOpen(true)} />
+          )}
           <div className="flex min-h-0 flex-1 overflow-hidden">
-            <NavSidebar activeFilter={visibleFilter} onFilterChange={setActiveFilter} />
+            <NavSidebar
+              activeFilter={visibleFilter}
+              onFilterChange={setActiveFilter}
+              onOpenSettings={() => setSettingsOpen(true)}
+            />
             <TaskListDashboard activeFilter={visibleFilter} />
           </div>
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>

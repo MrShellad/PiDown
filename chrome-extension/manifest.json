@@ -5,11 +5,15 @@
   "version": "0.1.0",
   "minimum_chrome_version": "109",
   "permissions": [
+    "contextMenus",
     "cookies",
     "downloads",
-    "nativeMessaging",
     "notifications",
     "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*",
+    "http://localhost/*"
   ],
   "background": {
     "service_worker": "src/background.js",

@@ -12,7 +12,9 @@ import {
   Pencil,
   Plus,
   Trash2,
+  Settings,
 } from "lucide-react";
+
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { IconPreview } from "@/components/ui/icon-picker";
@@ -203,16 +205,21 @@ function CategoryNavBranch({
 interface NavSidebarProps {
   activeFilter: NavFilter;
   onFilterChange: (filter: NavFilter) => void;
+  onOpenSettings?: () => void;
 }
 
 type NavItemKind = "system" | "category" | "tag";
-export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarProps) {
+export default function NavSidebar({ activeFilter, onFilterChange, onOpenSettings }: NavSidebarProps) {
   const tasks = useDownloadStore((state) => state.tasks);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const fetchCategoryTree = useDownloadStore((state) => state.fetchCategoryTree);
   const reorderCategories = useDownloadStore((state) => state.reorderCategories);
   const deleteCategory = useDownloadStore((state) => state.deleteCategory);
+
+  const settings = useAppSettingsStore((state) => state.settings);
+  const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
+
 
   // Editor Modal State
   const [editorOpen, setEditorOpen] = useState(false);
@@ -404,7 +411,8 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
 
   return (
     <nav
-      className="flex h-full min-h-0 flex-col bg-transparent p-4 select-none"
+      data-tauri-drag-region
+      className="flex h-full min-h-0 flex-col bg-transparent pt-4 pb-4 pl-4 pr-0 select-none cursor-default"
       style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-card text-card-foreground shadow-toolbar-glow">
@@ -497,6 +505,20 @@ export default function NavSidebar({ activeFilter, onFilterChange }: NavSidebarP
             })}
           </div>
         </ScrollArea>
+        {hideBorderAndBg && (
+          <div className="mt-auto shrink-0 border-t border-border/50 bg-secondary/20 p-2 flex justify-between items-center z-10">
+            <span className="text-[11px] text-muted-foreground pl-2 font-mono tracking-wider">PiDownloader</span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={onOpenSettings}
+              className="text-muted-foreground hover:text-foreground cursor-pointer"
+              title="打开设置"
+            >
+              <Settings className="size-4" />
+            </Button>
+          </div>
+        )}
       </div>
 
       <CategoryEditDialog

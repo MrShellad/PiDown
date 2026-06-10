@@ -26,6 +26,7 @@ pub struct TaskProgressPayload {
     pub connections: u32,
     pub speed_bps: u64,
     pub eta_seconds: Option<u64>,
+    pub upload_speed: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -133,6 +134,7 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                     connections: download.progress.connections,
                     speed_bps: download_speed,
                     eta_seconds,
+                    upload_speed: format_speed(upload_speed, &speed_display_unit),
                 });
             }
             speed_samples.retain(|gid, _| active_gids.contains(gid));

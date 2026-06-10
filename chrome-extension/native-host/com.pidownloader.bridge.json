@@ -1,9 +1,0 @@
-﻿{
-    "name":  "com.pidownloader.bridge",
-    "description":  "PiDownloader Chrome native messaging bridge",
-    "path":  "H:\\VSCodeWork\\PiDown\\src-tauri\\target\\debug\\pidownloader-native-host.exe",
-    "type":  "stdio",
-    "allowed_origins":  [
-                            "chrome-extension://hnpaolkbafjecpddocpogogcmhenlcje/"
-                        ]
-}

@@ -6,6 +6,7 @@ pub mod fonts;
 pub mod settings;
 pub mod task;
 pub mod window;
+pub mod backgrounds;
 
 pub use checksum::*;
 pub use clipboard::*;
@@ -14,3 +15,5 @@ pub use fonts::*;
 pub use settings::*;
 pub use task::*;
 pub use window::*;
+pub use backgrounds::*;
+

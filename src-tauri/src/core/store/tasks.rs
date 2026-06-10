@@ -8,8 +8,8 @@ impl super::DbStore {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO tasks (
-                id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
+                id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 task.id,
                 task.engine_id,
@@ -23,7 +23,8 @@ impl super::DbStore {
                 task.category_id,
                 task.created_at,
                 task.started_at,
-                task.completed_at
+                task.completed_at,
+                task.error_message
             ],
         )?;
         Ok(())
@@ -115,7 +116,7 @@ impl super::DbStore {
     pub fn get_task(&self, id: &str) -> Result<Option<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
              FROM tasks
              WHERE id = ?1",
         )?;
@@ -136,6 +137,7 @@ impl super::DbStore {
                 created_at: row.get(10)?,
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
+                error_message: row.get(13)?,
             }))
         } else {
             Ok(None)
@@ -148,7 +150,7 @@ impl super::DbStore {
     ) -> Result<Option<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
              FROM tasks
              WHERE engine_id = ?1",
         )?;
@@ -169,6 +171,7 @@ impl super::DbStore {
                 created_at: row.get(10)?,
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
+                error_message: row.get(13)?,
             }))
         } else {
             Ok(None)
@@ -178,7 +181,7 @@ impl super::DbStore {
     pub fn get_all_tasks(&self) -> Result<Vec<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
              FROM tasks
              ORDER BY created_at DESC",
         )?;
@@ -197,6 +200,7 @@ impl super::DbStore {
                 created_at: row.get(10)?,
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
+                error_message: row.get(13)?,
             })
         })?;
 
@@ -218,8 +222,9 @@ impl super::DbStore {
                     status = ?3, 
                     engine_id = ?4,
                     started_at = ?5,
-                    completed_at = ?6
-                 WHERE id = ?7"
+                    completed_at = ?6,
+                    error_message = ?7
+                 WHERE id = ?8"
             )?;
             for task in tasks {
                 stmt.execute(params![
@@ -229,11 +234,25 @@ impl super::DbStore {
                     task.engine_id,
                     task.started_at,
                     task.completed_at,
+                    task.error_message,
                     task.id
                 ])?;
             }
         }
         tx.commit()?;
+        Ok(())
+    }
+
+    pub fn update_task_error(
+        &self,
+        id: &str,
+        error_message: Option<&str>,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET error_message = ?1 WHERE id = ?2",
+            params![error_message, id],
+        )?;
         Ok(())
     }
 }

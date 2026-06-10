@@ -211,6 +211,11 @@ impl super::AppState {
             _ => None,
         };
 
+        let error_msg = match &engine_status.state {
+            DownloadState::Error { message, .. } => Some(message.clone()),
+            _ => None,
+        };
+
         if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
             task.status = mapped_status.to_string();
             task.completed_size = engine_status.progress.completed_size;
@@ -223,6 +228,14 @@ impl super::AppState {
             } else if final_completed_at.is_some() {
                 task.completed_at = final_completed_at;
             }
+            if error_msg.is_some() {
+                task.error_message = error_msg.clone();
+            }
+        }
+
+        let _ = self.db.update_task_status(gid, mapped_status, final_completed_at);
+        if let Some(msg) = error_msg.as_deref() {
+            let _ = self.db.update_task_error(gid, Some(msg));
         }
 
         self.progress_throttle.lock().unwrap().insert(
@@ -336,6 +349,7 @@ impl super::AppState {
                 None
             },
             completed_at: None,
+            error_message: None,
         };
 
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
@@ -546,11 +560,16 @@ impl super::AppState {
             .map_err(|e| format!("Failed to inspect completed file: {e}"))?;
 
         if actual_size != task.total_size {
+            let err_msg = format!(
+                "Completed file size mismatch: actual {} bytes, expected {} bytes",
+                actual_size, task.total_size
+            );
             if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
                 t.completed_size = actual_size;
                 t.total_size = task.total_size;
                 t.status = "Failed".to_string();
                 t.completed_at = Some(Utc::now().timestamp());
+                t.error_message = Some(err_msg.clone());
             }
             let _ = self
                 .db
@@ -558,10 +577,8 @@ impl super::AppState {
             let _ = self
                 .db
                 .update_task_status(gid, "Failed", Some(Utc::now().timestamp()));
-            return Err(format!(
-                "Completed file size mismatch: actual {} bytes, expected {} bytes",
-                actual_size, task.total_size
-            ));
+            let _ = self.db.update_task_error(gid, Some(&err_msg));
+            return Err(err_msg);
         }
 
         if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
@@ -599,6 +616,8 @@ impl super::AppState {
             let mut speed_bps = 0u64;
             let mut eta_seconds = None;
 
+            let mut upload_speed = "0 B/s".to_string();
+
             let speed_display_unit = self
                 .settings
                 .read()
@@ -619,6 +638,7 @@ impl super::AppState {
                 eta = format_eta(engine_status.progress.eta_seconds);
                 speed_bps = engine_status.progress.download_speed;
                 eta_seconds = engine_status.progress.eta_seconds;
+                upload_speed = format_speed(engine_status.progress.upload_speed, &speed_display_unit);
             } else if total_bytes > 0 {
                 progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;
             } else if db_task.status == "Completed" {
@@ -640,6 +660,10 @@ impl super::AppState {
                 downloaded_bytes,
                 total_bytes,
                 created_at: db_task.created_at,
+                started_at: db_task.started_at,
+                completed_at: db_task.completed_at,
+                upload_speed,
+                error_message: db_task.error_message,
                 save_path: db_task.save_path,
                 category_id: db_task.category_id,
                 tags,
