@@ -24,7 +24,11 @@ impl DbStore {
         }
 
         let conn = Connection::open(db_path)?;
-        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = NORMAL;
+             PRAGMA foreign_keys = ON;",
+        )?;
         let store = Self {
             conn: Mutex::new(conn),
         };

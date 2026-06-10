@@ -16,4 +16,4 @@ The extension does not send this data to a remote server. The native host runs l
 
 ## Storage
 
-The extension stores user preferences with `chrome.storage.sync`, including whether bridging is enabled, native host name, fallback behavior, and extension filters.
+The extension stores user preferences with `chrome.storage.sync`, including whether bridging is enabled, fallback behavior, and extension filters.

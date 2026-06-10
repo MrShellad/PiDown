@@ -36,6 +36,8 @@ export interface Task {
   speed: string;
   progress: number; // 0 to 100
   eta: string;
+  speedBps: number;
+  etaSeconds: number | null;
   downloadedBytes: number;
   totalBytes: number;
   createdAt?: number;
@@ -73,6 +75,8 @@ export interface TaskProgressPayload {
   downloaded_bytes: number;
   total_bytes: number;
   connections?: number;
+  speed_bps?: number;
+  eta_seconds?: number | null;
 }
 
 export interface DownloadSpeedPayload {
@@ -96,6 +100,7 @@ interface DownloadState {
   tasks: Record<string, Task>;
   categories: Category[];
   tags: Tag[];
+  activeDownloadingGids: Set<string>;
   globalSpeed: string;
   globalDownloadSpeed: string;
   globalUploadSpeed: string;
@@ -156,6 +161,8 @@ const mapTask = (task: TaskOverview): Task => ({
   speed: task.speed,
   progress: task.progress,
   eta: task.eta,
+  speedBps: task.speed_bps,
+  etaSeconds: task.eta_seconds,
   downloadedBytes: task.downloaded_bytes,
   totalBytes: task.total_bytes,
   createdAt: task.created_at,
@@ -174,6 +181,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
       tasks: {},
       categories: [],
       tags: [],
+      activeDownloadingGids: new Set<string>(),
       globalSpeed: "0 B/s",
       globalDownloadSpeed: "0 B/s",
       globalUploadSpeed: "0 B/s",
@@ -183,39 +191,53 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
       categoryTreeLoading: false,
 
       addTask: (gid, url, name) => {
-        set((state) => ({
-          tasks: {
-            ...state.tasks,
-            [gid]: {
-              gid,
-              name,
-              url,
-              status: "Downloading",
-              speed: "0 B/s",
-              progress: 0,
-              eta: "--:--:--",
-              downloadedBytes: 0,
-              totalBytes: 0,
-              createdAt: Math.floor(Date.now() / 1000),
-              savePath: "",
-              connections: 0,
-              categoryId: null,
-              tags: [],
+        set((state) => {
+          const nextActive = new Set(state.activeDownloadingGids);
+          nextActive.add(gid);
+          return {
+            tasks: {
+              ...state.tasks,
+              [gid]: {
+                gid,
+                name,
+                url,
+                status: "Downloading",
+                speed: "0 B/s",
+                progress: 0,
+                eta: "--:--:--",
+                speedBps: 0,
+                etaSeconds: null,
+                downloadedBytes: 0,
+                totalBytes: 0,
+                createdAt: Math.floor(Date.now() / 1000),
+                savePath: "",
+                connections: 0,
+                categoryId: null,
+                tags: [],
+              },
             },
-          },
-        }));
+            activeDownloadingGids: nextActive,
+          };
+        });
       },
 
       updateTasksFromPayload: (payload) => {
         set((state) => {
           const updatedTasks = { ...state.tasks };
+          const newActiveGids = new Set<string>();
           
-          // Reset speeds for tasks that are no longer active
-          Object.keys(updatedTasks).forEach((gid) => {
-            if (updatedTasks[gid].status === "Downloading") {
-              updatedTasks[gid].speed = "0 B/s";
-              updatedTasks[gid].eta = "--:--:--";
-              updatedTasks[gid].connections = 0;
+          // Reset speeds for tasks that are no longer active, using activeDownloadingGids
+          const payloadActiveGids = new Set(payload.tasks.map((t) => t.gid));
+          state.activeDownloadingGids.forEach((gid) => {
+            if (!payloadActiveGids.has(gid) && updatedTasks[gid]) {
+              updatedTasks[gid] = {
+                ...updatedTasks[gid],
+                speed: "0 B/s",
+                speedBps: 0,
+                eta: "--:--:--",
+                etaSeconds: null,
+                connections: 0,
+              };
             }
           });
 
@@ -225,6 +247,10 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
             const progress = activeTask.progress;
             const status = progress >= 100 ? "Completed" as const : "Downloading" as const;
             
+            if (status === "Downloading") {
+              newActiveGids.add(activeTask.gid);
+            }
+
             updatedTasks[activeTask.gid] = {
               gid: activeTask.gid,
               name: existing ? existing.name : `Task_${activeTask.gid.substring(0, 8)}`,
@@ -233,6 +259,8 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               speed: activeTask.speed,
               progress: progress,
               eta: activeTask.eta,
+              speedBps: activeTask.speed_bps ?? 0,
+              etaSeconds: activeTask.eta_seconds ?? null,
               downloadedBytes: activeTask.downloaded_bytes,
               totalBytes: activeTask.total_bytes,
               createdAt: existing ? existing.createdAt : undefined,
@@ -245,6 +273,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
           return {
             tasks: updatedTasks,
+            activeDownloadingGids: newActiveGids,
             globalSpeed: payload.global_speed,
             globalDownloadSpeed: payload.global_download_speed ?? payload.global_speed,
             globalUploadSpeed: payload.global_upload_speed ?? "0 B/s",
@@ -260,27 +289,38 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
         if (task.status === "Downloading") {
           await pauseTask(gid);
-          set((state) => ({
-            tasks: {
-              ...state.tasks,
-              [gid]: {
-                ...state.tasks[gid],
-                status: "Paused",
-                speed: "0 B/s",
+          set((state) => {
+            const nextActive = new Set(state.activeDownloadingGids);
+            nextActive.delete(gid);
+            return {
+              tasks: {
+                ...state.tasks,
+                [gid]: {
+                  ...state.tasks[gid],
+                  status: "Paused",
+                  speed: "0 B/s",
+                  speedBps: 0,
+                },
               },
-            },
-          }));
+              activeDownloadingGids: nextActive,
+            };
+          });
         } else if (task.status === "Paused" || task.status === "Failed") {
           await resumeTask(gid);
-          set((state) => ({
-            tasks: {
-              ...state.tasks,
-              [gid]: {
-                ...state.tasks[gid],
-                status: "Downloading",
+          set((state) => {
+            const nextActive = new Set(state.activeDownloadingGids);
+            nextActive.add(gid);
+            return {
+              tasks: {
+                ...state.tasks,
+                [gid]: {
+                  ...state.tasks[gid],
+                  status: "Downloading",
+                },
               },
-            },
-          }));
+              activeDownloadingGids: nextActive,
+            };
+          });
         }
       },
 
@@ -299,7 +339,9 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         set((state) => {
           const updated = { ...state.tasks };
           delete updated[gid];
-          return { tasks: updated };
+          const nextActive = new Set(state.activeDownloadingGids);
+          nextActive.delete(gid);
+          return { tasks: updated, activeDownloadingGids: nextActive };
         });
       },
 
@@ -335,8 +377,11 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           set((state) => {
             const updated = { ...state.tasks };
             delete updated[gid];
+            const nextActive = new Set(state.activeDownloadingGids);
+            nextActive.delete(gid);
 
             if (task) {
+              nextActive.add(nextGid);
               updated[nextGid] = {
                 ...task,
                 gid: nextGid,
@@ -344,6 +389,8 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
                 speed: "0 B/s",
                 progress: 0,
                 eta: "--:--:--",
+                speedBps: 0,
+                etaSeconds: null,
                 downloadedBytes: 0,
                 totalBytes: 0,
                 createdAt: Math.floor(Date.now() / 1000),
@@ -351,7 +398,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               };
             }
 
-            return { tasks: updated };
+            return { tasks: updated, activeDownloadingGids: nextActive };
           });
 
           await get().fetchTasks();
@@ -381,10 +428,14 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           const backendTasks = await getActiveTasks();
           const mappedTasks: Record<string, Task> = {};
+          const newActiveGids = new Set<string>();
           backendTasks.forEach((task) => {
             mappedTasks[task.gid] = mapTask(task);
+            if (task.status === "Downloading") {
+              newActiveGids.add(task.gid);
+            }
           });
-          set({ tasks: mappedTasks });
+          set({ tasks: mappedTasks, activeDownloadingGids: newActiveGids });
         } catch (e) {
           console.error("Failed to fetch tasks from backend", e);
         }

@@ -11,8 +11,11 @@ use crate::core::settings::{
 };
 use crate::core::store::DbStore;
 use crate::download::{EngineHttpConfig, EngineWrapper};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, RwLock};
+use std::sync::{Arc, Mutex, RwLock};
+use std::time::Instant;
+use gosh_dl::DownloadId;
 
 pub struct AppState {
     pub engine: EngineWrapper,
@@ -20,6 +23,8 @@ pub struct AppState {
     settings: RwLock<AppSettings>,
     settings_file: PathBuf,
     settings_created_at: RwLock<i64>,
+    pub(crate) gid_cache: Mutex<HashMap<DownloadId, String>>,
+    pub(crate) progress_throttle: Mutex<HashMap<String, (u64, Instant)>>,
 }
 
 impl AppState {
@@ -48,6 +53,8 @@ impl AppState {
             settings: RwLock::new(settings),
             settings_file,
             settings_created_at: RwLock::new(settings_doc.created_at),
+            gid_cache: Mutex::new(HashMap::new()),
+            progress_throttle: Mutex::new(HashMap::new()),
         });
 
         state.persist_settings()?;

@@ -98,6 +98,8 @@ pub struct TaskOverview {
     pub speed: String,
     pub progress: f64,
     pub eta: String,
+    pub speed_bps: u64,
+    pub eta_seconds: Option<u64>,
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub created_at: i64,

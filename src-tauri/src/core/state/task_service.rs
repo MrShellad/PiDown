@@ -117,8 +117,13 @@ impl super::AppState {
     }
 
     pub fn gid_for_download_id(&self, id: DownloadId) -> String {
+        if let Some(gid) = self.gid_cache.lock().unwrap().get(&id).cloned() {
+            return gid;
+        }
+
         let engine_id = id.as_uuid().to_string();
         if let Ok(Some(task)) = self.db.get_task_by_engine_id(&engine_id) {
+            self.gid_cache.lock().unwrap().insert(id, task.id.clone());
             return task.id;
         }
 
@@ -127,6 +132,7 @@ impl super::AppState {
             if task.engine_id.as_deref() != Some(engine_id.as_str()) {
                 let _ = self.db.update_task_engine_id(&task.id, Some(&engine_id));
             }
+            self.gid_cache.lock().unwrap().insert(id, task.id.clone());
             return task.id;
         }
 
@@ -154,9 +160,31 @@ impl super::AppState {
         total_size: Option<u64>,
     ) -> String {
         let gid = self.gid_for_download_id(id);
-        let _ = self
-            .db
-            .update_task_progress(&gid, completed_size, total_size.unwrap_or(0));
+        let total_size = total_size.unwrap_or(0);
+
+        let should_update = {
+            let mut throttle = self.progress_throttle.lock().unwrap();
+            if let Some((last_size, last_time)) = throttle.get(&gid).copied() {
+                let now = std::time::Instant::now();
+                let size_delta = completed_size.saturating_sub(last_size);
+                let time_delta = now.duration_since(last_time);
+                let is_completed = total_size > 0 && completed_size >= total_size;
+
+                if size_delta >= 1024 * 1024 || time_delta >= std::time::Duration::from_secs(2) || is_completed {
+                    throttle.insert(gid.clone(), (completed_size, now));
+                    true
+                } else {
+                    false
+                }
+            } else {
+                throttle.insert(gid.clone(), (completed_size, std::time::Instant::now()));
+                true
+            }
+        };
+
+        if should_update {
+            let _ = self.db.update_task_progress(&gid, completed_size, total_size);
+        }
         gid
     }
 
@@ -188,6 +216,13 @@ impl super::AppState {
             gid,
             engine_status.progress.completed_size,
             engine_status.progress.total_size.unwrap_or(0),
+        );
+        self.progress_throttle.lock().unwrap().insert(
+            gid.to_string(),
+            (
+                engine_status.progress.completed_size,
+                std::time::Instant::now(),
+            ),
         );
     }
 
@@ -396,7 +431,9 @@ impl super::AppState {
 
         if let Ok(id) = self.resolve_download_id(gid) {
             let _ = self.engine.cancel(id, delete_files).await;
+            self.gid_cache.lock().unwrap().remove(&id);
         }
+        self.progress_throttle.lock().unwrap().remove(gid);
 
         let Some(task) = task else {
             return Err("Task not found".to_string());
@@ -508,6 +545,17 @@ impl super::AppState {
 
     pub fn list_tasks(&self) -> Result<Vec<TaskOverview>, String> {
         let db_tasks = self.db.get_all_tasks().map_err(|e| e.to_string())?;
+        let engine_list = self.engine.list();
+        use std::collections::HashMap;
+
+        let mut engine_tasks = HashMap::with_capacity(engine_list.len() * 2);
+        for status in engine_list {
+            let uuid_str = status.id.as_uuid().to_string();
+            let gid_str = status.id.to_gid();
+            engine_tasks.insert(uuid_str, status.clone());
+            engine_tasks.insert(gid_str, status);
+        }
+
         let mut tasks = Vec::with_capacity(db_tasks.len());
 
         for db_task in db_tasks {
@@ -517,6 +565,8 @@ impl super::AppState {
             let mut progress = 0.0;
             let mut downloaded_bytes = db_task.completed_size;
             let mut total_bytes = db_task.total_size;
+            let mut speed_bps = 0u64;
+            let mut eta_seconds = None;
 
             let speed_display_unit = self
                 .settings
@@ -526,12 +576,18 @@ impl super::AppState {
                 .speed_display_unit
                 .clone();
 
-            if let Some(engine_status) = self.engine_status_for_task(&db_task) {
+            let engine_status = db_task.engine_id.as_ref()
+                .and_then(|engine_id| engine_tasks.get(engine_id))
+                .or_else(|| engine_tasks.get(&db_task.id));
+
+            if let Some(engine_status) = engine_status {
                 downloaded_bytes = engine_status.progress.completed_size;
                 total_bytes = engine_status.progress.total_size.unwrap_or(0);
                 progress = engine_status.progress.percentage();
                 speed = format_speed(engine_status.progress.download_speed, &speed_display_unit);
                 eta = format_eta(engine_status.progress.eta_seconds);
+                speed_bps = engine_status.progress.download_speed;
+                eta_seconds = engine_status.progress.eta_seconds;
             } else if total_bytes > 0 {
                 progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;
             } else if db_task.status == "Completed" {
@@ -548,6 +604,8 @@ impl super::AppState {
                 speed,
                 progress,
                 eta,
+                speed_bps,
+                eta_seconds,
                 downloaded_bytes,
                 total_bytes,
                 created_at: db_task.created_at,

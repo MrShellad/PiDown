@@ -83,6 +83,21 @@ pub fn run() {
             commands::update_app_settings,
             commands::list_system_fonts,
         ])
+        .on_window_event(|window, event| {
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                if window.label() == "main" {
+                    api.prevent_close();
+                    let app_handle = window.app_handle().clone();
+                    let state = window.state::<std::sync::Arc<AppState>>().inner().clone();
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(error) = commands::handle_close_action(&app_handle, &state).await {
+                            log::error!("Error handling close event: {error}");
+                            app_handle.exit(1);
+                        }
+                    });
+                }
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while building tauri application");
 

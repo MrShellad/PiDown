@@ -30,6 +30,10 @@ input {
   font: inherit;
 }
 
+code {
+  font-family: Consolas, "SFMono-Regular", monospace;
+}
+
 .page {
   min-height: 100vh;
   padding: 40px;
@@ -74,6 +78,28 @@ p {
   display: grid;
   gap: 18px;
   padding: 28px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.section-heading {
+  display: grid;
+  gap: 6px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.35;
+}
+
+.section-heading p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .grid {
@@ -139,6 +165,107 @@ p {
 .switch-row small {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.info-list {
+  display: grid;
+  gap: 12px;
+}
+
+.info-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.info-card strong {
+  font-size: 14px;
+}
+
+.info-card small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.segmented {
+  display: inline-grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(240, 247, 255, 0.9);
+}
+
+.segment {
+  height: 42px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--primary-dark);
+  background: transparent;
+  font-weight: 700;
+}
+
+.segment.is-active {
+  color: #fff;
+  background: linear-gradient(180deg, var(--primary), var(--primary-dark));
+  box-shadow: 0 10px 18px rgba(45, 121, 230, 0.2);
+}
+
+.segment-panels {
+  position: relative;
+}
+
+.segment-panel {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: #f8fbff;
+}
+
+.panel-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.preset-group {
+  display: grid;
+  gap: 10px;
+}
+
+.preset-label {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.preset-chip {
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0 12px;
+  color: var(--primary-dark);
+  background: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.preset-chip:hover {
+  border-color: var(--primary);
+  background: #eef6ff;
 }
 
 .actions {
@@ -273,4 +400,27 @@ button:disabled {
 
 .test-result[data-kind="error"] {
   color: var(--danger);
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: 18px;
+  }
+
+  .panel {
+    border-radius: 20px;
+  }
+
+  .hero,
+  .form {
+    padding: 20px;
+  }
+
+  .hero {
+    align-items: flex-start;
+  }
+
+  .segmented {
+    grid-template-columns: 1fr;
+  }
 }

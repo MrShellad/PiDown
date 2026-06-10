@@ -43,7 +43,9 @@ testButton.addEventListener("click", async () => {
     }
   } catch (error) {
     renderBridgeStatus("unavailable");
-    testResult.textContent = formatConnectionError(error instanceof Error ? error.message : String(error));
+    testResult.textContent = formatConnectionError(
+      error instanceof Error ? error.message : String(error)
+    );
     testResult.dataset.kind = "error";
   } finally {
     testButton.disabled = false;
@@ -76,7 +78,7 @@ function renderBridgeStatus(status) {
 function formatConnectionError(error) {
   const message = String(error || "");
   if (message.includes("Specified native messaging host not found")) {
-    return `连接失败：Native Host 未注册。请运行：.\\chrome-extension\\native-host\\register-windows.example.ps1 -ExtensionId "${chrome.runtime.id}"`;
+    return `连接失败：未找到 Native Host。请在当前系统中注册名称为 com.pidownloader.bridge 的 Native Messaging Host，并把扩展 ID ${chrome.runtime.id} 加入 allowed_origins。`;
   }
   return `连接失败：${message}`;
 }

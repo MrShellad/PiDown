@@ -1,6 +1,7 @@
+const NATIVE_HOST_NAME = "com.pidownloader.bridge";
+
 const DEFAULT_OPTIONS = {
   enabled: false,
-  hostName: "com.pidownloader.bridge",
   fallbackToBrowserDownload: true,
   pauseDuringHandoff: false,
   eraseCancelledDownload: true,
@@ -11,14 +12,14 @@ const DEFAULT_OPTIONS = {
   blockExtensions: "",
 };
 
-const CAPTURE_RETRY_DELAYS_MS = [0, 250, 750, 1500, 3000];
+const CAPTURE_RETRY_DELAYS_MS = [0, 250, 750, 1500, 3000, 5000];
 const pendingDownloads = new Set();
 const settledDownloads = new Set();
 const retryState = new Map();
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   const stored = await chrome.storage.sync.get(null);
-  await setOptions({ ...DEFAULT_OPTIONS, ...stored });
+  await setOptions(stored);
   if (reason === "install") {
     await chrome.runtime.openOptionsPage();
   }
@@ -41,7 +42,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   if (message?.type === "pidownloader:get-status") {
     getOptions()
       .then(async (options) => {
-        const nativeStatus = await pingNativeHost(options.hostName);
+        const nativeStatus = await pingNativeHost();
         sendResponse({ ok: true, options, nativeStatus });
       })
       .catch((error) => sendResponse({ ok: false, error: String(error) }));
@@ -57,9 +58,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 
   if (message?.type === "pidownloader:test-connection") {
-    getOptions()
-      .then(async (options) => {
-        const result = await testNativeHost(options.hostName);
+    testNativeHost()
+      .then((result) => {
         sendResponse({ ok: result.ok, status: result.status, error: result.error || null });
       })
       .catch((error) => sendResponse({ ok: false, status: "unavailable", error: String(error) }));
@@ -127,11 +127,13 @@ async function attemptDownloadCapture(downloadId, initialItem, attempt) {
       await pauseDownload(downloadId);
     }
 
-    const response = await sendToNativeHost(options.hostName, {
+    const payload = {
       type: "create_task",
       version: 1,
-      download: normalizeDownloadItem(downloadItem),
-    });
+      download: await normalizeDownloadItem(downloadItem),
+    };
+
+    const response = await sendToNativeHost(payload);
 
     if (response?.ok) {
       settledDownloads.add(downloadId);
@@ -140,19 +142,37 @@ async function attemptDownloadCapture(downloadId, initialItem, attempt) {
         await eraseDownload(downloadId);
       }
       if (options.showNotifications) {
-        await notify("PiDownloader 已接管下载", "请在下载器中确认新建任务");
+        await notify("PiDownloader 已接管下载", "下载任务已经交给 PiDownloader。");
       }
+      return;
+    }
+
+    if (shouldRetryNativeFailure(response?.error) && attempt + 1 < CAPTURE_RETRY_DELAYS_MS.length) {
+      pendingDownloads.delete(downloadId);
+      retryState.set(downloadId, { attempt: attempt + 1, timerId: null });
+      await scheduleDownloadCapture(downloadId);
       return;
     }
 
     settledDownloads.add(downloadId);
     await fallbackToChrome(downloadId, options, response?.error || "Native host rejected task");
   } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (shouldRetryNativeFailure(message) && attempt + 1 < CAPTURE_RETRY_DELAYS_MS.length) {
+      pendingDownloads.delete(downloadId);
+      retryState.set(downloadId, { attempt: attempt + 1, timerId: null });
+      await scheduleDownloadCapture(downloadId);
+      return;
+    }
+
     settledDownloads.add(downloadId);
-    await fallbackToChrome(downloadId, options, String(error));
+    await fallbackToChrome(downloadId, options, message);
   } finally {
     pendingDownloads.delete(downloadId);
-    retryState.delete(downloadId);
+    const current = retryState.get(downloadId);
+    if (!current?.timerId) {
+      retryState.delete(downloadId);
+    }
   }
 }
 
@@ -177,7 +197,7 @@ function shouldCaptureDownload(downloadItem, options) {
   if (allowed.length > 0 && !allowed.includes(extension)) {
     return {
       capture: false,
-      retry: !extension,
+      retry: !extension || !isDownloadTerminal(downloadItem),
       reason: extension ? "not-allowed-extension" : "extension-pending",
     };
   }
@@ -186,6 +206,9 @@ function shouldCaptureDownload(downloadItem, options) {
   const minBytes = Number(options.minBytes || 0);
   if (minBytes > 0 && knownSize > 0 && knownSize < minBytes) {
     return { capture: false, retry: false, reason: "below-min-size" };
+  }
+  if (minBytes > 0 && knownSize <= 0 && !isDownloadTerminal(downloadItem)) {
+    return { capture: false, retry: true, reason: "size-pending" };
   }
 
   return { capture: true, retry: false, reason: "matched" };
@@ -200,13 +223,26 @@ function shouldRecheckDownload(delta) {
       delta.mime ||
       delta.totalBytes ||
       delta.fileSize ||
+      delta.canResume ||
+      delta.paused ||
+      delta.error ||
       delta.state
   );
 }
 
-function normalizeDownloadItem(downloadItem) {
+async function normalizeDownloadItem(downloadItem) {
+  const [headers, cookies] = await Promise.all([
+    extractRequestHeaders(downloadItem),
+    getCookiesForDownload(downloadItem),
+  ]);
+
   return {
     url: downloadItem.finalUrl || downloadItem.url,
+    filename: getDisplayFilename(downloadItem),
+    totalSize: normalizePositiveNumber(downloadItem.totalBytes || downloadItem.fileSize),
+    referer: headers.referer,
+    userAgent: headers.userAgent,
+    cookies,
   };
 }
 
@@ -252,16 +288,26 @@ function parseCsv(value) {
 }
 
 function getOptions() {
-  return chrome.storage.sync.get(DEFAULT_OPTIONS);
+  return chrome.storage.sync.get(null).then(normalizeOptions);
 }
 
 function setOptions(options) {
-  return chrome.storage.sync.set(options);
+  return chrome.storage.sync.set(normalizeOptions(options));
 }
 
-function sendToNativeHost(hostName, payload) {
+function normalizeOptions(options) {
+  const next = { ...DEFAULT_OPTIONS };
+  for (const key of Object.keys(DEFAULT_OPTIONS)) {
+    if (Object.prototype.hasOwnProperty.call(options || {}, key)) {
+      next[key] = options[key];
+    }
+  }
+  return next;
+}
+
+function sendToNativeHost(payload) {
   return new Promise((resolve, reject) => {
-    chrome.runtime.sendNativeMessage(hostName, payload, (response) => {
+    chrome.runtime.sendNativeMessage(NATIVE_HOST_NAME, payload, (response) => {
       const error = chrome.runtime.lastError;
       if (error) {
         reject(new Error(error.message));
@@ -272,14 +318,14 @@ function sendToNativeHost(hostName, payload) {
   });
 }
 
-async function pingNativeHost(hostName) {
-  const result = await testNativeHost(hostName);
+async function pingNativeHost() {
+  const result = await testNativeHost();
   return result.ok ? "connected" : "unavailable";
 }
 
-async function testNativeHost(hostName) {
+async function testNativeHost() {
   try {
-    const response = await sendToNativeHost(hostName, {
+    const response = await sendToNativeHost({
       type: "ping",
       version: 1,
     });
@@ -345,4 +391,43 @@ function notify(title, message) {
     title,
     message,
   });
+}
+
+function isDownloadTerminal(downloadItem) {
+  const state = downloadItem.state;
+  return state === "complete" || state === "interrupted";
+}
+
+function normalizePositiveNumber(value) {
+  const next = Number(value || 0);
+  return Number.isFinite(next) && next > 0 ? next : null;
+}
+
+function shouldRetryNativeFailure(message) {
+  const normalized = String(message || "").toLowerCase();
+  return (
+    normalized.includes("state is unavailable") ||
+    normalized.includes("native bridge is stale") ||
+    normalized.includes("native bridge is unavailable") ||
+    normalized.includes("please restart pidownloader")
+  );
+}
+
+async function extractRequestHeaders(_downloadItem) {
+  return { referer: null, userAgent: null };
+}
+
+async function getCookiesForDownload(downloadItem) {
+  const targetUrl = downloadItem.finalUrl || downloadItem.url || "";
+  if (!targetUrl || !chrome.cookies?.getAll) return [];
+
+  try {
+    const url = new URL(targetUrl);
+    const cookies = await chrome.cookies.getAll({ url: url.origin });
+    return cookies
+      .map((cookie) => `${cookie.name}=${cookie.value}`)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }

@@ -24,6 +24,8 @@ pub struct TaskProgressPayload {
     pub downloaded_bytes: u64,
     pub total_bytes: u64,
     pub connections: u32,
+    pub speed_bps: u64,
+    pub eta_seconds: Option<u64>,
 }
 
 #[derive(Clone, Serialize)]
@@ -38,7 +40,7 @@ pub struct DownloadSpeedPayload {
 
 pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
     tauri::async_runtime::spawn(async move {
-        let mut interval = tokio::time::interval(Duration::from_millis(100));
+        let mut interval = tokio::time::interval(Duration::from_millis(500));
         let mut ticks_since_reconcile = 0u32;
         let mut speed_samples: HashMap<String, SpeedSample> = HashMap::new();
 
@@ -47,7 +49,7 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
             ticks_since_reconcile = ticks_since_reconcile.saturating_add(1);
             let now = Instant::now();
 
-            if ticks_since_reconcile >= 50 {
+            if ticks_since_reconcile >= 10 {
                 ticks_since_reconcile = 0;
                 state.reconcile_download_tasks();
             }
@@ -129,6 +131,8 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                     downloaded_bytes: completed_size,
                     total_bytes: total_size,
                     connections: download.progress.connections,
+                    speed_bps: download_speed,
+                    eta_seconds,
                 });
             }
             speed_samples.retain(|gid, _| active_gids.contains(gid));

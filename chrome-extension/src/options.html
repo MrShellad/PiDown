@@ -12,78 +12,146 @@
         <img src="../assets/logo.svg" alt="" class="logo" />
         <div>
           <h1>PiDownloader 下载桥接</h1>
-          <p>在你开启后，把 Chrome 创建的 HTTP/HTTPS 下载任务发送到 PiDownloader。</p>
+          <p>开启后，扩展会把符合条件的 HTTP/HTTPS 下载交给 PiDownloader。</p>
         </div>
       </header>
 
       <form id="options-form" class="form">
-        <label class="switch-row">
-          <input id="enabled" type="checkbox" />
-          <span>
-            <strong>启用下载桥接</strong>
-            <small>开启后，扩展会尝试把 HTTP/HTTPS 下载交给 PiDownloader。</small>
-          </span>
-        </label>
-
-        <label class="field">
-          <span>Native Host 名称</span>
-          <input id="hostName" type="text" spellcheck="false" />
-        </label>
-
-        <label class="switch-row">
-          <input id="fallbackToBrowserDownload" type="checkbox" />
-          <span>
-            <strong>桥接失败时继续使用 Chrome 下载</strong>
-            <small>建议保持开启，直到 PiDownloader native bridge 完整接入。</small>
-          </span>
-        </label>
-
-        <label class="switch-row">
-          <input id="pauseDuringHandoff" type="checkbox" />
-          <span>
-            <strong>交接期间暂停 Chrome 下载</strong>
-            <small>可减少 Chrome 已下载的临时数据，但部分站点可能不支持恢复。</small>
-          </span>
-        </label>
-
-        <label class="switch-row">
-          <input id="eraseCancelledDownload" type="checkbox" />
-          <span>
-            <strong>发送成功后移除 Chrome 下载记录</strong>
-            <small>PiDownloader 已接收任务后，清理 Chrome 下载列表中的原任务。</small>
-          </span>
-        </label>
-
-        <label class="switch-row">
-          <input id="showNotifications" type="checkbox" />
-          <span>
-            <strong>显示发送通知</strong>
-            <small>PiDownloader 成功接收任务时显示系统通知。</small>
-          </span>
-        </label>
-
-        <label class="switch-row">
-          <input id="captureIncognito" type="checkbox" />
-          <span>
-            <strong>桥接隐身窗口下载</strong>
-            <small>需要先在 Chrome 扩展详情中允许隐身模式。</small>
-          </span>
-        </label>
-
-        <div class="grid">
-          <label class="field">
-            <span>最小文件大小 Bytes</span>
-            <input id="minBytes" type="number" min="0" step="1" />
+        <section class="stack">
+          <label class="switch-row">
+            <input id="enabled" type="checkbox" />
+            <span>
+              <strong>启用下载桥接</strong>
+              <small>开启后，扩展会尝试把浏览器下载发送到 PiDownloader。</small>
+            </span>
           </label>
-          <label class="field">
-            <span>只桥接这些扩展名</span>
-            <input id="allowExtensions" type="text" placeholder="zip, mp4, pdf" />
+
+          <div class="info-card">
+            <strong>Native Host</strong>
+            <small>
+              扩展固定使用 <code>com.pidownloader.bridge</code>。请在当前系统中注册同名 Native
+              Messaging Host。
+            </small>
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="section-heading">
+            <h2>基础行为</h2>
+            <p>控制接管失败时的回退方式，以及桥接期间的下载处理策略。</p>
+          </div>
+
+          <label class="switch-row">
+            <input id="fallbackToBrowserDownload" type="checkbox" />
+            <span>
+              <strong>桥接失败时继续使用浏览器下载</strong>
+              <small>建议保持开启，直到本机 Native Host 和 PiDownloader 都已正确配置。</small>
+            </span>
           </label>
-          <label class="field">
-            <span>忽略这些扩展名</span>
-            <input id="blockExtensions" type="text" placeholder="crdownload, tmp" />
+
+          <label class="switch-row">
+            <input id="pauseDuringHandoff" type="checkbox" />
+            <span>
+              <strong>交接期间暂停浏览器下载</strong>
+              <small>可以减少浏览器提前写入的临时数据，但部分站点可能不支持恢复。</small>
+            </span>
           </label>
-        </div>
+
+          <label class="switch-row">
+            <input id="eraseCancelledDownload" type="checkbox" />
+            <span>
+              <strong>接管成功后移除浏览器下载记录</strong>
+              <small>PiDownloader 接收任务后，清理浏览器下载列表中的原始下载项。</small>
+            </span>
+          </label>
+
+          <label class="switch-row">
+            <input id="showNotifications" type="checkbox" />
+            <span>
+              <strong>显示系统通知</strong>
+              <small>当 PiDownloader 成功接收任务时显示一条通知。</small>
+            </span>
+          </label>
+
+          <label class="switch-row">
+            <input id="captureIncognito" type="checkbox" />
+            <span>
+              <strong>桥接无痕窗口下载</strong>
+              <small>需要先在浏览器扩展详情页中允许无痕模式访问。</small>
+            </span>
+          </label>
+        </section>
+
+        <section class="stack">
+          <div class="section-heading">
+            <h2>过滤规则</h2>
+            <p>按扩展名和文件大小控制哪些下载会被桥接到 PiDownloader。</p>
+          </div>
+
+          <div class="segmented" role="tablist" aria-label="过滤规则类型">
+            <button type="button" class="segment is-active" data-segment-target="allowlist" role="tab" aria-selected="true">
+              白名单
+            </button>
+            <button type="button" class="segment" data-segment-target="blocklist" role="tab" aria-selected="false">
+              黑名单
+            </button>
+            <button type="button" class="segment" data-segment-target="size-limit" role="tab" aria-selected="false">
+              文件大小
+            </button>
+          </div>
+
+          <div class="segment-panels">
+            <section class="segment-panel is-active" data-segment-panel="allowlist" role="tabpanel">
+              <label class="field">
+                <span>仅桥接这些扩展名</span>
+                <input id="allowExtensions" type="text" placeholder="zip, mp4, pdf" />
+              </label>
+              <div class="preset-group">
+                <span class="preset-label">常用预设</span>
+                <div class="preset-chips" data-preset-container="allowExtensions"></div>
+              </div>
+              <p class="panel-hint">留空表示不限制。多个扩展名用英文逗号分隔，输入时可省略点号。</p>
+            </section>
+
+            <section class="segment-panel" data-segment-panel="blocklist" role="tabpanel" hidden>
+              <label class="field">
+                <span>忽略这些扩展名</span>
+                <input id="blockExtensions" type="text" placeholder="crdownload, tmp" />
+              </label>
+              <div class="preset-group">
+                <span class="preset-label">常用预设</span>
+                <div class="preset-chips" data-preset-container="blockExtensions"></div>
+              </div>
+              <p class="panel-hint">命中黑名单时不会桥接。适合排除临时文件、浏览器中间文件或特殊后缀。</p>
+            </section>
+
+            <section class="segment-panel" data-segment-panel="size-limit" role="tabpanel" hidden>
+              <label class="field">
+                <span>最小文件大小限制（Bytes）</span>
+                <input id="minBytes" type="number" min="0" step="1" />
+              </label>
+              <p class="panel-hint">大于 0 时，仅桥接已知大小且不小于该值的下载。留空或填 0 表示不限制。</p>
+            </section>
+          </div>
+        </section>
+
+        <section class="stack">
+          <div class="section-heading">
+            <h2>连接说明</h2>
+            <p>扩展本身跨平台可用；Native Host 需要按当前系统完成注册。</p>
+          </div>
+
+          <div class="info-list">
+            <div class="info-card">
+              <strong>Windows</strong>
+              <small>可使用仓库中的 <code>native-host/register-windows.example.ps1</code> 作为开发示例。</small>
+            </div>
+            <div class="info-card">
+              <strong>macOS / Linux</strong>
+              <small>请将同名 Native Host manifest 放到浏览器支持的 Native Messaging 路径，并指向本机可执行文件。</small>
+            </div>
+          </div>
+        </section>
 
         <footer class="actions">
           <button type="button" id="reset">恢复默认</button>

@@ -2,25 +2,34 @@ use std::collections::BTreeSet;
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
+static FONT_CACHE: OnceLock<Result<Vec<String>, String>> = OnceLock::new();
 
 #[tauri::command]
 pub async fn list_system_fonts() -> Result<Vec<String>, String> {
-    let mut names = BTreeSet::new();
-    let mut files = Vec::new();
+    tauri::async_runtime::spawn_blocking(|| {
+        FONT_CACHE.get_or_init(|| {
+            let mut names = BTreeSet::new();
+            let mut files = Vec::new();
 
-    for dir in system_font_dirs() {
-        collect_font_files(&dir, &mut files);
-    }
-
-    for path in files {
-        if let Ok(data) = fs::read(&path) {
-            for name in parse_font_family_names(&data) {
-                names.insert(name);
+            for dir in system_font_dirs() {
+                collect_font_files(&dir, &mut files);
             }
-        }
-    }
 
-    Ok(names.into_iter().collect())
+            for path in files {
+                if let Ok(data) = fs::read(&path) {
+                    for name in parse_font_family_names(&data) {
+                        names.insert(name);
+                    }
+                }
+            }
+
+            Ok(names.into_iter().collect())
+        }).clone()
+    })
+    .await
+    .map_err(|e| format!("Failed to run font listing thread: {e}"))?
 }
 
 fn system_font_dirs() -> Vec<PathBuf> {

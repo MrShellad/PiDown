@@ -4,9 +4,9 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
-use crate::core::state::AppState;
+use crate::core::state::{AppState, TaskCreateOptions};
 use std::sync::Arc;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Manager};
 use uuid::Uuid;
 
 const BRIDGE_STATE_FILE_NAME: &str = "native-bridge.json";
@@ -44,12 +44,13 @@ enum NativeRequest {
 #[serde(rename_all = "camelCase")]
 struct NativeDownload {
     url: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct ExternalDownloadRequestPayload {
-    url: String,
+    filename: Option<String>,
+    #[serde(alias = "totalSize")]
+    total_size: Option<u64>,
+    #[serde(alias = "userAgent")]
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -189,15 +190,29 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
                 return NativeResponse::error("Unsupported or missing download URL");
             }
 
-            let payload = ExternalDownloadRequestPayload { url };
-
-            focus_main_window(app_handle);
-
-            match app_handle.emit("external-download-request", payload) {
-                Ok(()) => NativeResponse::ok(),
-                Err(error) => NativeResponse::error(format!(
-                    "Failed to open new download task dialog: {error}"
-                )),
+            match tauri::async_runtime::block_on(state.add_task(
+                &url,
+                None,
+                download.filename.as_deref(),
+                None,
+                false,
+                download.total_size,
+                TaskCreateOptions {
+                    user_agent: download.user_agent,
+                    referer: download.referer,
+                    cookies: download.cookies.unwrap_or_default(),
+                    ..TaskCreateOptions::default()
+                },
+            )) {
+                Ok(gid) => {
+                    focus_main_window(app_handle);
+                    NativeResponse {
+                        ok: true,
+                        gid: Some(gid),
+                        error: None,
+                    }
+                }
+                Err(error) => NativeResponse::error(error),
             }
         }
     }

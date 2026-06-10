@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Settings as SettingsIcon, X } from "lucide-react";
 import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
@@ -34,31 +34,12 @@ function resolveActiveFilter(
 }
 
 export default function App() {
-  const [path, setPath] = useState(window.location.pathname);
+  const [path] = useState(window.location.pathname);
   const [activeFilter, setActiveFilter] = useState<NavFilter>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const visibleFilter = resolveActiveFilter(activeFilter, categories, tags);
-
-  useEffect(() => {
-    const handleLocationChange = () => {
-      setPath(window.location.pathname);
-    };
-
-    window.addEventListener("popstate", handleLocationChange);
-
-    const interval = setInterval(() => {
-      if (window.location.pathname !== path) {
-        setPath(window.location.pathname);
-      }
-    }, 200);
-
-    return () => {
-      window.removeEventListener("popstate", handleLocationChange);
-      clearInterval(interval);
-    };
-  }, [path]);
 
   if (path === "/float") {
     return (

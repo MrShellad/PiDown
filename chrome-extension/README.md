@@ -23,17 +23,25 @@ This extension is intentionally fail-safe: it does not cancel browser downloads 
 cargo build --manifest-path src-tauri/Cargo.toml --bin pidownloader-native-host
 ```
 
-6. Open `chrome://extensions`, copy the extension ID, then register the Windows native host:
+6. Open `chrome://extensions`, copy the extension ID, then register the native host for your platform.
 
 ```powershell
 .\chrome-extension\native-host\register-windows.example.ps1 -ExtensionId "<extension-id>"
 ```
 
+For macOS and Linux, create a native messaging host manifest named `com.pidownloader.bridge` in the browser-supported location for your platform, point `path` to the local `pidownloader-native-host` executable, and add:
+
+```text
+chrome-extension://<extension-id>/
+```
+
+to `allowed_origins`.
+
 7. Start PiDownloader, open the extension options page, then enable download bridging.
 
 ## Native Host Contract
 
-The extension uses Chrome Native Messaging with this default host name:
+The extension uses Chrome Native Messaging with this fixed host name:
 
 ```text
 com.pidownloader.bridge

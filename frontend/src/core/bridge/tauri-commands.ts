@@ -57,6 +57,8 @@ export interface TaskOverview {
   speed: string;
   progress: number;
   eta: string;
+  speed_bps: number;
+  eta_seconds: number | null;
   downloaded_bytes: number;
   total_bytes: number;
   created_at: number;

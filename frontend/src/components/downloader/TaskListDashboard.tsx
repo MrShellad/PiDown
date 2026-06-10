@@ -40,38 +40,6 @@ const STATUS_SORT_WEIGHT: Record<Task["status"], number> = {
   Cancelled: 5,
 };
 
-function parseSpeedBytesPerSecond(value: string) {
-  const match = value.trim().match(/^([\d.]+)\s*([KMGT]?i?B)?\/s$/i);
-  if (!match) return 0;
-
-  const amount = Number.parseFloat(match[1]);
-  if (!Number.isFinite(amount)) return 0;
-
-  const unit = (match[2] ?? "B").toLowerCase();
-  const multipliers: Record<string, number> = {
-    b: 1,
-    kb: 1000,
-    mb: 1000 ** 2,
-    gb: 1000 ** 3,
-    tb: 1000 ** 4,
-    kib: 1024,
-    mib: 1024 ** 2,
-    gib: 1024 ** 3,
-    tib: 1024 ** 4,
-  };
-
-  return amount * (multipliers[unit] ?? 1);
-}
-
-function parseEtaSeconds(value: string) {
-  const parts = value.split(":").map((part) => Number.parseInt(part, 10));
-  if (parts.some((part) => !Number.isFinite(part))) return Number.POSITIVE_INFINITY;
-
-  if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
-  if (parts.length === 2) return parts[0] * 60 + parts[1];
-  return Number.POSITIVE_INFINITY;
-}
-
 function compareText(a: string, b: string) {
   return a.localeCompare(b, "zh-CN", { numeric: true, sensitivity: "base" });
 }
@@ -85,9 +53,9 @@ function compareTaskByColumn(a: Task, b: Task, columnId: TaskTableColumnId) {
     case "status":
       return STATUS_SORT_WEIGHT[a.status] - STATUS_SORT_WEIGHT[b.status];
     case "speed":
-      return parseSpeedBytesPerSecond(a.speed) - parseSpeedBytesPerSecond(b.speed);
+      return (a.speedBps ?? 0) - (b.speedBps ?? 0);
     case "eta":
-      return parseEtaSeconds(a.eta) - parseEtaSeconds(b.eta);
+      return (a.etaSeconds ?? Number.POSITIVE_INFINITY) - (b.etaSeconds ?? Number.POSITIVE_INFINITY);
     case "createdAt":
       return (a.createdAt ?? 0) - (b.createdAt ?? 0);
     case "tags":

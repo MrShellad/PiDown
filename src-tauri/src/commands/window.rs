@@ -40,14 +40,13 @@ pub async fn switch_to_main(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
-pub async fn close_main_window(
-    app: AppHandle,
-    state: State<'_, Arc<AppState>>,
+pub async fn handle_close_action(
+    app: &AppHandle,
+    state: &AppState,
 ) -> Result<(), String> {
-    if state.should_minimize_on_close_with_tasks() && state.has_incomplete_download_tasks()? {
-        use tauri::Manager;
+    use tauri::Manager;
 
+    if state.should_minimize_on_close_with_tasks() && state.has_incomplete_download_tasks()? {
         let main_win = app
             .get_webview_window("main")
             .ok_or("Main window not found")?;
@@ -57,9 +56,17 @@ pub async fn close_main_window(
     }
 
     if state.should_close_to_float() {
-        switch_to_float(app).await
+        switch_to_float(app.clone()).await
     } else {
         app.exit(0);
         Ok(())
     }
+}
+
+#[tauri::command]
+pub async fn close_main_window(
+    app: AppHandle,
+    state: State<'_, Arc<AppState>>,
+) -> Result<(), String> {
+    handle_close_action(&app, &state).await
 }
