@@ -265,6 +265,10 @@ export async function deleteCategory(categoryId: number): Promise<void> {
   return invoke<void>("delete_category", { categoryId });
 }
 
+export async function openDirectory(path: string): Promise<void> {
+  return invoke<void>("open_directory", { path });
+}
+
 export async function getTags(): Promise<DbTag[]> {
   return invoke<DbTag[]>("get_tags");
 }

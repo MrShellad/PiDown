@@ -42,16 +42,15 @@ fn speed_limit_kib_to_bps(value: Option<u64>) -> Option<u64> {
 
 impl super::AppState {
     pub fn reconcile_download_tasks(&self) {
-        let db_tasks = match self.db.get_all_tasks() {
-            Ok(tasks) => tasks,
-            Err(_) => return,
-        };
+        let cache_tasks: Vec<DbTask> = self.task_cache.read().unwrap().values().cloned().collect();
 
-        for db_task in db_tasks {
+        for db_task in cache_tasks {
             if let Some(engine_status) = self.engine_status_for_task(&db_task) {
                 self.sync_task_from_engine_status(&db_task.id, &engine_status, None);
             } else if db_task.status == "Downloading" || db_task.status == "Pending" {
-                let _ = self.db.update_task_status(&db_task.id, "Paused", None);
+                if let Some(task) = self.task_cache.write().unwrap().get_mut(&db_task.id) {
+                    task.status = "Paused".to_string();
+                }
             }
         }
     }
@@ -183,7 +182,10 @@ impl super::AppState {
         };
 
         if should_update {
-            let _ = self.db.update_task_progress(&gid, completed_size, total_size);
+            if let Some(task) = self.task_cache.write().unwrap().get_mut(&gid) {
+                task.completed_size = completed_size;
+                task.total_size = total_size;
+            }
         }
         gid
     }
@@ -209,14 +211,20 @@ impl super::AppState {
             _ => None,
         };
 
-        let _ = self
-            .db
-            .update_task_status(gid, mapped_status, final_completed_at);
-        let _ = self.db.update_task_progress(
-            gid,
-            engine_status.progress.completed_size,
-            engine_status.progress.total_size.unwrap_or(0),
-        );
+        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+            task.status = mapped_status.to_string();
+            task.completed_size = engine_status.progress.completed_size;
+            task.total_size = engine_status.progress.total_size.unwrap_or(0);
+            
+            if mapped_status == "Downloading" {
+                if task.started_at.is_none() {
+                    task.started_at = Some(Utc::now().timestamp());
+                }
+            } else if final_completed_at.is_some() {
+                task.completed_at = final_completed_at;
+            }
+        }
+
         self.progress_throttle.lock().unwrap().insert(
             gid.to_string(),
             (
@@ -331,6 +339,7 @@ impl super::AppState {
         };
 
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
+        self.task_cache.write().unwrap().insert(gid.clone(), db_task.clone());
         for tag in preview.tags {
             let _ = self.db.add_task_tag(&gid, tag.id);
         }
@@ -415,6 +424,9 @@ impl super::AppState {
     pub async fn pause_task(&self, gid: &str) -> Result<(), String> {
         let id = self.resolve_download_id(gid)?;
         self.engine.pause(id).await?;
+        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+            task.status = "Paused".to_string();
+        }
         let _ = self.db.update_task_status(gid, "Paused", None);
         Ok(())
     }
@@ -422,11 +434,18 @@ impl super::AppState {
     pub async fn resume_task(&self, gid: &str) -> Result<(), String> {
         let id = self.resolve_download_id(gid)?;
         self.engine.resume(id).await?;
+        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+            task.status = "Downloading".to_string();
+            if task.started_at.is_none() {
+                task.started_at = Some(Utc::now().timestamp());
+            }
+        }
         let _ = self.db.update_task_status(gid, "Downloading", None);
         Ok(())
     }
 
     pub async fn cancel_task(&self, gid: &str, delete_files: bool) -> Result<(), String> {
+        self.task_cache.write().unwrap().remove(gid);
         let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
 
         if let Ok(id) = self.resolve_download_id(gid) {
@@ -459,15 +478,16 @@ impl super::AppState {
             }
         }
 
+        self.task_cache.write().unwrap().retain(|_, task| task.status != "Completed");
         self.db.delete_completed_tasks().map_err(|e| e.to_string())
     }
 
     pub fn has_incomplete_download_tasks(&self) -> Result<bool, String> {
         Ok(self
-            .db
-            .get_all_tasks()
-            .map_err(|e| e.to_string())?
-            .into_iter()
+            .task_cache
+            .read()
+            .unwrap()
+            .values()
             .any(|task| {
                 matches!(
                     task.status.as_str(),
@@ -499,6 +519,7 @@ impl super::AppState {
                 TaskCreateOptions::default(),
             )
             .await?;
+        self.task_cache.write().unwrap().remove(gid);
         self.db.delete_task(gid).map_err(|e| e.to_string())?;
 
         Ok(new_gid)
@@ -525,6 +546,12 @@ impl super::AppState {
             .map_err(|e| format!("Failed to inspect completed file: {e}"))?;
 
         if actual_size != task.total_size {
+            if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
+                t.completed_size = actual_size;
+                t.total_size = task.total_size;
+                t.status = "Failed".to_string();
+                t.completed_at = Some(Utc::now().timestamp());
+            }
             let _ = self
                 .db
                 .update_task_progress(gid, actual_size, task.total_size);
@@ -537,6 +564,10 @@ impl super::AppState {
             ));
         }
 
+        if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
+            t.completed_size = task.total_size;
+            t.total_size = task.total_size;
+        }
         let _ = self
             .db
             .update_task_progress(gid, task.total_size, task.total_size);
@@ -544,7 +575,7 @@ impl super::AppState {
     }
 
     pub fn list_tasks(&self) -> Result<Vec<TaskOverview>, String> {
-        let db_tasks = self.db.get_all_tasks().map_err(|e| e.to_string())?;
+        let cache_tasks: Vec<DbTask> = self.task_cache.read().unwrap().values().cloned().collect();
         let engine_list = self.engine.list();
         use std::collections::HashMap;
 
@@ -556,9 +587,9 @@ impl super::AppState {
             engine_tasks.insert(gid_str, status);
         }
 
-        let mut tasks = Vec::with_capacity(db_tasks.len());
+        let mut tasks = Vec::with_capacity(cache_tasks.len());
 
-        for db_task in db_tasks {
+        for db_task in cache_tasks {
             let gid = db_task.id.clone();
             let mut speed = "0 B/s".to_string();
             let mut eta = "--:--:--".to_string();
@@ -614,6 +645,8 @@ impl super::AppState {
                 tags,
             });
         }
+
+        tasks.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
         Ok(tasks)
     }

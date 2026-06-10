@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react"
+import { useState } from "react"
 import { Pencil, Plus, Trash2 } from "lucide-react"
 
-import { CategoryDropdown } from "@/components/common"
+import { CategoryDropdown, CategoryEditDialog } from "@/components/common"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dialog"
 import { IconPicker, IconPreview } from "@/components/ui/icon-picker"
 import { UI_TEXT } from "@/core/locale"
-import type { CategoryInput, MatchRules, TagInput } from "@/core/bridge/tauri-commands"
+import type { MatchRules, TagInput } from "@/core/bridge/tauri-commands"
 import {
   type Category,
   type Tag,
@@ -22,7 +22,6 @@ import {
 import { cn } from "@/lib/utils"
 import { SettingsField, SettingsInput, SettingsList, SettingsListItem } from "./SettingsPrimitives"
 
-type CategoryDraft = CategoryInput
 type TagDraft = TagInput
 
 const emptyRules = (): MatchRules => ({
@@ -31,15 +30,6 @@ const emptyRules = (): MatchRules => ({
   name_keywords: [],
   min_size_bytes: null,
   max_size_bytes: null,
-})
-
-const emptyCategoryDraft = (sortOrder: number): CategoryDraft => ({
-  name: "",
-  icon: "folder",
-  color: "#8c8c8c",
-  sort_order: sortOrder,
-  rules: emptyRules(),
-  save_path: null,
 })
 
 const emptyTagDraft = (categoryId?: number): TagDraft => ({
@@ -67,16 +57,7 @@ const mbToBytes = (value: string) => {
   return Number.isFinite(numeric) && numeric >= 0 ? Math.round(numeric * 1024 * 1024) : null
 }
 
-function normalizeCategory(category: Category): CategoryInput {
-  return {
-    name: category.name,
-    icon: category.icon ?? null,
-    color: category.color ?? null,
-    sort_order: category.sortOrder,
-    rules: category.rules ?? emptyRules(),
-    save_path: category.savePath ?? null,
-  }
-}
+
 
 function normalizeTag(tag: Tag): TagInput {
   return {
@@ -201,44 +182,7 @@ function RuleListRow({
   )
 }
 
-function CategoryForm({
-  value,
-  onChange,
-}: {
-  value: CategoryDraft
-  onChange: (value: CategoryDraft) => void
-}) {
-  return (
-    <div className="space-y-5">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,14rem)_1fr]">
-        <SettingsField label={UI_TEXT.settings.categoryIcon}>
-          <IconPicker
-            value={value.icon}
-            color={value.color}
-            onChange={(next) => onChange({ ...value, icon: next.icon, color: next.color })}
-          />
-        </SettingsField>
-        <SettingsField label={UI_TEXT.settings.categoryName}>
-          <SettingsInput
-            value={value.name}
-            onChange={(event) => onChange({ ...value, name: event.target.value })}
-            placeholder={UI_TEXT.settings.categoryName}
-            aria-label={UI_TEXT.settings.categoryName}
-          />
-        </SettingsField>
-      </div>
-      <RuleFields value={value.rules} onChange={(rules) => onChange({ ...value, rules })} />
-      <SettingsField label={UI_TEXT.settings.ruleSavePath}>
-        <SettingsInput
-          value={value.save_path ?? ""}
-          onChange={(event) => onChange({ ...value, save_path: event.target.value || null })}
-          placeholder={UI_TEXT.settings.ruleSavePathPlaceholder}
-          aria-label={UI_TEXT.settings.ruleSavePath}
-        />
-      </SettingsField>
-    </div>
-  )
-}
+
 
 function TagForm({
   value,
@@ -293,75 +237,44 @@ function TagForm({
 export default function DownloadRulesManager() {
   const categories = useDownloadStore((state) => state.categories)
   const tags = useDownloadStore((state) => state.tags)
-  const createCategory = useDownloadStore((state) => state.createCategory)
-  const updateCategory = useDownloadStore((state) => state.updateCategoryConfig)
   const deleteCategory = useDownloadStore((state) => state.deleteCategory)
   const createTag = useDownloadStore((state) => state.createTag)
   const updateTag = useDownloadStore((state) => state.updateTagConfig)
   const deleteTag = useDownloadStore((state) => state.deleteTag)
-  const [editor, setEditor] = useState<
-    | { mode: "category"; id?: number; draft: CategoryDraft }
-    | { mode: "tag"; id?: number; draft: TagDraft }
-    | null
-  >(null)
 
-  const nextSortOrder = useMemo(
-    () => Math.max(0, ...categories.map((category) => category.sortOrder)) + 1,
-    [categories]
-  )
+  // Category Editor State
+  const [categoryEditorOpen, setCategoryEditorOpen] = useState(false)
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null)
 
-  useEffect(() => {
-    if (!editor) return
+  // Tag Editor State
+  const [tagEditorOpen, setTagEditorOpen] = useState(false)
+  const [editingTag, setEditingTag] = useState<Tag | null>(null)
+  const [tagDraft, setTagDraft] = useState<TagDraft>(() => emptyTagDraft(categories[0]?.id))
 
-    const timer = window.setTimeout(() => {
-    if (editor.mode === "category" && editor.id) {
-      const category = categories.find((item) => item.id === editor.id)
-      if (category) setEditor({ mode: "category", id: category.id, draft: normalizeCategory(category) })
-    }
 
-    if (editor.mode === "tag" && editor.id) {
-      const tag = tags.find((item) => item.id === editor.id)
-      if (tag) setEditor({ mode: "tag", id: tag.id, draft: normalizeTag(tag) })
-    }
-    }, 0)
-
-    return () => window.clearTimeout(timer)
-  }, [categories, editor, tags])
 
   const openCreateCategory = () => {
-    setEditor({ mode: "category", draft: emptyCategoryDraft(nextSortOrder) })
+    setEditingCategory(null)
+    setCategoryEditorOpen(true)
   }
 
   const openCreateTag = () => {
-    setEditor({ mode: "tag", draft: emptyTagDraft(categories[0]?.id) })
+    setEditingTag(null)
+    setTagDraft(emptyTagDraft(categories[0]?.id))
+    setTagEditorOpen(true)
   }
 
-  const saveEditor = async () => {
-    if (!editor) return
-
-    if (editor.mode === "category") {
-      const draft = {
-        ...editor.draft,
-        name: editor.draft.name.trim() || `${UI_TEXT.settings.addCategory} ${categories.length + 1}`,
-      }
-      if (editor.id) {
-        await updateCategory(editor.id, draft)
-      } else {
-        await createCategory(draft)
-      }
-    } else {
-      const draft = {
-        ...editor.draft,
-        name: editor.draft.name.trim() || `${UI_TEXT.settings.addTag} ${tags.length + 1}`,
-      }
-      if (editor.id) {
-        await updateTag(editor.id, draft)
-      } else {
-        await createTag(draft)
-      }
+  const saveTag = async () => {
+    const finalDraft = {
+      ...tagDraft,
+      name: tagDraft.name.trim() || (editingTag ? editingTag.name : `${UI_TEXT.settings.addTag} ${tags.length + 1}`),
     }
-
-    setEditor(null)
+    if (editingTag) {
+      await updateTag(editingTag.id, finalDraft)
+    } else {
+      await createTag(finalDraft)
+    }
+    setTagEditorOpen(false)
   }
 
   return (
@@ -386,13 +299,10 @@ export default function DownloadRulesManager() {
                     title={category.name}
                     subtitle={getRuleSummary(category.rules)}
                     savePath={category.savePath}
-                    onEdit={() =>
-                      setEditor({
-                        mode: "category",
-                      id: category.id,
-                      draft: normalizeCategory(category),
-                      })
-                    }
+                    onEdit={() => {
+                      setEditingCategory(category)
+                      setCategoryEditorOpen(true)
+                    }}
                     onDelete={() => deleteCategory(category.id)}
                   />
                 </div>
@@ -429,13 +339,11 @@ export default function DownloadRulesManager() {
                       title={category ? `${category.name} / ${tag.name}` : tag.name}
                       subtitle={getRuleSummary(tag.rules)}
                       savePath={tag.savePath}
-                      onEdit={() =>
-                        setEditor({
-                          mode: "tag",
-                          id: tag.id,
-                          draft: normalizeTag(tag),
-                        })
-                      }
+                      onEdit={() => {
+                        setEditingTag(tag)
+                        setTagDraft(normalizeTag(tag))
+                        setTagEditorOpen(true)
+                      }}
                       onDelete={() => deleteTag(tag.id)}
                     />
                   </div>
@@ -450,34 +358,41 @@ export default function DownloadRulesManager() {
         </SettingsListItem>
       </SettingsList>
 
-      <Dialog open={Boolean(editor)} onOpenChange={(open) => !open && setEditor(null)}>
-        <DialogContent variant="modal" size="lg">
+      <CategoryEditDialog
+        key={editingCategory?.id ?? "new"}
+        open={categoryEditorOpen}
+        category={editingCategory}
+        onOpenChange={(open) => {
+          setCategoryEditorOpen(open)
+          if (!open) setEditingCategory(null)
+        }}
+      />
+
+      <Dialog
+        open={tagEditorOpen}
+        onOpenChange={(open) => {
+          setTagEditorOpen(open)
+          if (!open) setEditingTag(null)
+        }}
+      >
+        <DialogContent variant="modal" size="lg" key={editingTag?.id ?? "new"}>
           <DialogHeader>
             <DialogTitle>
-              {editor?.mode === "category"
-                ? UI_TEXT.settings.categoryManager
-                : UI_TEXT.settings.tagManager}
+              {editingTag ? "编辑标签" : "添加标签"}
             </DialogTitle>
           </DialogHeader>
-          <DialogBody>
-            {editor?.mode === "category" ? (
-              <CategoryForm
-                value={editor.draft}
-                onChange={(draft) => setEditor({ ...editor, draft })}
-              />
-            ) : editor?.mode === "tag" ? (
-              <TagForm
-                value={editor.draft}
-                categories={categories}
-                onChange={(draft) => setEditor({ ...editor, draft })}
-              />
-            ) : null}
+          <DialogBody className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+            <TagForm
+              value={tagDraft}
+              categories={categories}
+              onChange={setTagDraft}
+            />
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditor(null)}>
+            <Button variant="outline" onClick={() => setTagEditorOpen(false)}>
               {UI_TEXT.settings.cancel}
             </Button>
-            <Button onClick={() => saveEditor().catch(console.error)}>
+            <Button onClick={() => saveTag().catch(console.error)}>
               {UI_TEXT.settings.saveRule}
             </Button>
           </DialogFooter>

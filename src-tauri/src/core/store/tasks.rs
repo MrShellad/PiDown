@@ -206,4 +206,34 @@ impl super::DbStore {
         }
         Ok(tasks)
     }
+
+    pub fn save_tasks_checkpoint(&self, tasks: &[DbTask]) -> Result<(), rusqlite::Error> {
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        {
+            let mut stmt = tx.prepare(
+                "UPDATE tasks SET 
+                    completed_size = ?1, 
+                    total_size = ?2, 
+                    status = ?3, 
+                    engine_id = ?4,
+                    started_at = ?5,
+                    completed_at = ?6
+                 WHERE id = ?7"
+            )?;
+            for task in tasks {
+                stmt.execute(params![
+                    task.completed_size as i64,
+                    task.total_size as i64,
+                    task.status,
+                    task.engine_id,
+                    task.started_at,
+                    task.completed_at,
+                    task.id
+                ])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
 }

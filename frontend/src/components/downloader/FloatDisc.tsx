@@ -4,6 +4,7 @@ import { switchToMain, createTask } from "@/core/bridge/tauri-commands";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { Download } from "lucide-react";
 import { UI_TEXT } from "@/core/locale";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 type TauriDroppedFile = File & { path?: string };
 
@@ -104,69 +105,73 @@ export default function FloatDisc() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <div
-        onDoubleClick={handleDoubleClick}
-        className="w-32 h-32 rounded-full flex flex-col items-center justify-center p-2 relative overflow-hidden transition-all duration-300 cursor-pointer"
-        style={discStyles}
-        data-tauri-drag-region="true"
-        title={UI_TEXT.floatDisc.title}
-      >
-        
-        {/* Dynamic Water Wave Progress backdrop */}
-        {activeTasks.length > 0 && (
-          <div 
-            className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary to-float-disc-wave-accent opacity-30 transition-all duration-500"
-            style={{ height: `${averageProgress}%` }}
-          />
-        )}
-
-        {/* Info contents */}
-        {dragActive ? (
-          <div className="flex flex-col items-center justify-center gap-1 text-base font-bold text-center pointer-events-none animate-bounce">
-            <Download className="w-5 h-5" />
-            <span>{UI_TEXT.floatDisc.releaseToDownload}</span>
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center text-center pointer-events-none z-10">
-            <span className="text-base text-muted-foreground font-bold uppercase tracking-wider">
-              {activeTasks.length > 0 ? "SPEED" : "IDLE"}
-            </span>
-            <span className="text-base font-black tracking-tighter my-0.5">
-              {globalSpeed}
-            </span>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div
+            onDoubleClick={handleDoubleClick}
+            className="w-32 h-32 rounded-full flex flex-col items-center justify-center p-2 relative overflow-hidden transition-all duration-300 cursor-pointer"
+            style={discStyles}
+            data-tauri-drag-region="true"
+          >
+            
+            {/* Dynamic Water Wave Progress backdrop */}
             {activeTasks.length > 0 && (
-              <span className="text-base text-primary font-bold">
-                {Math.round(averageProgress)}%
-              </span>
+              <div 
+                className="pointer-events-none absolute bottom-0 left-0 right-0 bg-gradient-to-t from-primary to-float-disc-wave-accent opacity-30 transition-all duration-500"
+                style={{ height: `${averageProgress}%` }}
+              />
+            )}
+
+            {/* Info contents */}
+            {dragActive ? (
+              <div className="flex flex-col items-center justify-center gap-1 text-base font-bold text-center pointer-events-none animate-bounce">
+                <Download className="w-5 h-5" />
+                <span>{UI_TEXT.floatDisc.releaseToDownload}</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center text-center pointer-events-none z-10">
+                <span className="text-base text-muted-foreground font-bold uppercase tracking-wider">
+                  {activeTasks.length > 0 ? "SPEED" : "IDLE"}
+                </span>
+                <span className="text-base font-black tracking-tighter my-0.5">
+                  {globalSpeed}
+                </span>
+                {activeTasks.length > 0 && (
+                  <span className="text-base text-primary font-bold">
+                    {Math.round(averageProgress)}%
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Ring outline speed indicator */}
+            {activeTasks.length > 0 && (
+              <svg className="absolute inset-0 w-full h-full pointer-events-none -rotate-90">
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="60"
+                  fill="transparent"
+                  stroke="var(--float-disc-ring-track)"
+                  strokeWidth="2"
+                />
+                <circle
+                  cx="64"
+                  cy="64"
+                  r="60"
+                  fill="transparent"
+                  stroke="var(--float-disc-ring-progress)"
+                  strokeWidth="3"
+                  strokeDasharray={2 * Math.PI * 60}
+                  strokeDashoffset={2 * Math.PI * 60 * (1 - averageProgress / 100)}
+                  className="transition-all duration-500"
+                />
+              </svg>
             )}
           </div>
-        )}
-
-        {/* Ring outline speed indicator */}
-        {activeTasks.length > 0 && (
-          <svg className="absolute inset-0 w-full h-full pointer-events-none -rotate-90">
-            <circle
-              cx="64"
-              cy="64"
-              r="60"
-              fill="transparent"
-              stroke="var(--float-disc-ring-track)"
-              strokeWidth="2"
-            />
-            <circle
-              cx="64"
-              cy="64"
-              r="60"
-              fill="transparent"
-              stroke="var(--float-disc-ring-progress)"
-              strokeWidth="3"
-              strokeDasharray={2 * Math.PI * 60}
-              strokeDashoffset={2 * Math.PI * 60 * (1 - averageProgress / 100)}
-              className="transition-all duration-500"
-            />
-          </svg>
-        )}
-      </div>
+        </TooltipTrigger>
+        <TooltipContent side="top">{UI_TEXT.floatDisc.title}</TooltipContent>
+      </Tooltip>
     </div>
   );
 }

@@ -215,8 +215,23 @@
   body {
     @apply bg-background text-foreground;
   }
+  html, body, #root, input, button, select, textarea {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-smooth: always;
+  }
   html {
     @apply font-sans;
+  }
+  /* Avoid subpixel translation blurriness on absolute positioned floating components */
+  [data-slot=dialog-content],
+  [data-slot=tooltip-content],
+  [data-slot=menu-content],
+  [data-slot=context-menu-content] {
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-style: preserve-3d;
   }
 }
 

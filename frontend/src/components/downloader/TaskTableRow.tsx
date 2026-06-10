@@ -3,6 +3,7 @@ import { FileText, FolderOpen, Pause, Play, RefreshCw, ShieldCheck, Trash2 } fro
 import { motion } from "motion/react"
 
 import { Checkbox } from "@/components/ui/checkbox"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   ContextMenu,
   ContextMenuContent,
@@ -51,18 +52,20 @@ function statusText(status: Task["status"]) {
 
 function PreparingStatus() {
   return (
-    <span
-      className="inline-flex min-w-0 items-center gap-2 truncate font-medium text-primary"
-      title={UI_TEXT.taskCard.preparingHint}
-    >
-      <motion.span
-        aria-hidden="true"
-        className="size-2 rounded-full bg-primary"
-        animate={{ scale: [0.85, 1.25, 0.85], opacity: [0.45, 1, 0.45] }}
-        transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
-      />
-      <span className="truncate">{UI_TEXT.taskCard.preparing}</span>
-    </span>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex min-w-0 items-center gap-2 truncate font-medium text-primary cursor-help">
+          <motion.span
+            aria-hidden="true"
+            className="size-2 rounded-full bg-primary"
+            animate={{ scale: [0.85, 1.25, 0.85], opacity: [0.45, 1, 0.45] }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <span className="truncate">{UI_TEXT.taskCard.preparing}</span>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{UI_TEXT.taskCard.preparingHint}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -100,9 +103,14 @@ function TaskContextMenuTitle({ name }: { name: string }) {
             <span aria-hidden="true">{name}</span>
           </motion.div>
         ) : (
-          <span className="block truncate text-sm font-medium leading-5 text-foreground" title={name}>
-            {name}
-          </span>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="block truncate text-sm font-medium leading-5 text-foreground">
+                {name}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent className="max-w-xs break-all">{name}</TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>
@@ -127,36 +135,40 @@ function NameCell({
 
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
-      <motion.button
-        type="button"
-        layout
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
-          detailsOpen && "border-primary/50 bg-primary/10 shadow-surface-soft"
-        )}
-        style={{ color: categoryColor }}
-        whileHover={{ y: -1, scale: 1.04 }}
-        transition={{ duration: 0.16, ease: "easeOut" }}
-        aria-controls="task-details-sheet"
-        aria-expanded={detailsOpen}
-        title={`查看任务详情：${category?.name ?? "未分类"}`}
-        aria-label={`查看任务详情：${task.name}`}
-        onPointerDown={stopRowSelection}
-        onMouseDown={stopRowSelection}
-        onDoubleClick={stopRowSelection}
-        onContextMenu={stopRowSelection}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.stopPropagation()
-          }
-        }}
-        onClick={(event) => {
-          event.stopPropagation()
-          onOpenDetails?.()
-        }}
-      >
-        <IconPreview value={category?.icon ?? "folder"} color={categoryColor} className="size-5" />
-      </motion.button>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <motion.button
+            type="button"
+            layout
+            className={cn(
+              "flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
+              detailsOpen && "border-primary/50 bg-primary/10 shadow-surface-soft"
+            )}
+            style={{ color: categoryColor }}
+            whileHover={{ y: -1, scale: 1.04 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+            aria-controls="task-details-sheet"
+            aria-expanded={detailsOpen}
+            aria-label={`查看任务详情：${task.name}`}
+            onPointerDown={stopRowSelection}
+            onMouseDown={stopRowSelection}
+            onDoubleClick={stopRowSelection}
+            onContextMenu={stopRowSelection}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.stopPropagation()
+              }
+            }}
+            onClick={(event) => {
+              event.stopPropagation()
+              onOpenDetails?.()
+            }}
+          >
+            <IconPreview value={category?.icon ?? "folder"} color={categoryColor} className="size-5" />
+          </motion.button>
+        </TooltipTrigger>
+        <TooltipContent>{`查看任务详情：${category?.name ?? "未分类"}`}</TooltipContent>
+      </Tooltip>
       <div className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold leading-5 text-foreground">
           {task.name}
@@ -174,13 +186,14 @@ function TagsCell({ task }: { task: Task }) {
   return (
     <div className="flex min-w-0 items-center gap-1.5">
       {task.tags.slice(0, 2).map((tag) => (
-        <span
-          key={tag.id}
-          className="max-w-24 truncate rounded-full bg-muted/80 px-2 py-0.5 text-xs font-medium leading-4 text-muted-foreground"
-          title={tag.name}
-        >
-          {tag.name}
-        </span>
+        <Tooltip key={tag.id}>
+          <TooltipTrigger asChild>
+            <span className="max-w-24 truncate rounded-full bg-muted/80 px-2 py-0.5 text-xs font-medium leading-4 text-muted-foreground">
+              {tag.name}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>{tag.name}</TooltipContent>
+        </Tooltip>
       ))}
       {task.tags.length > 2 ? (
         <span className="shrink-0 text-xs leading-4 text-muted-foreground">
@@ -232,12 +245,21 @@ function Cell({
         </span>
       )
     case "speed":
+      if (preparing) {
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span className="truncate tabular-nums text-muted-foreground cursor-help">
+                {UI_TEXT.taskCard.preparing}
+              </span>
+            </TooltipTrigger>
+            <TooltipContent>{UI_TEXT.taskCard.preparingHint}</TooltipContent>
+          </Tooltip>
+        )
+      }
       return (
-        <span
-          className="truncate tabular-nums text-muted-foreground"
-          title={preparing ? UI_TEXT.taskCard.preparingHint : undefined}
-        >
-          {preparing ? UI_TEXT.taskCard.preparing : speedStr}
+        <span className="truncate tabular-nums text-muted-foreground">
+          {speedStr}
         </span>
       )
     case "eta":

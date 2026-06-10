@@ -13,6 +13,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { IconPreview } from "@/components/ui/icon-picker"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { writeClipboardText } from "@/core/bridge/tauri-commands"
 import { UI_TEXT } from "@/core/locale"
 import type { Category, Task } from "@/core/store/useDownloadStore"
@@ -160,9 +161,14 @@ export default function TaskDetailsDrawer({
                   <IconPreview value={category?.icon ?? "folder"} color={category?.color} className="size-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="truncate text-base font-bold leading-6 text-foreground" title={task.name}>
-                    {task.name}
-                  </h2>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <h2 className="truncate text-base font-bold leading-6 text-foreground">
+                        {task.name}
+                      </h2>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-md break-all">{task.name}</TooltipContent>
+                  </Tooltip>
                   <p className="truncate font-mono text-xs leading-5 text-muted-foreground">
                     {task.gid}
                   </p>
@@ -205,28 +211,33 @@ export default function TaskDetailsDrawer({
               </DetailItem>
 
               <DetailItem icon={<FolderOpen />} label="下载位置" className="col-span-2">
-                <button
-                  type="button"
-                  className="block w-full truncate rounded-sm text-left font-mono text-primary underline-offset-4 transition-colors hover:text-primary/80 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
-                  title={task.savePath || "--"}
-                  onClick={openFolder}
-                  disabled={!task.savePath}
-                >
-                  {task.savePath || "--"}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      type="button"
+                      className="block w-full truncate rounded-sm text-left font-mono text-primary underline-offset-4 transition-colors hover:text-primary/80 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45"
+                      onClick={openFolder}
+                      disabled={!task.savePath}
+                    >
+                      {task.savePath || "--"}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-md break-all">{task.savePath || "--"}</TooltipContent>
+                </Tooltip>
               </DetailItem>
 
               <DetailItem icon={<Tags />} label="标签">
                 {tags.length > 0 ? (
                   <div className="flex flex-wrap gap-2">
                     {tags.map((tag) => (
-                      <span
-                        key={tag.id}
-                        className="max-w-24 truncate rounded-full bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground"
-                        title={tag.name}
-                      >
-                        {tag.name}
-                      </span>
+                      <Tooltip key={tag.id}>
+                        <TooltipTrigger asChild>
+                          <span className="max-w-24 truncate rounded-full bg-muted/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                            {tag.name}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>{tag.name}</TooltipContent>
+                      </Tooltip>
                     ))}
                   </div>
                 ) : (
@@ -242,9 +253,14 @@ export default function TaskDetailsDrawer({
 
               <DetailItem icon={<Link2 />} label="下载链接" className={cn("col-span-2", !isActive && "xl:col-span-3")}>
                 <div className="flex min-w-0 items-center gap-3">
-                  <span className="min-w-0 flex-1 truncate font-mono" title={task.url}>
-                    {task.url || "--"}
-                  </span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className="min-w-0 flex-1 truncate font-mono">
+                        {task.url || "--"}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-md break-all">{task.url || "--"}</TooltipContent>
+                  </Tooltip>
                   <Button type="button" variant="outline" size="sm" onClick={copyUrl} disabled={!task.url}>
                     <Copy />
                     复制

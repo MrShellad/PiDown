@@ -125,6 +125,7 @@ interface DownloadState {
   createCategory: (input: CategoryInput) => Promise<void>;
   updateCategoryConfig: (categoryId: number, input: CategoryInput) => Promise<void>;
   deleteCategory: (categoryId: number) => Promise<void>;
+  reorderCategories: (newCategories: Category[]) => Promise<void>;
   updateTaskCategory: (gid: string, categoryId: number | null) => Promise<void>;
   addTaskTag: (gid: string, tagId: number) => Promise<void>;
   removeTaskTag: (gid: string, tagId: number) => Promise<void>;
@@ -525,6 +526,42 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           await store.fetchTasks();
         } catch (e) {
           console.error("Failed to delete category", e);
+        }
+      },
+
+      reorderCategories: async (newCategories) => {
+        const updated = newCategories.map((c, index) => ({
+          ...c,
+          sortOrder: index + 1,
+        }));
+
+        const catMap = new Map(updated.map((c) => [c.id, c]));
+        const nextCategories = get().categories.map((c) => {
+          const match = catMap.get(c.id);
+          return match ? { ...c, sortOrder: match.sortOrder } : c;
+        });
+
+        nextCategories.sort((a, b) => a.sortOrder - b.sortOrder);
+        set({ categories: nextCategories });
+
+        try {
+          await Promise.all(
+            updated.map((c) => {
+              const input: CategoryInput = {
+                name: c.name,
+                icon: c.icon,
+                color: c.color,
+                sort_order: c.sortOrder,
+                rules: c.rules,
+                save_path: c.savePath,
+              };
+              return updateCategoryConfig(c.id, input);
+            })
+          );
+          await get().fetchCategoryTree(true);
+        } catch (e) {
+          console.error("Failed to persist reordered categories", e);
+          await get().fetchCategoryTree(true);
         }
       },
 

@@ -8,6 +8,7 @@ import {
 import { CircleHelp, LoaderCircle, ShieldCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   Dialog,
   DialogBody,
@@ -71,21 +72,33 @@ function ChecksumCell({
   className?: string
   title?: string
 }) {
-  return (
+  const content = (
     <div
       className={cn(
         "flex min-w-0 items-center border-l border-border/70 px-5 first:border-l-0",
         className
       )}
-      title={title}
     >
       {children}
     </div>
   )
+
+  if (title) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {content}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-md break-all">{title}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return content
 }
 
 function StatusValue({ row }: { row: TaskChecksumRow }) {
-  return (
+  const content = (
     <span
       className={cn(
         "inline-flex min-w-0 items-center gap-2 truncate font-medium",
@@ -93,12 +106,24 @@ function StatusValue({ row }: { row: TaskChecksumRow }) {
         row.status === "failed" && "text-status-danger",
         row.status === "running" && "text-primary"
       )}
-      title={row.error}
     >
       {row.status === "running" ? <LoaderCircle className="size-4 animate-spin" /> : null}
       <span className="truncate">{CHECKSUM_STATUS_LABELS[row.status]}</span>
     </span>
   )
+
+  if (row.error) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>
+          {content}
+        </TooltipTrigger>
+        <TooltipContent className="max-w-md break-all">{row.error}</TooltipContent>
+      </Tooltip>
+    )
+  }
+
+  return content
 }
 
 function TaskChecksumTable({ row }: { row: TaskChecksumRow }) {
@@ -187,8 +212,8 @@ function TaskChecksumTable({ row }: { row: TaskChecksumRow }) {
           className="grid min-h-14 items-center text-sm text-foreground"
           style={{ gridTemplateColumns }}
         >
-          <ChecksumCell>
-            <span className="truncate" title={row.name}>
+          <ChecksumCell title={row.name}>
+            <span className="truncate">
               {row.name}
             </span>
           </ChecksumCell>

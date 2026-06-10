@@ -63,6 +63,7 @@ pub fn run() {
             commands::clear_completed_tasks,
             commands::open_task_file,
             commands::open_task_folder,
+            commands::open_directory,
             commands::restart_task,
             commands::switch_to_float,
             commands::switch_to_main,

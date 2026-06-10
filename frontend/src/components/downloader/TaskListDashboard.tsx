@@ -406,8 +406,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden p-4 select-none scrollbar-interactive scrollbar-overlay scrollbar-auto-hide">
-      <div className="flex min-h-0 flex-1 flex-col gap-5 px-2 pt-2" style={{ minWidth: tableShellMinWidth }}>
+    <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden pt-4 pb-4 pr-4 pl-0 select-none scrollbar-interactive scrollbar-overlay scrollbar-auto-hide">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 px-2 pt-0" style={{ minWidth: tableShellMinWidth }}>
           <div className="shrink-0 px-3">
             <DownloadToolbar
               selectedTaskCount={selectedTaskCount}

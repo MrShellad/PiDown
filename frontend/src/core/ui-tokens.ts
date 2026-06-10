@@ -1,5 +1,5 @@
 export const UI_TOKENS = {
-  sidebarWidth: "220px",
+  sidebarWidth: "240px",
   settingsSidebarWidth: "208px",
   settingsDialog: {
     width: "1040px",

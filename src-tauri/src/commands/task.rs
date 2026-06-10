@@ -370,3 +370,24 @@ pub async fn update_tag(
 pub async fn delete_tag(state: State<'_, Arc<AppState>>, tag_id: i64) -> Result<(), String> {
     state.delete_tag(tag_id)
 }
+
+#[tauri::command]
+pub fn open_directory(path: String) -> Result<(), String> {
+    let p = std::path::Path::new(&path);
+    if !p.exists() {
+        return Err("Directory does not exist".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("explorer").arg(p).spawn();
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(p).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(p).spawn();
+
+    result
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open folder: {e}"))
+}

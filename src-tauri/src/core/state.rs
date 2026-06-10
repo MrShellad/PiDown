@@ -6,6 +6,7 @@ mod task_service;
 
 pub use task_service::TaskCreateOptions;
 
+use crate::core::models::DbTask;
 use crate::core::settings::{
     AppSettings, AppSettingsDocument, APP_SETTINGS_FILE_NAME, LEGACY_APP_SETTINGS_KEY,
 };
@@ -25,6 +26,7 @@ pub struct AppState {
     settings_created_at: RwLock<i64>,
     pub(crate) gid_cache: Mutex<HashMap<DownloadId, String>>,
     pub(crate) progress_throttle: Mutex<HashMap<String, (u64, Instant)>>,
+    pub(crate) task_cache: RwLock<HashMap<String, DbTask>>,
 }
 
 impl AppState {
@@ -47,6 +49,13 @@ impl AppState {
         };
         let engine = EngineWrapper::new(Some(app_data_dir), Some(engine_http_config)).await?;
 
+        // Load tasks from database into cache
+        let db_tasks = db.get_all_tasks().map_err(|e| e.to_string())?;
+        let mut cache = HashMap::new();
+        for task in db_tasks {
+            cache.insert(task.id.clone(), task);
+        }
+
         let state = Arc::new(Self {
             engine,
             db,
@@ -55,6 +64,7 @@ impl AppState {
             settings_created_at: RwLock::new(settings_doc.created_at),
             gid_cache: Mutex::new(HashMap::new()),
             progress_throttle: Mutex::new(HashMap::new()),
+            task_cache: RwLock::new(cache),
         });
 
         state.persist_settings()?;
@@ -62,6 +72,32 @@ impl AppState {
         state.ensure_default_save_dir()?;
         state.ensure_default_category_configs(None)?;
         state.sync_on_startup();
+
+        // Spawn periodic DB checkpoint task
+        let state_clone = Arc::clone(&state);
+        tauri::async_runtime::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
+            loop {
+                interval.tick().await;
+                let tasks: Vec<DbTask> = state_clone
+                    .task_cache
+                    .read()
+                    .unwrap()
+                    .values()
+                    .cloned()
+                    .collect();
+                let state_inner = Arc::clone(&state_clone);
+                let res = tokio::task::spawn_blocking(move || {
+                    state_inner.db.save_tasks_checkpoint(&tasks)
+                })
+                .await;
+                if let Err(e) = res {
+                    log::error!("Database checkpoint task panicked: {:?}", e);
+                } else if let Ok(Err(e)) = res {
+                    log::error!("Database checkpoint failed: {:?}", e);
+                }
+            }
+        });
 
         Ok(state)
     }
