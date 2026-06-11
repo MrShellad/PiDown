@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, memo } from "react"
 import { ArrowDown, ArrowUp, FileText, FolderOpen, Pause, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
 import { motion } from "motion/react"
 
@@ -304,7 +304,7 @@ function Cell({
   }
 }
 
-export default function TaskTableRow({
+const TaskTableRow = memo(function TaskTableRow({
   gid,
   animateEntry = false,
   taskSnapshot,
@@ -550,4 +550,6 @@ export default function TaskTableRow({
       <TaskChecksumDialog open={checksumOpen} task={task} onOpenChange={setChecksumOpen} />
     </>
   )
-}
+})
+
+export default TaskTableRow

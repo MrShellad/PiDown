@@ -94,9 +94,10 @@ export default function App() {
               overlayClassName="bg-black/45 backdrop-blur-none"
               style={{
                 width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
-                height: `min(${UI_TOKENS.settingsDialog.height}, ${UI_TOKENS.settingsDialog.maxHeight})`,
+                height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
+                top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
                 maxWidth: UI_TOKENS.settingsDialog.maxWidth,
-                maxHeight: UI_TOKENS.settingsDialog.maxHeight,
+                maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
               }}
             >
               <div className="flex h-full min-h-0 flex-col overflow-hidden">

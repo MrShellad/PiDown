@@ -17,7 +17,7 @@ interface DownloadToolbarProps {
   selectedTaskCount?: number
   selectedPauseCount?: number
   selectedResumeCount?: number
-  onCreateTask: () => void
+  onCreateTask: (initialUrl?: string) => void
   onPauseSelected?: () => void
   onResumeSelected?: () => void
   onDeleteSelected?: () => void

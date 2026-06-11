@@ -101,8 +101,6 @@ const PAGINATION_GAP = 8;
 const PAGINATION_OFFSET = PAGINATION_HEIGHT + PAGINATION_GAP;
 const TOTAL_OFFSET = HEADER_OFFSET + PAGINATION_OFFSET;
 
-const SCROLLBAR_WIDTH = 8;
-
 const STATUS_SORT_WEIGHT: Record<Task["status"], number> = {
   Downloading: 0,
   Seeding: 1,
@@ -266,7 +264,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     renderedGids.length === 0
       ? 0
       : renderedGids.length * TASK_ROW_HEIGHT + Math.max(0, renderedGids.length - 1) * TASK_ROW_GAP;
-  const hasScrollbar = virtualHeight + HEADER_OFFSET > viewportHeight;
   const virtualTopSpacer = visibleRange.startIndex * TASK_ROW_STRIDE;
   const primarySelectedGid = useMemo(() => {
     for (const gid of selectedTaskIds) {
@@ -533,7 +530,14 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
               selectedTaskCount={selectedTaskCount}
               selectedPauseCount={selectedDownloadableGids.length}
               selectedResumeCount={selectedResumableGids.length}
-              onCreateTask={() => setModalOpen(true)}
+              onCreateTask={(initialUrl) => {
+                if (initialUrl && initialUrl.trim()) {
+                  setExternalDownloadRequest({ url: initialUrl.trim() });
+                } else {
+                  setExternalDownloadRequest(null);
+                }
+                setModalOpen(true);
+              }}
               onPauseSelected={pauseSelectedTasks}
               onResumeSelected={resumeSelectedTasks}
               onDeleteSelected={() => setDeleteConfirmOpen(true)}
@@ -543,23 +547,23 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
           <div className="flex min-h-0 flex-1 flex-col gap-3">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div
-                className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scrollbar-horizontal-margins"
-                style={{ overflowX: "overlay" as React.CSSProperties["overflowX"] }}
+                className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                style={{ overflowX: "auto" as React.CSSProperties["overflowX"] }}
               >
                 <div
                   className="flex min-h-0 flex-col overflow-visible relative"
                   style={{
                     width: "100%",
-                    minWidth: tableWidth + 24 + SCROLLBAR_WIDTH,
+                    minWidth: tableWidth + 24,
                     paddingLeft: 12,
-                    paddingRight: 12 + SCROLLBAR_WIDTH,
+                    paddingRight: 12,
                     height: "100%",
                   }}
                 >
                   <div
                     className="absolute top-0 z-20"
                     style={{
-                      width: `calc(100% - 24px - ${SCROLLBAR_WIDTH}px)`,
+                      width: "calc(100% - 24px)",
                       left: 12,
                     }}
                   >
@@ -577,13 +581,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     }`}
                     style={{
                       marginLeft: -12,
-                      marginRight: -SCROLLBAR_WIDTH,
+                      marginRight: -12,
                       paddingLeft: 12,
-                      paddingRight: SCROLLBAR_WIDTH,
+                      paddingRight: 12,
                       overflowY: "overlay" as React.CSSProperties["overflowY"],
                     }}
                     onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-                >
+                  >
                   <div className="h-[52px] shrink-0" />
                   <div className="h-2 shrink-0" />
                   {filteredGids.length === 0 ? (
@@ -619,7 +623,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       )}
                     </motion.div>
                   ) : (
-                    <div className="relative" style={{ width: hasScrollbar ? `calc(100% + ${SCROLLBAR_WIDTH}px)` : "100%", minWidth: tableWidth, height: virtualHeight }}>
+                    <div className="relative" style={{ width: "100%", minWidth: tableWidth, height: virtualHeight }}>
                       <div aria-hidden="true" style={{ height: virtualTopSpacer }} />
                       <Reorder.Group
                         as="div"
