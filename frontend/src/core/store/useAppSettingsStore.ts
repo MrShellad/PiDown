@@ -9,7 +9,8 @@ export type SettingsSectionId =
   | "download"
   | "transfer"
   | "integration"
-  | "appearance";
+  | "appearance"
+  | "magnet";
 
 interface AppSettingsState {
   settings: AppSettings | null;

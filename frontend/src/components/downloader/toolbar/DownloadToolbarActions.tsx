@@ -60,18 +60,14 @@ export function DownloadToolbarActions({
           onClick={onResumeSelected}
           disabled={!canResumeSelected}
         >
-          {selectedResumeCount > 0
-            ? `${UI_TEXT.dashboard.resume} (${selectedResumeCount})`
-            : UI_TEXT.dashboard.resume}
+          {UI_TEXT.dashboard.resume}
         </ToolbarButton>
         <ToolbarButton
           icon={<Pause />}
           onClick={onPauseSelected}
           disabled={!canPauseSelected}
         >
-          {selectedPauseCount > 0
-            ? `${UI_TEXT.dashboard.pause} (${selectedPauseCount})`
-            : UI_TEXT.dashboard.pause}
+          {UI_TEXT.dashboard.pause}
         </ToolbarButton>
       </ToolbarGroup>
 

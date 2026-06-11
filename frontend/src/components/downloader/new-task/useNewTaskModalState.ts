@@ -5,9 +5,11 @@ import {
   createTask,
   inspectDownloadMetadata,
   pickDownloadDirectory,
+  pickTorrentFile,
   previewTaskClassification,
   readClipboardText,
   type FileConflictCheck,
+  type TorrentFileInspection,
 } from "@/core/bridge/tauri-commands"
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download"
 import { UI_TEXT } from "@/core/locale"
@@ -43,10 +45,13 @@ export function useNewTaskModalState({
   const [categoryTouched, setCategoryTouched] = useState(false)
   const [advancedDraft, setAdvancedDraft] = useState<NewTaskAdvancedDraft>({
     maxDownloadSpeedInput: "",
+    maxUploadSpeedInput: "",
     taskThreadCountInput: "",
     userAgentInput: "",
     refererInput: "",
     cookiesInput: "",
+    autoVerify: true,
+    disableDhtPexLpd: false,
   })
   const [previewTagIds, setPreviewTagIds] = useState<number[]>([])
   const [totalSize, setTotalSize] = useState<number | null>(null)
@@ -54,6 +59,12 @@ export function useNewTaskModalState({
   const [loading, setLoading] = useState(false)
   const [conflictCheck, setConflictCheck] = useState<FileConflictCheck | null>(null)
   const [pendingTaskCreate, setPendingTaskCreate] = useState<PendingTaskCreate | null>(null)
+  const [isTorrent, setIsTorrent] = useState(false)
+  const [torrentFiles, setTorrentFiles] = useState<TorrentFileInspection[] | null>(null)
+  const [selectedFiles, setSelectedFiles] = useState<number[]>([])
+  const [sequential, setSequential] = useState(false)
+  const [infoHash, setInfoHash] = useState<string | null>(null)
+  const [isPrivate, setIsPrivate] = useState<boolean | null>(null)
 
   const tags = useDownloadStore((state) => state.tags)
   const categories = useDownloadStore((state) => state.categories)
@@ -111,10 +122,13 @@ export function useNewTaskModalState({
     setCategoryTouched(false)
     setAdvancedDraft({
       maxDownloadSpeedInput: "",
+      maxUploadSpeedInput: "",
       taskThreadCountInput: "",
       userAgentInput: "",
       refererInput: "",
       cookiesInput: "",
+      autoVerify: true,
+      disableDhtPexLpd: false,
     })
     setPreviewTagIds([])
     setTotalSize(null)
@@ -122,6 +136,12 @@ export function useNewTaskModalState({
     setLoading(false)
     setConflictCheck(null)
     setPendingTaskCreate(null)
+    setIsTorrent(false)
+    setTorrentFiles(null)
+    setSelectedFiles([])
+    setSequential(false)
+    setInfoHash(null)
+    setIsPrivate(null)
   }, [])
 
   const closeModal = useCallback(() => {
@@ -165,6 +185,11 @@ export function useNewTaskModalState({
   const inspectMetadata = useCallback(async (nextUrl: string, fallbackFilename: string) => {
     setMetadataLoading(true)
     setTotalSize(null)
+    setIsTorrent(false)
+    setTorrentFiles(null)
+    setSelectedFiles([])
+    setInfoHash(null)
+    setIsPrivate(null)
 
     try {
       const metadata = await inspectDownloadMetadata(nextUrl)
@@ -173,6 +198,21 @@ export function useNewTaskModalState({
 
       setFilename(nextFilename)
       setTotalSize(nextTotalSize)
+      setIsTorrent(metadata.is_torrent)
+      setTorrentFiles(metadata.files)
+      setInfoHash(metadata.info_hash || null)
+      setIsPrivate(metadata.is_private ?? null)
+
+      if (metadata.is_torrent && metadata.is_private) {
+        setAdvancedDraft((current) => ({
+          ...current,
+          disableDhtPexLpd: true,
+        }))
+      }
+
+      if (metadata.is_torrent && metadata.files) {
+        setSelectedFiles(metadata.files.map((_, i) => i))
+      }
       await applyClassificationPreview(nextUrl, nextFilename, nextTotalSize, null, false)
     } catch (err) {
       console.warn("Failed to inspect download metadata:", err)
@@ -195,9 +235,14 @@ export function useNewTaskModalState({
     setMetadataLoading(false)
     setLoading(false)
     setDetailsTab("basic")
+    setInfoHash(null)
+    setIsPrivate(null)
     setAdvancedDraft((current) => ({
       ...current,
       taskThreadCountInput: String(defaultThreadCount),
+      maxUploadSpeedInput: "",
+      autoVerify: true,
+      disableDhtPexLpd: false,
     }))
     applyClassificationPreview(nextUrl, fallbackFilename, nextTotalSize, null, false).catch(console.error)
     setStep("details")
@@ -206,6 +251,24 @@ export function useNewTaskModalState({
       inspectMetadata(nextUrl, fallbackFilename).catch(console.error)
     }
   }, [applyClassificationPreview, defaultThreadCount, inspectMetadata])
+
+  const pickTorrentFileAction = useCallback(async () => {
+    try {
+      const file = await pickTorrentFile()
+      if (file) {
+        setUrl(file)
+        const nextFilename = file.split(/[/\\]/).pop() || "torrent"
+        openDetailsDraft(file, nextFilename, null, { inspectMetadata: true })
+      }
+    } catch (err) {
+      console.error("Failed to pick torrent file:", err)
+      pushToast({
+        title: "选择种子文件失败",
+        description: String(err),
+        variant: "warning",
+      })
+    }
+  }, [openDetailsDraft, pushToast])
 
   useEffect(() => {
     if (!open || !initialRequest) return
@@ -232,8 +295,12 @@ export function useNewTaskModalState({
         }))
       }
 
+      const isBt = nextUrl.toLowerCase().startsWith("magnet:") ||
+        nextUrl.toLowerCase().includes(".torrent") ||
+        nextUrl.toLowerCase().startsWith("torrent:")
+
       openDetailsDraft(nextUrl, nextFilename, nextTotalSize, {
-        inspectMetadata: nextTotalSize === null || nextTotalSize <= 0,
+        inspectMetadata: nextTotalSize === null || nextTotalSize <= 0 || isBt,
       })
       onInitialRequestConsumed?.()
     })
@@ -273,7 +340,9 @@ export function useNewTaskModalState({
         task.categoryTouched,
         task.totalSize,
         overwrite,
-        task.advancedOptions
+        task.advancedOptions,
+        task.selectedFiles,
+        task.sequential
       )
 
       await useDownloadStore.getState().fetchTasks()
@@ -299,6 +368,8 @@ export function useNewTaskModalState({
         categoryTouched,
         totalSize,
         advancedOptions: buildAdvancedOptions(advancedDraft),
+        selectedFiles: isTorrent ? selectedFiles : undefined,
+        sequential: isTorrent ? sequential : undefined,
       }
 
       const conflict = await checkFileConflict(nextTask.savePath, nextTask.filename)
@@ -322,7 +393,10 @@ export function useNewTaskModalState({
     categoryTouched,
     filename,
     globalSaveDir,
+    isTorrent,
     savePath,
+    selectedFiles,
+    sequential,
     submitTaskCreate,
     totalSize,
     url,
@@ -379,6 +453,12 @@ export function useNewTaskModalState({
       metadataLoading,
       loading,
       conflictCheck,
+      isTorrent,
+      torrentFiles,
+      selectedFiles,
+      sequential,
+      infoHash,
+      isPrivate,
     },
     data: {
       categories,
@@ -399,6 +479,9 @@ export function useNewTaskModalState({
       updateAdvancedDraft,
       pasteFromClipboard,
       pickSaveDirectory,
+      pickTorrentFile: pickTorrentFileAction,
+      setSelectedFiles,
+      setSequential,
       handleUseSuggestedFilename,
       handleOverwriteExistingFile,
       handleRenameManually,

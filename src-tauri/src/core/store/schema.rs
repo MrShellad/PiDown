@@ -75,12 +75,16 @@ impl super::DbStore {
                 category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
                 created_at INTEGER NOT NULL,
                 started_at INTEGER,
-                completed_at INTEGER
+                completed_at INTEGER,
+                max_download_speed_kib INTEGER,
+                max_upload_speed_kib INTEGER
             );",
             [],
         )?;
         self.ensure_column(&conn, "tasks", "engine_id", "TEXT")?;
         self.ensure_column(&conn, "tasks", "error_message", "TEXT")?;
+        self.ensure_column(&conn, "tasks", "max_download_speed_kib", "INTEGER")?;
+        self.ensure_column(&conn, "tasks", "max_upload_speed_kib", "INTEGER")?;
         conn.execute(
             "CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_engine_id
              ON tasks(engine_id)

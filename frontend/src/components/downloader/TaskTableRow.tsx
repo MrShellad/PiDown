@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { FileText, FolderOpen, Pause, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
+import { ArrowDown, ArrowUp, FileText, FolderOpen, Pause, Play, RefreshCw, ShieldCheck, Trash2 } from "lucide-react"
 import { motion } from "motion/react"
 
 import { Checkbox } from "@/components/ui/checkbox"
@@ -257,10 +257,33 @@ function Cell({
           </Tooltip>
         )
       }
+      
+      const hasDownLimit = !!task.maxDownloadSpeedKib && task.maxDownloadSpeedKib > 0
+      const hasUpLimit = !!task.maxUploadSpeedKib && task.maxUploadSpeedKib > 0
+
       return (
-        <span className="truncate tabular-nums text-muted-foreground">
-          {speedStr}
-        </span>
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate tabular-nums text-muted-foreground">
+            {speedStr}
+          </span>
+          {(hasDownLimit || hasUpLimit) && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center text-status-danger shrink-0 select-none">
+                  {hasDownLimit && <ArrowDown className="size-3.5 stroke-[2.5]" />}
+                  {hasUpLimit && <ArrowUp className="size-3.5 stroke-[2.5]" />}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                {hasDownLimit && hasUpLimit
+                  ? `限速: 下载 ${task.maxDownloadSpeedKib} KiB/s, 上传 ${task.maxUploadSpeedKib} KiB/s`
+                  : hasDownLimit
+                    ? `限速: 下载 ${task.maxDownloadSpeedKib} KiB/s`
+                    : `限速: 上传 ${task.maxUploadSpeedKib} KiB/s`}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       )
     case "eta":
       return <span className="truncate tabular-nums text-muted-foreground">{etaStr}</span>

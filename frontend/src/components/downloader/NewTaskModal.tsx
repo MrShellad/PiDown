@@ -51,6 +51,7 @@ export default function NewTaskModal({
                   loading={state.loading}
                   onUrlChange={actions.setUrl}
                   onPasteFromClipboard={actions.pasteFromClipboard}
+                  onPickTorrentFile={actions.pickTorrentFile}
                 />
               ) : (
                 <NewTaskDetailsContent
@@ -69,6 +70,12 @@ export default function NewTaskModal({
                   advancedDraft={state.advancedDraft}
                   defaultThreadCount={data.defaultThreadCount}
                   globalUserAgent={data.globalUserAgent}
+                  isTorrent={state.isTorrent}
+                  torrentFiles={state.torrentFiles}
+                  selectedFiles={state.selectedFiles}
+                  sequential={state.sequential}
+                  infoHash={state.infoHash}
+                  isPrivate={state.isPrivate}
                   onDetailsTabChange={actions.setDetailsTab}
                   onUrlChange={actions.setUrl}
                   onFilenameChange={actions.setFilename}
@@ -77,6 +84,8 @@ export default function NewTaskModal({
                   onAdvancedDraftChange={actions.updateAdvancedDraft}
                   onPasteFromClipboard={actions.pasteFromClipboard}
                   onPickSaveDirectory={actions.pickSaveDirectory}
+                  onSelectedFilesChange={actions.setSelectedFiles}
+                  onSequentialChange={actions.setSequential}
                 />
               )}
             </DialogBody>

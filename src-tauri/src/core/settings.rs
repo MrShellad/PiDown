@@ -140,12 +140,47 @@ impl Default for InterfaceSettings {
 
 
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BtSettings {
+    pub enable_dht: bool,
+    pub enable_pex: bool,
+    pub enable_lpd: bool,
+    pub listen_port_start: u16,
+    pub listen_port_end: u16,
+    pub encryption_policy: String, // preferred, allowed, required, disabled
+    pub allocation_mode: String,   // none, sparse, full
+    pub seed_ratio_threshold: f64,
+    pub peer_loop_interval_ms: u64,
+    pub tracker_subscribe_url: String,
+    pub tracker_list: String,
+}
+
+impl Default for BtSettings {
+    fn default() -> Self {
+        Self {
+            enable_dht: true,
+            enable_pex: true,
+            enable_lpd: true,
+            listen_port_start: 6881,
+            listen_port_end: 6889,
+            encryption_policy: "preferred".to_string(),
+            allocation_mode: "none".to_string(),
+            seed_ratio_threshold: 1.0,
+            peer_loop_interval_ms: 100,
+            tracker_subscribe_url: "".to_string(),
+            tracker_list: "".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct AppSettings {
     pub download: DownloadSettings,
     pub transfer: TransferSettings,
     pub interface: InterfaceSettings,
+    pub bt: BtSettings,
 }
 
 impl AppSettings {
@@ -164,6 +199,22 @@ impl AppSettings {
         }
 
         self.transfer.normalize();
+
+        if self.bt.listen_port_start == 0 {
+            self.bt.listen_port_start = 6881;
+        }
+        if self.bt.listen_port_end == 0 {
+            self.bt.listen_port_end = 6889;
+        }
+        if self.bt.listen_port_end < self.bt.listen_port_start {
+            std::mem::swap(&mut self.bt.listen_port_start, &mut self.bt.listen_port_end);
+        }
+        if self.bt.seed_ratio_threshold < 0.0 {
+            self.bt.seed_ratio_threshold = 0.0;
+        }
+        if self.bt.peer_loop_interval_ms == 0 {
+            self.bt.peer_loop_interval_ms = 100;
+        }
     }
 }
 

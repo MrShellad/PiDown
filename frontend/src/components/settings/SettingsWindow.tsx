@@ -6,6 +6,7 @@ import {
   Download,
   FolderOpen,
   Gauge,
+  Magnet,
   MonitorCog,
   Paintbrush,
   Plus,
@@ -36,6 +37,7 @@ import {
   importBackgroundUrl,
   deleteBackground,
   type DbBackground,
+  updateTrackersFromSubscription,
 } from "@/core/bridge/tauri-commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
@@ -60,6 +62,7 @@ import {
   SettingsListItem,
   SettingsSectionCard,
   SettingsSectionHeader,
+  SettingsTextarea,
 } from "./SettingsPrimitives";
 import DownloadRulesManager from "./DownloadRulesManager";
 
@@ -72,6 +75,7 @@ interface SettingsNavItem {
 const NAV_ITEMS: SettingsNavItem[] = [
   { id: "download", label: UI_TEXT.settings.navDownload, icon: <Download className="size-4" /> },
   { id: "transfer", label: UI_TEXT.settings.navTransfer, icon: <Gauge className="size-4" /> },
+  { id: "magnet", label: "磁力设置", icon: <Magnet className="size-4" /> },
   { id: "integration", label: UI_TEXT.settings.navIntegration, icon: <MonitorCog className="size-4" /> },
   { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
 ];
@@ -208,6 +212,36 @@ export default function SettingsWindow() {
   const [backgrounds, setBackgrounds] = useState<DbBackground[]>([]);
   const [onlineUrl, setOnlineUrl] = useState("");
   const [importingUrl, setImportingUrl] = useState(false);
+  
+  // Tracker updating states
+  const [updatingTrackers, setUpdatingTrackers] = useState(false);
+
+  const handleUpdateTrackers = async () => {
+    if (!draft?.bt?.tracker_subscribe_url?.trim()) return;
+    setUpdatingTrackers(true);
+    try {
+      useToastStore.getState().pushToast({
+        title: "正在更新",
+        description: "正在从订阅链接获取 Tracker 列表...",
+      });
+      const result = await updateTrackersFromSubscription();
+      // Reload settings to get the updated tracker list
+      await load();
+      useToastStore.getState().pushToast({
+        title: "更新成功",
+        description: result,
+        variant: "success",
+      });
+    } catch (err) {
+      useToastStore.getState().pushToast({
+        title: "更新失败",
+        description: err instanceof Error ? err.message : String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setUpdatingTrackers(false);
+    }
+  };
 
 
   const allThemes = useMemo(() => {
@@ -690,26 +724,6 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="全局 User-Agent"
-                        description="作为 HTTP/HTTPS 新建任务的默认 User-Agent；单个任务高级设置里填写的值会覆盖它。"
-                        childrenSpan="full"
-                      >
-                        <SettingsInput
-                          value={draft.download.global_user_agent}
-                          onChange={(event) =>
-                            updateDraft((prev) => ({
-                              ...prev,
-                              download: {
-                                ...prev.download,
-                                global_user_agent: event.target.value,
-                              },
-                            }))
-                          }
-                          placeholder="Mozilla/5.0"
-                          className="font-mono"
-                        />
-                      </SettingsListItem>
-                      <SettingsListItem
                         title={UI_TEXT.settings.autoCategory}
                         description={UI_TEXT.settings.autoCategoryDesc}
                         action={
@@ -911,6 +925,26 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
                       <SettingsListItem
+                        title="全局 User-Agent"
+                        description="作为 HTTP/HTTPS 新建任务的默认 User-Agent；单个任务高级设置里填写的值会覆盖它。"
+                        childrenSpan="full"
+                      >
+                        <SettingsInput
+                          value={draft.download.global_user_agent}
+                          onChange={(event) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              download: {
+                                ...prev.download,
+                                global_user_agent: event.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="Mozilla/5.0"
+                          className="font-mono"
+                        />
+                      </SettingsListItem>
+                      <SettingsListItem
                         title="最大下载重试次数"
                         description="传给 gosh-dl 的 HTTP max_retries，网络波动或服务端临时错误时使用；该值会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。"
                       >
@@ -1064,6 +1098,279 @@ export default function SettingsWindow() {
                         title={UI_TEXT.settings.integrationHintsTitle}
                         description={`${UI_TEXT.settings.integrationHint1} ${UI_TEXT.settings.integrationHint2}`}
                       />
+                    </SettingsList>
+                  </div>
+                </SettingsSectionCard>
+              ) : null}
+
+              {activeSection === "magnet" ? (
+                <SettingsSectionCard>
+                  <SettingsSectionHeader
+                    icon={<Magnet className="size-5" />}
+                    title="磁力与 BT 设置"
+                    description="配置 BitTorrent 协议、端口监听、Peer 连接及网络发现策略。"
+                    action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                  />
+
+                  <div className="mt-5">
+                    <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      连接与发现
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title="启用 DHT 网络"
+                        description="允许在不依赖 Tracker 服务器的情况下，通过无中心节点的分布式哈希表查找更多 Peer。"
+                        action={
+                          <Switch
+                            checked={draft.bt.enable_dht}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  enable_dht: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title="启用 PEX (用户交换)"
+                        description="允许 Peer 之间相互交换已知的用户列表，提高网络发现速度。"
+                        action={
+                          <Switch
+                            checked={draft.bt.enable_pex}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  enable_pex: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title="启用 LPD (本地用户发现)"
+                        description="在局域网内多播查找下载相同种子的用户，适合多机内网环境。"
+                        action={
+                          <Switch
+                            checked={draft.bt.enable_lpd}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  enable_lpd: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                    </SettingsList>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      网络配置
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title="传入连接端口"
+                        description="BitTorrent 协议本地监听的 TCP/UDP 端口范围。"
+                      >
+                        <div className="flex items-center gap-2 mt-1">
+                          <SettingsInput
+                            type="number"
+                            value={draft.bt.listen_port_start}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  listen_port_start: isNaN(val) ? 6881 : val,
+                                },
+                              }));
+                            }}
+                            className="w-24 text-center font-mono"
+                          />
+                          <span className="text-muted-foreground">至</span>
+                          <SettingsInput
+                            type="number"
+                            value={draft.bt.listen_port_end}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  listen_port_end: isNaN(val) ? 6889 : val,
+                                },
+                              }));
+                            }}
+                            className="w-24 text-center font-mono"
+                          />
+                        </div>
+                      </SettingsListItem>
+
+                      <SettingsListItem
+                        title="协议加密选项"
+                        description="对 Peer 传出与传入连接的协议头加密级别要求。"
+                      >
+                        <OptionDropdown
+                          value={draft.bt.encryption_policy}
+                          options={[
+                            { value: "preferred", label: "优先加密 (Preferred)" },
+                            { value: "allowed", label: "允许加密 (Allowed)" },
+                            { value: "required", label: "强制加密 (Required)" },
+                            { value: "disabled", label: "禁用加密 (Disabled)" },
+                          ]}
+                          onValueChange={(nextPolicy) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              bt: {
+                                ...prev.bt,
+                                encryption_policy: nextPolicy,
+                              },
+                            }))
+                          }
+                          ariaLabel="协议加密选项"
+                        />
+                      </SettingsListItem>
+
+                      <SettingsListItem
+                        title="磁盘预分配模式"
+                        description="新建 BT 任务时如何预先分配磁盘空间，避免文件碎片。"
+                      >
+                        <OptionDropdown
+                          value={draft.bt.allocation_mode}
+                          options={[
+                            { value: "none", label: "不分配 (None)" },
+                            { value: "sparse", label: "稀疏分配 (Sparse)" },
+                            { value: "full", label: "完全预分配 (Full)" },
+                          ]}
+                          onValueChange={(nextMode) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              bt: {
+                                ...prev.bt,
+                                allocation_mode: nextMode,
+                              },
+                            }))
+                          }
+                          ariaLabel="磁盘预分配模式"
+                        />
+                      </SettingsListItem>
+
+                      <SettingsListItem
+                        title="做种比率阈值"
+                        description="达到该分享率（上传字节数 / 下载字节数）后，任务将自动停止做种。"
+                      >
+                        <div className="flex items-center gap-2 mt-1">
+                          <SettingsInput
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={draft.bt.seed_ratio_threshold}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  seed_ratio_threshold: isNaN(val) ? 1.0 : val,
+                                },
+                              }));
+                            }}
+                            className="w-24 text-center font-mono"
+                          />
+                          <span className="text-muted-foreground text-sm">倍 (0.0 表示不限制，持续做种)</span>
+                        </div>
+                      </SettingsListItem>
+
+                      <SettingsListItem
+                        title="Peer 循环间隔 (tick_interval_ms)"
+                        description="BitTorrent 引擎与 Peer 进行网络循环、交换消息的时间间隔（越小越灵敏，但 CPU 开销越高）。"
+                      >
+                        <div className="flex items-center gap-2 mt-1">
+                          <SettingsInput
+                            type="number"
+                            min="10"
+                            max="5000"
+                            value={draft.bt.peer_loop_interval_ms}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  peer_loop_interval_ms: isNaN(val) ? 100 : val,
+                                },
+                              }));
+                            }}
+                            className="w-24 text-center font-mono"
+                          />
+                          <span className="text-muted-foreground text-sm">ms (默认 100ms)</span>
+                        </div>
+                      </SettingsListItem>
+                    </SettingsList>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      Tracker 配置
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title="Tracker 订阅"
+                        description="自动订阅的 Tracker 服务器列表文件 URL（例如 trackerslist.com）。支持通过右侧按钮手动更新拉取。"
+                      >
+                        <div className="flex gap-2 mt-1">
+                          <SettingsInput
+                            value={draft.bt.tracker_subscribe_url}
+                            onChange={(e) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                bt: {
+                                  ...prev.bt,
+                                  tracker_subscribe_url: e.target.value,
+                                },
+                              }))
+                            }
+                            placeholder="https://cf.trackerslist.com/best.txt"
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={handleUpdateTrackers}
+                            loading={updatingTrackers}
+                            disabled={!draft.bt.tracker_subscribe_url.trim() || updatingTrackers}
+                          >
+                            立即更新
+                          </Button>
+                        </div>
+                      </SettingsListItem>
+
+                      <SettingsListItem
+                        title="Tracker 列表"
+                        description="添加新磁力链接或种子任务时将自动追加的 Tracker 服务器列表，每行一个。"
+                        childrenSpan="full"
+                      >
+                        <SettingsTextarea
+                          value={draft.bt.tracker_list}
+                          onChange={(e) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              bt: {
+                                ...prev.bt,
+                                tracker_list: e.target.value,
+                              },
+                            }))
+                          }
+                          placeholder="udp://tracker.opentrackr.org:1337/announce&#10;http://tracker.ipv6tracker.ru:80/announce"
+                          className="font-mono min-h-[120px]"
+                        />
+                      </SettingsListItem>
                     </SettingsList>
                   </div>
                 </SettingsSectionCard>

@@ -46,6 +46,30 @@ impl super::AppState {
                 .map(|value| value.saturating_mul(1024)),
         )?;
 
+        let mut config = self.engine.inner().get_config();
+        config.enable_dht = settings.bt.enable_dht;
+        config.enable_pex = settings.bt.enable_pex;
+        config.enable_lpd = settings.bt.enable_lpd;
+        config.seed_ratio = settings.bt.seed_ratio_threshold;
+
+        config.torrent.listen_port_range = (settings.bt.listen_port_start, settings.bt.listen_port_end);
+        config.torrent.tick_interval_ms = settings.bt.peer_loop_interval_ms;
+
+        config.torrent.encryption.policy = match settings.bt.encryption_policy.as_str() {
+            "disabled" => gosh_dl::config::EncryptionPolicy::Disabled,
+            "allowed" => gosh_dl::config::EncryptionPolicy::Allowed,
+            "required" => gosh_dl::config::EncryptionPolicy::Required,
+            _ => gosh_dl::config::EncryptionPolicy::Preferred,
+        };
+
+        config.torrent.allocation_mode = match settings.bt.allocation_mode.as_str() {
+            "sparse" => gosh_dl::config::AllocationMode::Sparse,
+            "full" => gosh_dl::config::AllocationMode::Full,
+            _ => gosh_dl::config::AllocationMode::None,
+        };
+
+        self.engine.inner().set_config(config).map_err(|e| e.to_string())?;
+
         Ok(())
     }
 

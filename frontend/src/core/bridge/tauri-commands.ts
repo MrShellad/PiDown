@@ -10,15 +10,27 @@ export interface TaskConfig {
 
 export interface TaskAdvancedOptions {
   maxDownloadSpeedKib?: number | null;
+  maxUploadSpeedKib?: number | null;
   maxConnections?: number | null;
   userAgent?: string | null;
   referer?: string | null;
   cookies?: string[];
+  autoVerify?: boolean;
+  disableDhtPexLpd?: boolean;
+}
+
+export interface TorrentFileInspection {
+  path: string;
+  size: number;
 }
 
 export interface DownloadMetadata {
   filename: string | null;
   total_size: number | null;
+  is_torrent: boolean;
+  files: TorrentFileInspection[] | null;
+  info_hash: string | null;
+  is_private?: boolean;
 }
 
 export interface FileConflictCheck {
@@ -69,6 +81,9 @@ export interface TaskOverview {
   save_path: string;
   category_id: number | null;
   tags: DbTag[];
+  protocol: string;
+  max_download_speed_kib: number | null;
+  max_upload_speed_kib: number | null;
 }
 
 export interface TaskClassificationPreview {
@@ -144,6 +159,19 @@ export interface AppSettings {
     hide_border_and_bg: boolean;
     disable_window_shadow: boolean;
   };
+  bt: {
+    enable_dht: boolean;
+    enable_pex: boolean;
+    enable_lpd: boolean;
+    listen_port_start: number;
+    listen_port_end: number;
+    encryption_policy: string;
+    allocation_mode: string;
+    seed_ratio_threshold: number;
+    peer_loop_interval_ms: number;
+    tracker_subscribe_url: string;
+    tracker_list: string;
+  };
 }
 
 
@@ -167,7 +195,9 @@ export async function createTask(
   categoryOverride = false,
   totalSize?: number | null,
   overwrite = false,
-  advancedOptions: TaskAdvancedOptions = {}
+  advancedOptions: TaskAdvancedOptions = {},
+  selectedFiles?: number[] | null,
+  sequential?: boolean
 ): Promise<string> {
   return invoke<string>("create_task", {
     url,
@@ -178,10 +208,15 @@ export async function createTask(
     totalSize,
     overwrite,
     maxDownloadSpeedKib: advancedOptions.maxDownloadSpeedKib ?? null,
+    maxUploadSpeedKib: advancedOptions.maxUploadSpeedKib ?? null,
     maxConnections: advancedOptions.maxConnections ?? null,
     userAgent: advancedOptions.userAgent ?? null,
     referer: advancedOptions.referer ?? null,
     cookies: advancedOptions.cookies ?? [],
+    selectedFiles: selectedFiles ?? null,
+    sequential: sequential ?? null,
+    autoVerify: advancedOptions.autoVerify ?? null,
+    disableDhtPexLpd: advancedOptions.disableDhtPexLpd ?? null,
   });
 }
 
@@ -206,6 +241,10 @@ export async function writeClipboardText(text: string): Promise<void> {
 
 export async function pickDownloadDirectory(defaultPath?: string): Promise<string | null> {
   return invoke<string | null>("pick_download_directory", { defaultPath });
+}
+
+export async function pickTorrentFile(): Promise<string | null> {
+  return invoke<string | null>("pick_torrent_file");
 }
 
 export async function previewTaskClassification(
@@ -362,8 +401,19 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       hide_border_and_bg: false,
       disable_window_shadow: false,
     },
-
-
+    bt: {
+      enable_dht: true,
+      enable_pex: true,
+      enable_lpd: true,
+      listen_port_start: 6881,
+      listen_port_end: 6889,
+      encryption_policy: "preferred",
+      allocation_mode: "none",
+      seed_ratio_threshold: 1.0,
+      peer_loop_interval_ms: 100,
+      tracker_subscribe_url: "",
+      tracker_list: "",
+    },
   };
 }
 
@@ -402,4 +452,45 @@ export async function importBackgroundUrl(url: string): Promise<DbBackground> {
 export async function deleteBackground(id: number): Promise<void> {
   return invoke<void>("delete_background", { id });
 }
+
+export async function updateTrackersFromSubscription(): Promise<string> {
+  return invoke<string>("update_trackers_from_subscription");
+}
+
+export interface BtPeerInfo {
+  id: string | null;
+  ip: string;
+  port: number;
+  client: string | null;
+  download_speed: number;
+  upload_speed: number;
+  progress: number;
+  am_choking: boolean;
+  peer_choking: boolean;
+}
+
+export interface BtTorrentFile {
+  index: number;
+  path: string;
+  size: number;
+  selected: boolean;
+  completed: number;
+}
+
+export interface BtTaskDetails {
+  magnet_uri: string | null;
+  trackers: string[];
+  peers: BtPeerInfo[];
+  files: BtTorrentFile[];
+}
+
+export async function getBtTaskDetails(gid: string): Promise<BtTaskDetails> {
+  return invoke<BtTaskDetails>("get_bt_task_details", { gid });
+}
+
+export async function updateTaskTrackers(gid: string, trackers: string[]): Promise<void> {
+  return invoke<void>("update_task_trackers", { gid, trackers });
+}
+
+
 

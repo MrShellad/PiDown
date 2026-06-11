@@ -9,12 +9,18 @@ use std::path::Path;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
+#[allow(dead_code)]
 pub struct TaskCreateOptions {
     pub max_connections: Option<u32>,
     pub max_download_speed_kib: Option<u64>,
+    pub max_upload_speed_kib: Option<u64>,
     pub user_agent: Option<String>,
     pub referer: Option<String>,
     pub cookies: Vec<String>,
+    pub selected_files: Option<Vec<usize>>,
+    pub sequential: Option<bool>,
+    pub auto_verify: Option<bool>,
+    pub disable_dht_pex_lpd: Option<bool>,
 }
 
 fn normalize_optional_header_value(value: Option<String>) -> Option<String> {
@@ -221,6 +227,11 @@ impl super::AppState {
             task.completed_size = engine_status.progress.completed_size;
             task.total_size = engine_status.progress.total_size.unwrap_or(0);
             
+            // For BT/magnet tasks, update display name if engine has loaded the actual metadata name
+            if (task.protocol == "magnet" || task.protocol == "torrent") && !engine_status.metadata.name.is_empty() {
+                task.name = engine_status.metadata.name.clone();
+            }
+            
             if mapped_status == "Downloading" {
                 if task.started_at.is_none() {
                     task.started_at = Some(Utc::now().timestamp());
@@ -317,7 +328,62 @@ impl super::AppState {
                     )
                     .await?
             }
-            DownloadProtocol::Magnet => self.engine.add_magnet(url, Path::new(&save_dir)).await?,
+            DownloadProtocol::Magnet => {
+                let mut magnet_url = url.to_string();
+                let trackers: Vec<String> = settings.bt.tracker_list
+                    .lines()
+                    .map(|line| line.trim().to_string())
+                    .filter(|line| !line.is_empty())
+                    .collect();
+
+                for tracker in trackers {
+                    let encoded_tracker = urlencoding::encode(&tracker);
+                    magnet_url.push_str(&format!("&tr={}", encoded_tracker));
+                }
+
+                self.engine
+                    .add_magnet(
+                        &magnet_url,
+                        Path::new(&save_dir),
+                        task_options.selected_files,
+                        task_options.sequential,
+                        speed_limit_kib_to_bps(task_options.max_download_speed_kib),
+                        speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
+                    )
+                    .await?
+            }
+            DownloadProtocol::Torrent => {
+                let ignore_ssl = settings.transfer.ignore_ssl_certificate;
+                let mut bytes = crate::download::bt::fetch_torrent_bytes(url, ignore_ssl).await?;
+
+                let trackers: Vec<String> = settings.bt.tracker_list
+                    .lines()
+                    .map(|line| line.trim().to_string())
+                    .filter(|line| !line.is_empty())
+                    .collect();
+
+                if !trackers.is_empty() {
+                    match crate::download::bt::append_trackers_to_torrent(&bytes, &trackers) {
+                        Ok(modified_bytes) => {
+                            bytes = modified_bytes;
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to append default trackers to torrent: {}", e);
+                        }
+                    }
+                }
+
+                self.engine
+                    .add_torrent(
+                        &bytes,
+                        Path::new(&save_dir),
+                        task_options.selected_files,
+                        task_options.sequential,
+                        speed_limit_kib_to_bps(task_options.max_download_speed_kib),
+                        speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
+                    )
+                    .await?
+            }
             _ => return Err("Unsupported or invalid protocol".to_string()),
         };
 
@@ -350,6 +416,8 @@ impl super::AppState {
             },
             completed_at: None,
             error_message: None,
+            max_download_speed_kib: task_options.max_download_speed_kib,
+            max_upload_speed_kib: task_options.max_upload_speed_kib,
         };
 
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
@@ -431,7 +499,12 @@ impl super::AppState {
                 .engine
                 .inspect_http(url, Some(&settings.download.global_user_agent))
                 .await,
-            _ => Err("Only HTTP/HTTPS links support metadata inspection".to_string()),
+            DownloadProtocol::Magnet => crate::download::bt::inspect_magnet(url),
+            DownloadProtocol::Torrent => {
+                let ignore_ssl = settings.transfer.ignore_ssl_certificate;
+                crate::download::bt::inspect_torrent(url, ignore_ssl).await
+            }
+            _ => Err("Unsupported protocol for metadata inspection".to_string()),
         }
     }
 
@@ -530,7 +603,11 @@ impl super::AppState {
                 task.category_id,
                 task.category_id.is_some(),
                 (task.total_size > 0).then_some(task.total_size),
-                TaskCreateOptions::default(),
+                TaskCreateOptions {
+                    max_download_speed_kib: task.max_download_speed_kib,
+                    max_upload_speed_kib: task.max_upload_speed_kib,
+                    ..Default::default()
+                },
             )
             .await?;
         self.task_cache.write().unwrap().remove(gid);
@@ -667,6 +744,9 @@ impl super::AppState {
                 save_path: db_task.save_path,
                 category_id: db_task.category_id,
                 tags,
+                protocol: db_task.protocol.clone(),
+                max_download_speed_kib: db_task.max_download_speed_kib,
+                max_upload_speed_kib: db_task.max_upload_speed_kib,
             });
         }
 

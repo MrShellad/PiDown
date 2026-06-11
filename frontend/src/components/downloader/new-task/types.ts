@@ -11,12 +11,17 @@ export interface PendingTaskCreate {
   categoryTouched: boolean
   totalSize: number | null
   advancedOptions: TaskAdvancedOptions
+  selectedFiles?: number[] | null
+  sequential?: boolean
 }
 
 export interface NewTaskAdvancedDraft {
   maxDownloadSpeedInput: string
+  maxUploadSpeedInput: string
   taskThreadCountInput: string
   userAgentInput: string
   refererInput: string
   cookiesInput: string
+  autoVerify: boolean
+  disableDhtPexLpd: boolean
 }

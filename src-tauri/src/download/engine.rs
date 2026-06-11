@@ -7,10 +7,20 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct TorrentFileInspection {
+    pub path: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct DownloadInspection {
     pub filename: Option<String>,
     pub total_size: Option<u64>,
+    pub is_torrent: bool,
+    pub files: Option<Vec<TorrentFileInspection>>,
+    pub info_hash: Option<String>,
+    pub is_private: Option<bool>,
 }
 
 pub struct EngineWrapper {
@@ -87,6 +97,10 @@ impl EngineWrapper {
         Ok(DownloadInspection {
             filename: capabilities.suggested_filename,
             total_size: capabilities.content_length,
+            is_torrent: false,
+            files: None,
+            info_hash: None,
+            is_private: None,
         })
     }
 
@@ -113,14 +127,45 @@ impl EngineWrapper {
             .map_err(|e| format!("Failed to add HTTP task: {}", e))
     }
 
+    /// Add a Torrent download task
+    pub async fn add_torrent(
+        &self,
+        torrent_data: &[u8],
+        save_dir: &Path,
+        selected_files: Option<Vec<usize>>,
+        sequential: Option<bool>,
+        max_download_speed: Option<u64>,
+        max_upload_speed: Option<u64>,
+    ) -> Result<DownloadId, String> {
+        let mut opts = DownloadOptions::default();
+        opts.save_dir = Some(save_dir.to_path_buf());
+        opts.selected_files = selected_files;
+        opts.sequential = sequential;
+        opts.max_download_speed = max_download_speed;
+        opts.max_upload_speed = max_upload_speed;
+
+        self.inner
+            .add_torrent(torrent_data, opts)
+            .await
+            .map_err(|e| format!("Failed to add torrent task: {}", e))
+    }
+
     /// Add a Magnet link download task (if BitTorrent is supported/compiled)
     pub async fn add_magnet(
         &self,
         magnet_uri: &str,
         save_dir: &Path,
+        selected_files: Option<Vec<usize>>,
+        sequential: Option<bool>,
+        max_download_speed: Option<u64>,
+        max_upload_speed: Option<u64>,
     ) -> Result<DownloadId, String> {
         let mut opts = DownloadOptions::default();
         opts.save_dir = Some(save_dir.to_path_buf());
+        opts.selected_files = selected_files;
+        opts.sequential = sequential;
+        opts.max_download_speed = max_download_speed;
+        opts.max_upload_speed = max_upload_speed;
 
         // gosh-dl has add_magnet
         self.inner

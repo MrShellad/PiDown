@@ -100,6 +100,19 @@ export function SettingsInput(props: React.InputHTMLAttributes<HTMLInputElement>
   );
 }
 
+export function SettingsTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea
+      {...props}
+      className={cn(
+        "w-full rounded-lg border border-border bg-background/70 px-4 py-3 text-sm leading-5 text-foreground outline-none transition resize-y min-h-[80px]",
+        "placeholder:text-muted-foreground/70 focus:border-primary focus:ring-2 focus:ring-primary/20",
+        props.className
+      )}
+    />
+  );
+}
+
 export function SettingsList({
   className,
   children,

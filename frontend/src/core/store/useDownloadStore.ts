@@ -49,6 +49,9 @@ export interface Task {
   connections?: number;
   categoryId?: number | null;
   tags?: { id: number; name: string; icon?: string; color?: string }[];
+  protocol?: string;
+  maxDownloadSpeedKib?: number | null;
+  maxUploadSpeedKib?: number | null;
 }
 
 export interface Category {
@@ -82,6 +85,8 @@ export interface TaskProgressPayload {
   speed_bps?: number;
   eta_seconds?: number | null;
   upload_speed: string;
+  max_download_speed_kib?: number | null;
+  max_upload_speed_kib?: number | null;
 }
 
 export interface DownloadSpeedPayload {
@@ -185,6 +190,9 @@ const mapTask = (task: TaskOverview): Task => ({
     icon: tag.icon || undefined,
     color: tag.color || undefined,
   })),
+  protocol: task.protocol,
+  maxDownloadSpeedKib: task.max_download_speed_kib,
+  maxUploadSpeedKib: task.max_upload_speed_kib,
 });
 
 export const useDownloadStore = create<DownloadState>()((set, get) => ({
@@ -291,6 +299,9 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               connections: activeTask.connections ?? existing?.connections ?? 0,
               categoryId: existing ? existing.categoryId : null,
               tags: existing ? existing.tags : [],
+              protocol: existing ? existing.protocol : undefined,
+              maxDownloadSpeedKib: existing ? existing.maxDownloadSpeedKib : undefined,
+              maxUploadSpeedKib: existing ? existing.maxUploadSpeedKib : undefined,
             };
           });
 

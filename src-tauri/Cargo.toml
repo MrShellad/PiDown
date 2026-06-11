@@ -25,6 +25,7 @@ log = "0.4"
 tauri = { version = "2.11.2", features = ["protocol-asset"] }
 tauri-plugin-log = "2"
 gosh-dl = "0.4.0"
+serde_bencode = "0.2"
 tokio = { version = "1", features = ["full"] }
 rusqlite = { version = "0.38.0", features = ["bundled"] }
 chrono = { version = "0.4", features = ["serde"] }

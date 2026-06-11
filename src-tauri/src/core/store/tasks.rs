@@ -8,8 +8,8 @@ impl super::DbStore {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             "INSERT OR REPLACE INTO tasks (
-                id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 task.id,
                 task.engine_id,
@@ -24,7 +24,9 @@ impl super::DbStore {
                 task.created_at,
                 task.started_at,
                 task.completed_at,
-                task.error_message
+                task.error_message,
+                task.max_download_speed_kib.map(|v| v as i64),
+                task.max_upload_speed_kib.map(|v| v as i64)
             ],
         )?;
         Ok(())
@@ -116,7 +118,7 @@ impl super::DbStore {
     pub fn get_task(&self, id: &str) -> Result<Option<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks
              WHERE id = ?1",
         )?;
@@ -138,6 +140,8 @@ impl super::DbStore {
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
                 error_message: row.get(13)?,
+                max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
+                max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
             }))
         } else {
             Ok(None)
@@ -150,7 +154,7 @@ impl super::DbStore {
     ) -> Result<Option<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks
              WHERE engine_id = ?1",
         )?;
@@ -172,6 +176,8 @@ impl super::DbStore {
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
                 error_message: row.get(13)?,
+                max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
+                max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
             }))
         } else {
             Ok(None)
@@ -181,7 +187,7 @@ impl super::DbStore {
     pub fn get_all_tasks(&self) -> Result<Vec<DbTask>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
-            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message
+            "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks
              ORDER BY created_at DESC",
         )?;
@@ -201,6 +207,8 @@ impl super::DbStore {
                 started_at: row.get(11)?,
                 completed_at: row.get(12)?,
                 error_message: row.get(13)?,
+                max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
+                max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
             })
         })?;
 
@@ -223,8 +231,9 @@ impl super::DbStore {
                     engine_id = ?4,
                     started_at = ?5,
                     completed_at = ?6,
-                    error_message = ?7
-                 WHERE id = ?8"
+                    error_message = ?7,
+                    name = ?8
+                 WHERE id = ?9"
             )?;
             for task in tasks {
                 stmt.execute(params![
@@ -235,6 +244,7 @@ impl super::DbStore {
                     task.started_at,
                     task.completed_at,
                     task.error_message,
+                    task.name,
                     task.id
                 ])?;
             }
@@ -252,6 +262,19 @@ impl super::DbStore {
         conn.execute(
             "UPDATE tasks SET error_message = ?1 WHERE id = ?2",
             params![error_message, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_task_url(
+        &self,
+        id: &str,
+        url: &str,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET url = ?1 WHERE id = ?2",
+            params![url, id],
         )?;
         Ok(())
     }

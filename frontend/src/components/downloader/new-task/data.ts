@@ -51,11 +51,14 @@ function normalizeNullableText(value: string) {
 
 export function buildAdvancedOptions(draft: NewTaskAdvancedDraft): TaskAdvancedOptions {
   const speedLimit = parseNullableSpeedLimit(draft.maxDownloadSpeedInput)
+  const speedLimitUpload = parseNullableSpeedLimit(draft.maxUploadSpeedInput)
   const threadCount = parsePositiveInteger(draft.taskThreadCountInput)
 
   return {
     maxDownloadSpeedKib:
       speedLimit == null || speedLimit <= 0 ? null : Math.round(speedLimit),
+    maxUploadSpeedKib:
+      speedLimitUpload == null || speedLimitUpload <= 0 ? null : Math.round(speedLimitUpload),
     maxConnections:
       threadCount == null
         ? null
@@ -63,5 +66,7 @@ export function buildAdvancedOptions(draft: NewTaskAdvancedDraft): TaskAdvancedO
     userAgent: normalizeNullableText(draft.userAgentInput),
     referer: normalizeNullableText(draft.refererInput),
     cookies: parseCookieInput(draft.cookiesInput),
+    autoVerify: draft.autoVerify,
+    disableDhtPexLpd: draft.disableDhtPexLpd,
   }
 }

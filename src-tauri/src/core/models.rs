@@ -16,6 +16,8 @@ pub struct DbTask {
     pub started_at: Option<i64>,
     pub completed_at: Option<i64>,
     pub error_message: Option<String>,
+    pub max_download_speed_kib: Option<u64>,
+    pub max_upload_speed_kib: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -111,6 +113,9 @@ pub struct TaskOverview {
     pub save_path: String,
     pub category_id: Option<i64>,
     pub tags: Vec<DbTag>,
+    pub protocol: String,
+    pub max_download_speed_kib: Option<u64>,
+    pub max_upload_speed_kib: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize)]

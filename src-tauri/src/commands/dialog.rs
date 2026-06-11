@@ -16,3 +16,14 @@ pub fn pick_download_directory(default_path: Option<String>) -> Result<Option<St
         .pick_folder()
         .map(|path| path.to_string_lossy().to_string()))
 }
+
+#[tauri::command]
+pub fn pick_torrent_file() -> Result<Option<String>, String> {
+    let dialog = rfd::FileDialog::new()
+        .add_filter("Torrent Files", &["torrent"])
+        .add_filter("All Files", &["*"]);
+
+    Ok(dialog
+        .pick_file()
+        .map(|path| path.to_string_lossy().to_string()))
+}
