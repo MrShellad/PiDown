@@ -225,8 +225,11 @@ mod tests {
 pub async fn inspect_download_metadata(
     state: State<'_, Arc<AppState>>,
     url: String,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Option<Vec<String>>,
 ) -> Result<DownloadMetadata, String> {
-    let inspection = state.inspect_download(&url).await?;
+    let inspection = state.inspect_download(&url, user_agent, referer, cookies).await?;
     Ok(DownloadMetadata {
         filename: inspection.filename,
         total_size: inspection.total_size,

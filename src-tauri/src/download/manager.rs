@@ -37,11 +37,13 @@ impl DownloadManager {
         max_connections_per_download: usize,
         max_retries: usize,
         accept_invalid_certs: bool,
+        proxy_url: Option<String>,
     ) -> Result<(), String> {
         let mut config = self.engine.get_config();
         config.max_connections_per_download = max_connections_per_download;
         config.http.max_retries = max_retries;
         config.http.accept_invalid_certs = accept_invalid_certs;
+        config.http.proxy_url = proxy_url;
         self.engine.set_config(config).map_err(|e| e.to_string())
     }
 

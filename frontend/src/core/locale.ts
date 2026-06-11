@@ -184,6 +184,7 @@ export const UI_TEXT = {
     submitIdle: "启动下载",
     submitLoading: "创建中...",
     errorAlert: "创建下载任务失败，请检查链接或文件路径。",
+    retry: "重试",
     metadataProbeTitle: "正在识别下载信息",
     metadataProbeDesc: "正在通过服务器响应识别文件名、大小和分类规则。慢服务器或多次重定向时可能需要更久，但你仍可以先确认创建任务。",
     metadataProbeDone: "下载信息已更新",

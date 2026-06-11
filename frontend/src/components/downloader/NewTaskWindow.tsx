@@ -52,7 +52,7 @@ export default function NewTaskWindow() {
   });
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background">
+    <div className="relative flex h-screen flex-col overflow-hidden rounded-lg bg-background border border-border/40">
       <WindowFrame
         title="新建下载任务"
         showMenu={false}

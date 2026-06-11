@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import {
   switchToMain,
@@ -6,6 +6,7 @@ import {
   pauseTask,
   resumeTask,
   exitApp,
+  getCursorScreenPos,
   type FloatDisplayMode,
   type AppSettings,
 } from "@/core/bridge/tauri-commands";
@@ -59,9 +60,69 @@ export default function FloatDisc() {
     };
   }, []);
 
-  // Ensure the window is interactive and not ignoring mouse events
+  const isMenuOpenRef = useRef(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
   useEffect(() => {
-    getCurrentWindow().setIgnoreCursorEvents(false).catch(console.error);
+    isMenuOpenRef.current = isMenuOpen;
+  }, [isMenuOpen]);
+
+  // Mouse pass-through toggler based on cursor distance from the float disc center
+  useEffect(() => {
+    let active = true;
+    let isIgnore = false;
+
+    const interval = setInterval(async () => {
+      if (!active) return;
+      try {
+        const win = getCurrentWindow();
+        const isVisible = await win.isVisible();
+        if (!isVisible) return;
+
+        // If the context menu is open, always allow mouse events (do not ignore)
+        if (isMenuOpenRef.current) {
+          if (isIgnore) {
+            isIgnore = false;
+            await win.setIgnoreCursorEvents(false);
+          }
+          return;
+        }
+
+        // Get cursor position in physical pixels
+        const [cursorX, cursorY] = await getCursorScreenPos();
+
+        // Get window position and size in physical pixels
+        const position = await win.outerPosition();
+        const size = await win.outerSize();
+
+        // Calculate distance from center of window
+        const centerX = position.x + size.width / 2;
+        const centerY = position.y + size.height / 2;
+
+        const dx = cursorX - centerX;
+        const dy = cursorY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Float disc radius is 68 / 2 = 34 CSS pixels. Convert to physical pixels with devicePixelRatio.
+        const dpr = window.devicePixelRatio || 1;
+        const threshold = (34 + 6) * dpr; // 34px radius + 6px buffer
+
+        const shouldIgnore = distance > threshold;
+
+        if (shouldIgnore !== isIgnore) {
+          isIgnore = shouldIgnore;
+          await win.setIgnoreCursorEvents(shouldIgnore);
+        }
+      } catch (err) {
+        // Silent error
+      }
+    }, 100);
+
+    return () => {
+      active = false;
+      clearInterval(interval);
+      getCurrentWindow().setIgnoreCursorEvents(false).catch(console.error);
+    };
   }, []);
 
   // Display mode: hide/show float window based on active tasks and settings
@@ -123,12 +184,30 @@ export default function FloatDisc() {
     }
   };
 
+  const [mouseDownInfo, setMouseDownInfo] = useState<{ x: number; y: number } | null>(null);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button === 0) {
-      e.stopPropagation();
-      getCurrentWindow().startDragging().catch(console.error);
+      setMouseDownInfo({ x: e.screenX, y: e.screenY });
     }
   };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (mouseDownInfo) {
+      const deltaX = e.screenX - mouseDownInfo.x;
+      const deltaY = e.screenY - mouseDownInfo.y;
+      const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+      if (distance > 5) {
+        setMouseDownInfo(null);
+        getCurrentWindow().startDragging().catch(console.error);
+      }
+    }
+  };
+
+  const handleMouseUp = () => {
+    setMouseDownInfo(null);
+  };
+
 
   // Context menu handlers
   const handleNewTask = async () => {
@@ -252,16 +331,19 @@ export default function FloatDisc() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      <ContextMenu>
-        <Tooltip>
-          <ContextMenuTrigger asChild>
-            <TooltipTrigger asChild>
-              <div
-                onDoubleClick={handleDoubleClick}
-                onMouseDown={handleMouseDown}
-                className="w-[68px] h-[68px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer group"
-                data-tauri-drag-region="true"
-              >
+      <ContextMenu onOpenChange={setIsMenuOpen}>
+        <ContextMenuTrigger asChild>
+          <div className="flex items-center justify-center">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div
+                  onDoubleClick={handleDoubleClick}
+                  onMouseDown={handleMouseDown}
+                  onMouseMove={handleMouseMove}
+                  onMouseUp={handleMouseUp}
+                  className="w-[68px] h-[68px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer group"
+                >
+
                   {/* SVG Rounded Rectangle Background and Wave */}
                   <svg
                     viewBox="0 0 80 80"
@@ -378,9 +460,11 @@ export default function FloatDisc() {
                   </div>
                 </div>
               </TooltipTrigger>
-            </ContextMenuTrigger>
-            <TooltipContent side="top">{UI_TEXT.floatDisc.title}</TooltipContent>
-          </Tooltip>
+              <TooltipContent side="top">{UI_TEXT.floatDisc.title}</TooltipContent>
+            </Tooltip>
+          </div>
+        </ContextMenuTrigger>
+
 
           <ContextMenuContent>
           <ContextMenuItem onSelect={handleNewTask}>

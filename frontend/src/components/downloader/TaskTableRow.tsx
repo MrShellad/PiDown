@@ -180,7 +180,7 @@ function NameCell({
 
 function TagsCell({ task }: { task: Task }) {
   if (!task.tags?.length) {
-    return <span className="truncate text-muted-foreground">--</span>
+    return <span className="truncate text-foreground/60 font-medium">--</span>
   }
 
   return (
@@ -188,7 +188,7 @@ function TagsCell({ task }: { task: Task }) {
       {task.tags.slice(0, 2).map((tag) => (
         <Tooltip key={tag.id}>
           <TooltipTrigger asChild>
-            <span className="max-w-24 truncate rounded-full bg-muted/80 px-2 py-0.5 text-xs font-medium leading-4 text-muted-foreground">
+            <span className="max-w-24 truncate rounded-full bg-muted/80 px-2 py-0.5 text-xs font-semibold leading-4 text-foreground/85">
               {tag.name}
             </span>
           </TooltipTrigger>
@@ -196,7 +196,7 @@ function TagsCell({ task }: { task: Task }) {
         </Tooltip>
       ))}
       {task.tags.length > 2 ? (
-        <span className="shrink-0 text-xs leading-4 text-muted-foreground">
+        <span className="shrink-0 text-xs font-semibold leading-4 text-foreground/70">
           +{task.tags.length - 2}
         </span>
       ) : null}
@@ -224,7 +224,7 @@ function Cell({
   switch (id) {
     case "size":
       return (
-        <span className="truncate tabular-nums text-muted-foreground">
+        <span className="truncate tabular-nums text-foreground/80 font-medium">
           {task.status === "Completed" ? totalStr : `${downloadedStr} / ${totalStr}`}
         </span>
       )
@@ -234,7 +234,7 @@ function Cell({
       return (
         <span
           className={cn(
-            "truncate font-medium",
+            "truncate font-semibold",
             task.status === "Downloading" && "text-primary",
             task.status === "Paused" && "text-status-warning",
             task.status === "Completed" && "text-status-success",
@@ -249,7 +249,7 @@ function Cell({
         return (
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="truncate tabular-nums text-muted-foreground cursor-help">
+              <span className="truncate tabular-nums text-foreground/70 font-medium cursor-help">
                 {UI_TEXT.taskCard.preparing}
               </span>
             </TooltipTrigger>
@@ -263,7 +263,7 @@ function Cell({
 
       return (
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="truncate tabular-nums text-muted-foreground">
+          <span className="truncate tabular-nums text-foreground/80 font-medium">
             {speedStr}
           </span>
           {(hasDownLimit || hasUpLimit) && (
@@ -286,10 +286,10 @@ function Cell({
         </div>
       )
     case "eta":
-      return <span className="truncate tabular-nums text-muted-foreground">{etaStr}</span>
+      return <span className="truncate tabular-nums text-foreground/80 font-medium">{etaStr}</span>
     case "createdAt":
       return (
-        <span className="truncate tabular-nums text-muted-foreground">
+        <span className="truncate tabular-nums text-foreground/80 font-medium">
           {formatCreatedAt(task.createdAt)}
         </span>
       )
@@ -361,7 +361,7 @@ export default function TaskTableRow({
           onClick={() => onSelect?.(gid)}
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
-            "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/80 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
+            "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-card"
           )}
           style={{ width: "100%", minWidth: tableWidth }}

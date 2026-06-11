@@ -114,7 +114,7 @@ function HeaderCell({
       onDrop={(event) => onDrop(event, column.id)}
       onDragEnd={onDragEnd}
       className={cn(
-        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center justify-start px-4 text-sm font-medium leading-5 text-muted-foreground transition-colors active:cursor-grabbing",
+        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center justify-start px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors active:cursor-grabbing",
         "hover:bg-muted/35 hover:text-foreground",
         isDragging && "bg-muted/50 opacity-70"
       )}
@@ -131,7 +131,7 @@ function HeaderCell({
       ) : null}
       <span
         aria-hidden="true"
-        className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-45 transition-opacity group-hover/header-cell:opacity-80"
+        className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/header-cell:opacity-80"
       >
         <GripVertical className="size-3.5" />
       </span>
@@ -262,7 +262,7 @@ export default function TaskListHeader({
       data-slot="task-list-header"
       className={cn(
         "flex h-13 shrink-0 items-center overflow-hidden",
-        embedded ? "rounded-lg bg-card/80 backdrop-blur-md shadow-md border border-border/40" : "rounded-lg bg-card/95 shadow-surface-raised",
+        embedded ? "rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40" : "rounded-lg bg-card/95 shadow-surface-raised",
         className
       )}
       style={{ width: "100%", minWidth: tableWidth }}

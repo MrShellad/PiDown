@@ -20,6 +20,7 @@ import {
   buildAdvancedOptions,
   DEFAULT_TASK_THREAD_COUNT,
   inferFileName,
+  parseCookieInput,
 } from "./data"
 import type { NewTaskAdvancedDraft, NewTaskDetailsTab, NewTaskStep, PendingTaskCreate } from "./types"
 
@@ -182,7 +183,13 @@ export function useNewTaskModalState({
     }
   }, [globalSaveDir, pushToast, savePath])
 
-  const inspectMetadata = useCallback(async (nextUrl: string, fallbackFilename: string) => {
+  const inspectMetadata = useCallback(async (
+    nextUrl: string,
+    fallbackFilename: string,
+    userAgent?: string,
+    referer?: string,
+    cookies?: string[]
+  ) => {
     setMetadataLoading(true)
     setTotalSize(null)
     setIsTorrent(false)
@@ -192,7 +199,11 @@ export function useNewTaskModalState({
     setIsPrivate(null)
 
     try {
-      const metadata = await inspectDownloadMetadata(nextUrl)
+      const ua = userAgent?.trim() || advancedDraft.userAgentInput.trim() || undefined
+      const ref = referer?.trim() || advancedDraft.refererInput.trim() || undefined
+      const cookiesArr = cookies ?? parseCookieInput(advancedDraft.cookiesInput)
+
+      const metadata = await inspectDownloadMetadata(nextUrl, ua, ref, cookiesArr)
       const nextFilename = metadata.filename?.trim() || fallbackFilename
       const nextTotalSize = metadata.total_size ?? null
 
@@ -220,13 +231,18 @@ export function useNewTaskModalState({
     } finally {
       setMetadataLoading(false)
     }
-  }, [applyClassificationPreview])
+  }, [applyClassificationPreview, advancedDraft])
 
   const openDetailsDraft = useCallback((
     nextUrl: string,
     fallbackFilename: string,
     nextTotalSize: number | null,
-    options?: { inspectMetadata?: boolean }
+    options?: {
+      inspectMetadata?: boolean
+      userAgent?: string
+      referer?: string
+      cookies?: string[]
+    }
   ) => {
     setUrl(nextUrl)
     setFilename(fallbackFilename)
@@ -243,12 +259,21 @@ export function useNewTaskModalState({
       maxUploadSpeedInput: "",
       autoVerify: true,
       disableDhtPexLpd: false,
+      userAgentInput: options?.userAgent ?? current.userAgentInput,
+      refererInput: options?.referer ?? current.refererInput,
+      cookiesInput: options?.cookies?.join("\n") ?? current.cookiesInput,
     }))
     applyClassificationPreview(nextUrl, fallbackFilename, nextTotalSize, null, false).catch(console.error)
     setStep("details")
 
     if (options?.inspectMetadata !== false) {
-      inspectMetadata(nextUrl, fallbackFilename).catch(console.error)
+      inspectMetadata(
+        nextUrl,
+        fallbackFilename,
+        options?.userAgent,
+        options?.referer,
+        options?.cookies
+      ).catch(console.error)
     }
   }, [applyClassificationPreview, defaultThreadCount, inspectMetadata])
 
@@ -301,6 +326,9 @@ export function useNewTaskModalState({
 
       openDetailsDraft(nextUrl, nextFilename, nextTotalSize, {
         inspectMetadata: nextTotalSize === null || nextTotalSize <= 0 || isBt,
+        userAgent: initialRequest.userAgent || undefined,
+        referer: initialRequest.referer || undefined,
+        cookies: initialRequest.cookies || undefined,
       })
       onInitialRequestConsumed?.()
     })
@@ -440,6 +468,12 @@ export function useNewTaskModalState({
     handleCreateTask().catch(console.error)
   }, [handleCreateTask, prepareDetails, step])
 
+  const retryMetadataProbe = useCallback(() => {
+    if (url.trim()) {
+      inspectMetadata(url.trim(), filename.trim() || inferFileName(url.trim())).catch(console.error)
+    }
+  }, [inspectMetadata, url, filename])
+
   return {
     state: {
       step,
@@ -485,6 +519,7 @@ export function useNewTaskModalState({
       handleUseSuggestedFilename,
       handleOverwriteExistingFile,
       handleRenameManually,
+      retryMetadataProbe,
     },
   }
 }

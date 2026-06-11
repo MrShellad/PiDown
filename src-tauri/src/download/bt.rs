@@ -3,25 +3,62 @@ use gosh_dl::torrent::{Metainfo, MagnetUri};
 use super::DownloadInspection;
 
 /// Fetch torrent file bytes from a local file path, file:/// URL, or remote HTTP/HTTPS link.
-pub async fn fetch_torrent_bytes(url: &str, ignore_ssl: bool) -> Result<Vec<u8>, String> {
+pub async fn fetch_torrent_bytes(
+    url: &str,
+    ignore_ssl: bool,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Vec<String>,
+    max_retries: usize,
+) -> Result<Vec<u8>, String> {
     let mut target_url = url.trim().to_string();
     if target_url.to_lowercase().starts_with("torrent:") {
         target_url = target_url["torrent:".len()..].to_string();
     }
 
     if target_url.to_lowercase().starts_with("http://") || target_url.to_lowercase().starts_with("https://") {
-        let client = reqwest::Client::builder()
-            .danger_accept_invalid_certs(ignore_ssl)
-            .build()
+        let mut client_builder = reqwest::Client::builder()
+            .danger_accept_invalid_certs(ignore_ssl);
+        if let Some(ua) = user_agent {
+            client_builder = client_builder.user_agent(ua);
+        }
+        let client = client_builder.build()
             .map_err(|e| format!("Failed to build HTTP client: {}", e))?;
-        let response = client.get(&target_url)
-            .send()
-            .await
-            .map_err(|e| format!("Failed to download torrent: {}", e))?;
-        let bytes = response.bytes()
-            .await
-            .map_err(|e| format!("Failed to read torrent response: {}", e))?;
-        Ok(bytes.to_vec())
+
+        let mut last_err = None;
+        for attempt in 0..=max_retries {
+            if attempt > 0 {
+                tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
+            }
+
+            let mut req_builder = client.get(&target_url);
+            if let Some(ref ref_val) = referer {
+                req_builder = req_builder.header(reqwest::header::REFERER, ref_val);
+            }
+            if !cookies.is_empty() {
+                let cookie_str = cookies.join("; ");
+                req_builder = req_builder.header(reqwest::header::COOKIE, cookie_str);
+            }
+
+            match req_builder.send().await {
+                Ok(response) => {
+                    if !response.status().is_success() {
+                        last_err = Some(format!("HTTP status error: {}", response.status()));
+                        continue;
+                    }
+                    match response.bytes().await {
+                        Ok(bytes) => return Ok(bytes.to_vec()),
+                        Err(e) => {
+                            last_err = Some(format!("Failed to read response body: {}", e));
+                        }
+                    }
+                }
+                Err(e) => {
+                    last_err = Some(format!("Failed to send request: {}", e));
+                }
+            }
+        }
+        Err(last_err.unwrap_or_else(|| "Failed to download torrent file after retries".to_string()))
     } else {
         // Local file path
         let path_buf = if target_url.to_lowercase().starts_with("file:///") {
@@ -53,8 +90,15 @@ pub fn inspect_magnet(url: &str) -> Result<DownloadInspection, String> {
 }
 
 /// Inspect local or remote torrent file metadata.
-pub async fn inspect_torrent(url: &str, ignore_ssl: bool) -> Result<DownloadInspection, String> {
-    let bytes = fetch_torrent_bytes(url, ignore_ssl).await?;
+pub async fn inspect_torrent(
+    url: &str,
+    ignore_ssl: bool,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Vec<String>,
+    max_retries: usize,
+) -> Result<DownloadInspection, String> {
+    let bytes = fetch_torrent_bytes(url, ignore_ssl, user_agent, referer, cookies, max_retries).await?;
     let metainfo = Metainfo::parse(&bytes)
         .map_err(|e| format!("Invalid torrent file: {}", e))?;
     let files = metainfo.info.files.iter().map(|file| {

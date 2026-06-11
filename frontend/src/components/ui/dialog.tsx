@@ -95,7 +95,7 @@ function DialogOverlay({
       <motion.div
         data-slot="dialog-overlay"
         className={cn(
-          "fixed inset-0 isolate z-50 bg-black/10 supports-backdrop-filter:backdrop-blur-xs",
+          "fixed inset-0 isolate z-50 bg-black/10 backdrop-blur-xs",
           className
         )}
         initial={{ opacity: 0 }}
@@ -152,11 +152,19 @@ function DialogContent({
               }}
               onInteractOutside={(event) => {
                 onInteractOutside?.(event)
-                if (!isDismissible) event.preventDefault()
+                if (event.target instanceof Element && event.target.closest(".window-frame")) {
+                  event.preventDefault()
+                } else if (!isDismissible) {
+                  event.preventDefault()
+                }
               }}
               onPointerDownOutside={(event) => {
                 onPointerDownOutside?.(event)
-                if (!isDismissible) event.preventDefault()
+                if (event.target instanceof Element && event.target.closest(".window-frame")) {
+                  event.preventDefault()
+                } else if (!isDismissible) {
+                  event.preventDefault()
+                }
               }}
               {...props}
             >

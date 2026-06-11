@@ -91,6 +91,7 @@ pub struct TransferSettings {
     pub speed_display_unit: SpeedDisplayUnit,
     #[serde(skip_serializing)]
     pub speed_limit_unit: Option<SpeedDisplayUnit>,
+    pub proxy_url: Option<String>,
 }
 
 impl Default for TransferSettings {
@@ -104,6 +105,7 @@ impl Default for TransferSettings {
             upload_speed_limit_kib: None,
             speed_display_unit: SpeedDisplayUnit::Auto,
             speed_limit_unit: None,
+            proxy_url: None,
         }
     }
 }
@@ -120,6 +122,11 @@ impl TransferSettings {
         if let Some(legacy_unit) = self.speed_limit_unit.take() {
             self.speed_display_unit = legacy_unit;
         }
+
+        self.proxy_url = self.proxy_url
+            .as_ref()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty());
     }
 }
 

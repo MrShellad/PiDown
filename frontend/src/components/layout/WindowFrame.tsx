@@ -127,7 +127,7 @@ export default function WindowFrame({
   }, []);
 
   return (
-    <div className="relative select-none" style={{ zIndex: 100 }}>
+    <div className="window-frame relative select-none" style={{ zIndex: 100 }}>
       <div
         className="flex items-center rounded-t-lg border-b border-border bg-card text-base backdrop-blur-md"
         style={{ height: UI_TOKENS.frameHeights.modern }}

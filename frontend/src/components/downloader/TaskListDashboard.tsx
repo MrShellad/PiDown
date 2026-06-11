@@ -11,9 +11,7 @@ import type { Task } from "@/core/store/useDownloadStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
 import {
-  getTaskTableShellMinWidth,
   getTaskTableWidth,
-  TASK_LIST_EDGE_SAFE_PADDING,
 } from "@/core/taskTableLayout";
 import DownloadToolbar from "./DownloadToolbar";
 import NewTaskModal from "./NewTaskModal";
@@ -54,6 +52,8 @@ const PAGINATION_HEIGHT = 48;
 const PAGINATION_GAP = 8;
 const PAGINATION_OFFSET = PAGINATION_HEIGHT + PAGINATION_GAP;
 const TOTAL_OFFSET = HEADER_OFFSET + PAGINATION_OFFSET;
+
+const SCROLLBAR_WIDTH = 8;
 
 const STATUS_SORT_WEIGHT: Record<Task["status"], number> = {
   Downloading: 0,
@@ -207,7 +207,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     () => getFilterLabel(activeFilter, categories, tags),
     [activeFilter, categories, tags]
   );
-  const tableShellMinWidth = getTaskTableShellMinWidth(columns);
   const tableWidth = getTaskTableWidth(columns);
   const selectedFilteredCount = paginatedFilteredGids.filter((gid) => selectedTaskIds.has(gid)).length;
   const allFilteredSelected =
@@ -475,11 +474,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   };
 
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col overflow-x-auto overflow-y-hidden pt-4 pb-4 pr-4 pl-4 select-none scrollbar-interactive scrollbar-overlay scrollbar-auto-hide"
-      style={{ overflowX: "overlay" as React.CSSProperties["overflowX"] }}
-    >
-      <div className="flex min-h-0 flex-1 flex-col gap-5 px-0 pt-0" style={{ minWidth: tableShellMinWidth }}>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4 pb-4 pr-4 pl-4 select-none">
+      <div className="flex min-h-0 flex-1 flex-col gap-5 px-0 pt-0">
           <div className="shrink-0 px-3">
             <DownloadToolbar
               selectedTaskCount={selectedTaskCount}
@@ -501,42 +497,46 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div
-                className="flex min-h-0 flex-1 flex-col overflow-visible rounded-lg relative"
-                style={{
-                  width: "100%",
-                  minWidth: tableShellMinWidth,
-                  paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
-                  paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
-                }}
+                className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scrollbar-horizontal-margins"
+                style={{ overflowX: "overlay" as React.CSSProperties["overflowX"] }}
               >
                 <div
-                  className="absolute top-0 z-20"
+                  className="flex min-h-0 flex-col overflow-visible relative"
                   style={{
-                    width: `calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING * 2}px)`,
-                    left: `${TASK_LIST_EDGE_SAFE_PADDING}px`,
+                    width: "100%",
+                    minWidth: tableWidth + 24 + SCROLLBAR_WIDTH,
+                    paddingLeft: 12,
+                    paddingRight: 12 + SCROLLBAR_WIDTH,
+                    height: "100%",
                   }}
                 >
-                  <TaskListHeader
-                    checked={headerChecked}
-                    disabled={filteredGids.length === 0}
-                    embedded
-                    onCheckedChange={toggleAllFilteredTasks}
-                  />
-                </div>
-                <div
-                  ref={rowViewportRef}
-                  className={`relative mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-14 pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
-                    filteredGids.length === 0 ? "flex flex-col" : ""
-                  }`}
-                  style={{
-                    marginLeft: -TASK_LIST_EDGE_SAFE_PADDING,
-                    marginRight: -TASK_LIST_EDGE_SAFE_PADDING,
-                    paddingLeft: TASK_LIST_EDGE_SAFE_PADDING,
-                    paddingRight: TASK_LIST_EDGE_SAFE_PADDING,
-                    overflowY: "overlay" as React.CSSProperties["overflowY"],
-                    clipPath: `polygon(${TASK_LIST_EDGE_SAFE_PADDING + 10}px 0px, calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING + 10}px) 0px, calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING}px) 10px, 100% 10px, 100% calc(100% - 10px), calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING}px) calc(100% - 10px), calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING + 10}px) 100%, ${TASK_LIST_EDGE_SAFE_PADDING + 10}px 100%, ${TASK_LIST_EDGE_SAFE_PADDING}px calc(100% - 10px), 0px calc(100% - 10px), 0px 10px, ${TASK_LIST_EDGE_SAFE_PADDING}px 10px)`,
-                  }}
-                  onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+                  <div
+                    className="absolute top-0 z-20"
+                    style={{
+                      width: `calc(100% - 24px - ${SCROLLBAR_WIDTH}px)`,
+                      left: 12,
+                    }}
+                  >
+                    <TaskListHeader
+                      checked={headerChecked}
+                      disabled={filteredGids.length === 0}
+                      embedded
+                      onCheckedChange={toggleAllFilteredTasks}
+                    />
+                  </div>
+                  <div
+                    ref={rowViewportRef}
+                    className={`relative mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
+                      filteredGids.length === 0 ? "flex flex-col" : ""
+                    }`}
+                    style={{
+                      marginLeft: -12,
+                      marginRight: -SCROLLBAR_WIDTH,
+                      paddingLeft: 12,
+                      paddingRight: SCROLLBAR_WIDTH,
+                      overflowY: "overlay" as React.CSSProperties["overflowY"],
+                    }}
+                    onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
                 >
                   <div className="h-[52px] shrink-0" />
                   <div className="h-2 shrink-0" />
@@ -573,7 +573,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       )}
                     </motion.div>
                   ) : (
-                    <div className="relative" style={{ width: hasScrollbar ? "calc(100% + 0.375rem)" : "100%", minWidth: tableWidth, height: virtualHeight }}>
+                    <div className="relative" style={{ width: hasScrollbar ? `calc(100% + ${SCROLLBAR_WIDTH}px)` : "100%", minWidth: tableWidth, height: virtualHeight }}>
                       <div aria-hidden="true" style={{ height: virtualTopSpacer }} />
                       <Reorder.Group
                         as="div"
@@ -652,16 +652,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
 
-                {/* Pagination Controls */}
-                <div
-                  className="absolute bottom-0 z-20"
-                  style={{
-                    width: `calc(100% - ${TASK_LIST_EDGE_SAFE_PADDING * 2}px)`,
-                    left: `${TASK_LIST_EDGE_SAFE_PADDING}px`,
-                  }}
-                >
-                  <div className="flex h-12 items-center justify-between rounded-lg bg-card/80 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
+              {/* Pagination Controls */}
+              <div className="shrink-0 px-3 pt-2">
+                <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
                     {/* Left: Range Info */}
                     <div className="flex items-center gap-1.5 font-medium">
                       <span>显示</span>
@@ -769,7 +765,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
               </div>
             </div>
           </div>
-      </div>
 
       <NewTaskModal
         open={modalOpen}

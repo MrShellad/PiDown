@@ -37,7 +37,7 @@ function parsePositiveInteger(value: string) {
   return Number.isFinite(numeric) && numeric > 0 ? Math.round(numeric) : null
 }
 
-function parseCookieInput(value: string) {
+export function parseCookieInput(value: string) {
   return value
     .split(/[\n;]+/)
     .map((cookie) => cookie.trim())

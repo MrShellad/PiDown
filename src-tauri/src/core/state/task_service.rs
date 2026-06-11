@@ -354,7 +354,19 @@ impl super::AppState {
             }
             DownloadProtocol::Torrent => {
                 let ignore_ssl = settings.transfer.ignore_ssl_certificate;
-                let mut bytes = crate::download::bt::fetch_torrent_bytes(url, ignore_ssl).await?;
+                let ua = resolve_user_agent(task_options.user_agent.clone(), &settings.download.global_user_agent);
+                let cookies_norm = normalize_cookies(task_options.cookies.clone());
+                let referer_norm = normalize_optional_header_value(task_options.referer.clone());
+                let max_retries = settings.transfer.max_download_retries as usize;
+
+                let mut bytes = crate::download::bt::fetch_torrent_bytes(
+                    url,
+                    ignore_ssl,
+                    ua,
+                    referer_norm,
+                    cookies_norm,
+                    max_retries,
+                ).await?;
 
                 let trackers: Vec<String> = settings.bt.tracker_list
                     .lines()
@@ -492,17 +504,37 @@ impl super::AppState {
         })
     }
 
-    pub async fn inspect_download(&self, url: &str) -> Result<DownloadInspection, String> {
+    pub async fn inspect_download(
+        &self,
+        url: &str,
+        user_agent: Option<String>,
+        referer: Option<String>,
+        cookies: Option<Vec<String>>,
+    ) -> Result<DownloadInspection, String> {
         let settings = self.settings.read().unwrap().clone();
         match detect_protocol(url) {
-            DownloadProtocol::Http | DownloadProtocol::Https => self
-                .engine
-                .inspect_http(url, Some(&settings.download.global_user_agent))
-                .await,
+            DownloadProtocol::Http | DownloadProtocol::Https => {
+                let ua = resolve_user_agent(user_agent, &settings.download.global_user_agent);
+                self.engine
+                    .inspect_http(url, ua.as_deref())
+                    .await
+            }
             DownloadProtocol::Magnet => crate::download::bt::inspect_magnet(url),
             DownloadProtocol::Torrent => {
                 let ignore_ssl = settings.transfer.ignore_ssl_certificate;
-                crate::download::bt::inspect_torrent(url, ignore_ssl).await
+                let ua = resolve_user_agent(user_agent, &settings.download.global_user_agent);
+                let cookies_norm = cookies.map(normalize_cookies).unwrap_or_default();
+                let referer_norm = normalize_optional_header_value(referer);
+                let max_retries = settings.transfer.max_download_retries as usize;
+                
+                crate::download::bt::inspect_torrent(
+                    url,
+                    ignore_ssl,
+                    ua,
+                    referer_norm,
+                    cookies_norm,
+                    max_retries,
+                ).await
             }
             _ => Err("Unsupported protocol for metadata inspection".to_string()),
         }

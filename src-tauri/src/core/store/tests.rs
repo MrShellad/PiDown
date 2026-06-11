@@ -179,6 +179,8 @@ fn test_task_crud() {
         started_at: Some(123456),
         completed_at: None,
         error_message: None,
+        max_download_speed_kib: None,
+        max_upload_speed_kib: None,
     };
 
     store.insert_task(&task).unwrap();
@@ -316,6 +318,8 @@ fn test_delete_completed_tasks() {
                 started_at: Some(123456),
                 completed_at: None,
                 error_message: None,
+                max_download_speed_kib: None,
+                max_upload_speed_kib: None,
             })
             .unwrap();
     }
@@ -392,6 +396,8 @@ fn test_task_tag_relationships() {
         started_at: Some(123456),
         completed_at: None,
         error_message: None,
+        max_download_speed_kib: None,
+        max_upload_speed_kib: None,
     };
     store.insert_task(&task).unwrap();
 
@@ -440,6 +446,8 @@ fn test_foreign_keys_cleanup_task_tags() {
             started_at: Some(123456),
             completed_at: None,
             error_message: None,
+            max_download_speed_kib: None,
+            max_upload_speed_kib: None,
         })
         .unwrap();
 

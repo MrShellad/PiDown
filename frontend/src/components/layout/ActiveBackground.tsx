@@ -79,7 +79,7 @@ export default function ActiveBackground() {
 
   return (
     <div
-      className="fixed inset-0 -z-50 overflow-hidden select-none pointer-events-none transition-all duration-300"
+      className="absolute inset-0 -z-50 overflow-hidden select-none pointer-events-none transition-all duration-300 rounded-lg"
       style={{ opacity: opacityVal / 100 }}
     >
       {renderContent()}

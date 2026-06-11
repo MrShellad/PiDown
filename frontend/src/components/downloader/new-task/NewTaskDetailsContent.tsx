@@ -38,6 +38,7 @@ interface NewTaskDetailsContentProps {
   onPickSaveDirectory: () => void
   onSelectedFilesChange: (selected: number[]) => void
   onSequentialChange: (value: boolean) => void
+  onRetryMetadata?: () => void
 }
 
 export function NewTaskDetailsContent({
@@ -72,6 +73,7 @@ export function NewTaskDetailsContent({
   onPickSaveDirectory,
   onSelectedFilesChange,
   onSequentialChange,
+  onRetryMetadata,
 }: NewTaskDetailsContentProps) {
   return (
     <div className="space-y-4">
@@ -115,6 +117,7 @@ export function NewTaskDetailsContent({
             onCategoryChange={onCategoryChange}
             onPasteFromClipboard={onPasteFromClipboard}
             onPickSaveDirectory={onPickSaveDirectory}
+            onRetryMetadata={onRetryMetadata}
           />
         )
       ) : (

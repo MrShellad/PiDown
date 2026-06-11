@@ -86,6 +86,7 @@ export default function NewTaskModal({
                   onPickSaveDirectory={actions.pickSaveDirectory}
                   onSelectedFilesChange={actions.setSelectedFiles}
                   onSequentialChange={actions.setSequential}
+                  onRetryMetadata={actions.retryMetadataProbe}
                 />
               )}
             </DialogBody>

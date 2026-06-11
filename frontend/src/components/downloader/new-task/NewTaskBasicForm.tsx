@@ -27,6 +27,7 @@ interface NewTaskBasicFormProps {
   onCategoryChange: (value: number | null) => void
   onPasteFromClipboard: () => void
   onPickSaveDirectory: () => void
+  onRetryMetadata?: () => void
 }
 
 function RuleIconPreview({
@@ -50,10 +51,12 @@ function RuleIconPreview({
 function MetadataProbeCard({
   loading,
   hasMetadata,
+  onRetry,
   className,
 }: {
   loading: boolean
   hasMetadata: boolean
+  onRetry?: () => void
   className?: string
 }) {
   return (
@@ -77,13 +80,28 @@ function MetadataProbeCard({
         <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
           {loading ? <LoaderCircle className="size-4 animate-spin" /> : <Radar className="size-4" />}
         </span>
-        <div className="min-w-0">
-          <div className="text-xs font-semibold leading-4 text-foreground">
-            {loading
-              ? UI_TEXT.newTask.metadataProbeTitle
-              : hasMetadata
-                ? UI_TEXT.newTask.metadataProbeDone
-                : UI_TEXT.newTask.metadataProbeFallbackTitle}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-semibold leading-4 text-foreground">
+              {loading
+                ? UI_TEXT.newTask.metadataProbeTitle
+                : hasMetadata
+                  ? UI_TEXT.newTask.metadataProbeDone
+                  : UI_TEXT.newTask.metadataProbeFallbackTitle}
+            </div>
+            {!loading && !hasMetadata && onRetry && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  onRetry()
+                }}
+                className="text-xs text-primary hover:underline font-medium focus:outline-none"
+              >
+                {UI_TEXT.newTask.retry || "重试"}
+              </button>
+            )}
           </div>
           <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">
             {loading
@@ -116,6 +134,7 @@ export function NewTaskBasicForm({
   onCategoryChange,
   onPasteFromClipboard,
   onPickSaveDirectory,
+  onRetryMetadata,
 }: NewTaskBasicFormProps) {
   return (
     <motion.div
@@ -194,6 +213,7 @@ export function NewTaskBasicForm({
         <MetadataProbeCard
           loading={metadataLoading}
           hasMetadata={Boolean(totalSize)}
+          onRetry={onRetryMetadata}
           className="w-full text-left"
         />
       </aside>

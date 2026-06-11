@@ -73,7 +73,7 @@ export default function App() {
   return (
     <ThemeProvider taskRuntime>
       <TooltipProvider>
-        <div className="flex h-screen flex-col overflow-hidden bg-transparent">
+        <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
           <ActiveBackground />
           {!hideBorderAndBg && (
             <WindowFrame title="PiDownloader" onOpenSettings={() => setSettingsOpen(true)} />
@@ -91,7 +91,7 @@ export default function App() {
               size="full"
               showCloseButton={false}
               className="border border-border bg-background/95 p-0 shadow-surface-strong"
-              overlayClassName="bg-black/14 supports-backdrop-filter:backdrop-blur-[2px]"
+              overlayClassName="bg-black/45 backdrop-blur-none"
               style={{
                 width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
                 height: `min(${UI_TOKENS.settingsDialog.height}, ${UI_TOKENS.settingsDialog.maxHeight})`,

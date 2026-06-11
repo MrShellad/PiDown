@@ -148,6 +148,7 @@ export interface AppSettings {
     download_speed_limit_kib: number | null;
     upload_speed_limit_kib: number | null;
     speed_display_unit: SpeedDisplayUnit;
+    proxy_url: string | null;
   };
   interface: {
     close_action: CloseAction;
@@ -229,8 +230,18 @@ export async function checkFileConflict(
   return invoke<FileConflictCheck>("check_file_conflict", { path, filename });
 }
 
-export async function inspectDownloadMetadata(url: string): Promise<DownloadMetadata> {
-  return invoke<DownloadMetadata>("inspect_download_metadata", { url });
+export async function inspectDownloadMetadata(
+  url: string,
+  userAgent?: string | null,
+  referer?: string | null,
+  cookies?: string[]
+): Promise<DownloadMetadata> {
+  return invoke<DownloadMetadata>("inspect_download_metadata", {
+    url,
+    userAgent: userAgent ?? null,
+    referer: referer ?? null,
+    cookies: cookies ?? [],
+  });
 }
 
 export async function readClipboardText(): Promise<string> {
@@ -391,6 +402,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       download_speed_limit_kib: null,
       upload_speed_limit_kib: null,
       speed_display_unit: "auto",
+      proxy_url: null,
     },
     interface: {
       close_action: "minimize",

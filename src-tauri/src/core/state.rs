@@ -46,6 +46,8 @@ impl AppState {
             max_connections_per_download: settings.transfer.task_thread_count as usize,
             max_retries: settings.transfer.max_download_retries as usize,
             accept_invalid_certs: settings.transfer.ignore_ssl_certificate,
+            proxy_url: settings.transfer.proxy_url.clone(),
+            user_agent: settings.download.global_user_agent.clone(),
         };
         let engine = EngineWrapper::new(Some(app_data_dir), Some(engine_http_config)).await?;
 

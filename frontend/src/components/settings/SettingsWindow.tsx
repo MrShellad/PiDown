@@ -3,6 +3,8 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
   Cable,
+  ChevronLeft,
+  ChevronRight,
   Download,
   FolderOpen,
   Gauge,
@@ -222,6 +224,15 @@ export default function SettingsWindow() {
   
   // Tracker updating states
   const [updatingTrackers, setUpdatingTrackers] = useState(false);
+
+  const [bgPage, setBgPage] = useState(0);
+
+  useEffect(() => {
+    const totalPages = Math.ceil((backgrounds.length + 1) / 4);
+    if (bgPage >= totalPages && totalPages > 0) {
+      setBgPage(totalPages - 1);
+    }
+  }, [backgrounds, bgPage]);
 
   const handleUpdateTrackers = async () => {
     if (!draft?.bt?.tracker_subscribe_url?.trim()) return;
@@ -845,6 +856,33 @@ export default function SettingsWindow() {
                           </div>
                         </SettingsListItem>
                       )}
+                      <SettingsListItem
+                        title="全局速度限制"
+                        description="设置全局下载和上传的最大速率限制。留空表示不限制速度。"
+                      >
+                        <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">下载</span>
+                            <SettingsInput
+                              value={downloadLimitInput}
+                              onChange={(event) => setDownloadLimitInput(event.target.value)}
+                              placeholder={UI_TEXT.settings.unlimitedPlaceholder}
+                              className="font-mono flex-1 min-w-0"
+                            />
+                            <span className="text-xs text-muted-foreground shrink-0 w-10">KiB/s</span>
+                          </div>
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">上传</span>
+                            <SettingsInput
+                              value={uploadLimitInput}
+                              onChange={(event) => setUploadLimitInput(event.target.value)}
+                              placeholder={UI_TEXT.settings.unlimitedPlaceholder}
+                              className="font-mono flex-1 min-w-0"
+                            />
+                            <span className="text-xs text-muted-foreground shrink-0 w-10">KiB/s</span>
+                          </div>
+                        </div>
+                      </SettingsListItem>
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -865,8 +903,9 @@ export default function SettingsWindow() {
                   />
 
                   <div className="mt-5">
+                    {/* Group 1: 并发与队列 */}
                     <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      {UI_TEXT.settings.groupBandwidth}
+                      并发与队列
                     </div>
                     <SettingsList>
                       <SettingsListItem
@@ -893,25 +932,6 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
                       <SettingsListItem
-                        title={UI_TEXT.settings.speedDisplayUnit}
-                        description={UI_TEXT.settings.speedDisplayUnitDesc}
-                      >
-                        <OptionDropdown
-                          value={draft.transfer.speed_display_unit}
-                          options={SPEED_DISPLAY_UNIT_OPTIONS}
-                          onValueChange={(nextUnit) =>
-                            updateDraft((prev) => ({
-                              ...prev,
-                              transfer: {
-                                ...prev.transfer,
-                                speed_display_unit: nextUnit,
-                              },
-                            }))
-                          }
-                          ariaLabel={UI_TEXT.settings.speedDisplayUnit}
-                        />
-                      </SettingsListItem>
-                      <SettingsListItem
                         title="单任务线程数"
                         description="新建 HTTP/HTTPS 任务时传给 gosh-dl 的 max_connections，用于分段并行下载。"
                       >
@@ -929,6 +949,72 @@ export default function SettingsWindow() {
                             }))
                           }
                           valueText={`每个任务最多 ${draft.transfer.task_thread_count} 条连接`}
+                        />
+                      </SettingsListItem>
+                    </SettingsList>
+
+                    {/* Group 2: 网络与安全 */}
+                    <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      网络与安全
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title="全局代理设置"
+                        description="配置全局 HTTP/HTTPS/SOCKS5 代理，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:7890；留空则不使用代理。"
+                        childrenSpan="full"
+                      >
+                        <SettingsInput
+                          value={draft.transfer.proxy_url || ""}
+                          onChange={(event) => {
+                            const val = event.target.value;
+                            updateDraft((prev) => ({
+                              ...prev,
+                              transfer: {
+                                ...prev.transfer,
+                                proxy_url: val.trim() || null,
+                              },
+                            }))
+                          }}
+                          placeholder="http://127.0.0.1:7890"
+                          className="font-mono"
+                        />
+                      </SettingsListItem>
+                      <SettingsListItem
+                        title="忽略 SSL 证书错误"
+                        description="允许 gosh-dl 接受无效 HTTPS 证书；该开关会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。仅建议在可信内网、自签证书源或临时排障时开启。"
+                        action={
+                          <Switch
+                            checked={draft.transfer.ignore_ssl_certificate}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                transfer: {
+                                  ...prev.transfer,
+                                  ignore_ssl_certificate: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title="最大下载重试次数"
+                        description="传给 gosh-dl 的 HTTP max_retries，网络波动或服务端临时错误时使用；该值会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。"
+                      >
+                        <Slider
+                          min={0}
+                          max={20}
+                          value={draft.transfer.max_download_retries}
+                          onValueChange={(value) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              transfer: {
+                                ...prev.transfer,
+                                max_download_retries: value,
+                              },
+                            }))
+                          }
+                          valueText={`最多重试 ${draft.transfer.max_download_retries} 次`}
                         />
                       </SettingsListItem>
                       <SettingsListItem
@@ -951,73 +1037,31 @@ export default function SettingsWindow() {
                           className="font-mono"
                         />
                       </SettingsListItem>
+                    </SettingsList>
+
+                    {/* Group 3: 界面与显示 */}
+                    <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      界面与显示
+                    </div>
+                    <SettingsList>
                       <SettingsListItem
-                        title="最大下载重试次数"
-                        description="传给 gosh-dl 的 HTTP max_retries，网络波动或服务端临时错误时使用；该值会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。"
+                        title={UI_TEXT.settings.speedDisplayUnit}
+                        description={UI_TEXT.settings.speedDisplayUnitDesc}
                       >
-                        <Slider
-                          min={0}
-                          max={20}
-                          value={draft.transfer.max_download_retries}
-                          onValueChange={(value) =>
+                        <OptionDropdown
+                          value={draft.transfer.speed_display_unit}
+                          options={SPEED_DISPLAY_UNIT_OPTIONS}
+                          onValueChange={(nextUnit) =>
                             updateDraft((prev) => ({
                               ...prev,
                               transfer: {
                                 ...prev.transfer,
-                                max_download_retries: value,
+                                speed_display_unit: nextUnit,
                               },
                             }))
                           }
-                          valueText={`最多重试 ${draft.transfer.max_download_retries} 次`}
+                          ariaLabel={UI_TEXT.settings.speedDisplayUnit}
                         />
-                      </SettingsListItem>
-                      <SettingsListItem
-                        title="忽略 SSL 证书错误"
-                        description="允许 gosh-dl 接受无效 HTTPS 证书；该开关会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。仅建议在可信内网、自签证书源或临时排障时开启。"
-                        action={
-                          <Switch
-                            checked={draft.transfer.ignore_ssl_certificate}
-                            onCheckedChange={(checked) =>
-                              updateDraft((prev) => ({
-                                ...prev,
-                                transfer: {
-                                  ...prev.transfer,
-                                  ignore_ssl_certificate: checked,
-                                },
-                              }))
-                            }
-                          />
-                        }
-                      />
-                      <SettingsListItem
-                        title={UI_TEXT.settings.downloadSpeedLimit}
-                        description={UI_TEXT.settings.downloadSpeedLimitDesc}
-                      >
-                        <div className="space-y-2">
-                          <SettingsInput
-                            value={downloadLimitInput}
-                            onChange={(event) => setDownloadLimitInput(event.target.value)}
-                            placeholder={UI_TEXT.settings.unlimitedPlaceholder}
-                          />
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {UI_TEXT.settings.limitUnitHint}
-                          </p>
-                        </div>
-                      </SettingsListItem>
-                      <SettingsListItem
-                        title={UI_TEXT.settings.uploadSpeedLimit}
-                        description={UI_TEXT.settings.uploadSpeedLimitDesc}
-                      >
-                        <div className="space-y-2">
-                          <SettingsInput
-                            value={uploadLimitInput}
-                            onChange={(event) => setUploadLimitInput(event.target.value)}
-                            placeholder={UI_TEXT.settings.unlimitedPlaceholder}
-                          />
-                          <p className="text-sm leading-6 text-muted-foreground">
-                            {UI_TEXT.settings.limitUnitHint}
-                          </p>
-                        </div>
                       </SettingsListItem>
                     </SettingsList>
                   </div>
@@ -1698,74 +1742,223 @@ export default function SettingsWindow() {
                         </div>
                       </div>
 
-                      {/* Config Options: Blur, Mask Color, Mask Opacity */}
-                      <div className="grid gap-6 md:grid-cols-2">
-                        <div className="space-y-4">
-                          <Slider
-                            label="背景模糊"
-                            description="调整背景的模糊半径以提升前台文本可读性"
-                            value={draft.interface.background_blur ?? 0}
-                            min={0}
-                            max={40}
-                            step={1}
-                            valueText={`${draft.interface.background_blur ?? 0} px`}
-                            onValueChange={(val) =>
-                              updateDraft((prev) => ({
-                                ...prev,
-                                interface: {
-                                  ...prev.interface,
-                                  background_blur: val,
-                                },
-                              }))
-                            }
-                          />
+                      {/* Background List Manager Grid (Paginated Row, 4 Columns) */}
+                      <div className="space-y-3 border-t border-border/60 pt-5">
+                        <span className="block text-sm font-semibold leading-5 text-foreground">
+                          已导入的背景
+                        </span>
+                        
+                        <div className="flex items-center gap-3">
+                          {/* Left Arrow Button */}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setBgPage((prev) => Math.max(0, prev - 1))}
+                            disabled={bgPage === 0}
+                            className="size-9 shrink-0 rounded-lg cursor-pointer"
+                          >
+                            <ChevronLeft className="size-5" />
+                          </Button>
 
-                          <Slider
-                            label="遮罩不透明度"
-                            description="调整背景遮罩的不透明度"
-                            value={draft.interface.background_mask_opacity ?? 0}
-                            min={0}
-                            max={100}
-                            step={1}
-                            valueText={`${draft.interface.background_mask_opacity ?? 0} %`}
-                            onValueChange={(val) =>
-                              updateDraft((prev) => ({
-                                ...prev,
-                                interface: {
-                                  ...prev.interface,
-                                  background_mask_opacity: val,
-                                },
-                              }))
-                            }
-                          />
+                          {/* 4-Column Grid Row */}
+                          <div className="flex-1 grid grid-cols-4 gap-4">
+                            {(() => {
+                              const allBgs = [null, ...backgrounds];
+                              const startIndex = bgPage * 4;
+                              const visibleBgs = allBgs.slice(startIndex, startIndex + 4);
+
+                              return (
+                                <>
+                                  {visibleBgs.map((bg) => {
+                                    if (bg === null) {
+                                      return (
+                                        <button
+                                          key="default-bg"
+                                          onClick={() =>
+                                            updateDraft((prev) => ({
+                                              ...prev,
+                                              interface: {
+                                                ...prev.interface,
+                                                background_id: null,
+                                              },
+                                            }))
+                                          }
+                                          className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm text-left transition-all cursor-pointer ${
+                                            draft.interface.background_id === null
+                                              ? "border-primary ring-2 ring-primary/25"
+                                              : "border-border hover:border-primary/45 hover:bg-card"
+                                          }`}
+                                        >
+                                          <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center">
+                                            <span className="text-sm font-bold text-foreground">无 / 默认背景</span>
+                                            <span className="mt-1 text-xs text-muted-foreground">使用主题自带特效</span>
+                                          </div>
+                                          {draft.interface.background_id === null && (
+                                            <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                                              使用中
+                                            </div>
+                                          )}
+                                        </button>
+                                      );
+                                    }
+
+                                    const active = draft.interface.background_id === bg.id;
+                                    const assetUrl = bg.path ? convertFileSrc(bg.path) : "";
+                                    const thumbUrl = bg.thumbnail ? convertFileSrc(bg.thumbnail) : assetUrl;
+
+                                    return (
+                                      <div
+                                        key={bg.id}
+                                        className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm transition-all ${
+                                          active
+                                            ? "border-primary ring-2 ring-primary/25"
+                                            : "border-border hover:border-primary/45"
+                                        }`}
+                                      >
+                                        {/* Background thumbnail render */}
+                                        <button
+                                          onClick={() =>
+                                            updateDraft((prev) => ({
+                                              ...prev,
+                                              interface: {
+                                                ...prev.interface,
+                                                background_id: bg.id,
+                                              },
+                                            }))
+                                          }
+                                          className="h-full w-full focus:outline-none cursor-pointer"
+                                        >
+                                          {bg.type === "video" ? (
+                                            <video
+                                              src={assetUrl}
+                                              muted
+                                              loop
+                                              className="h-full w-full object-cover"
+                                              onMouseEnter={(e) => {
+                                                e.currentTarget.play().catch(() => {});
+                                              }}
+                                              onMouseLeave={(e) => {
+                                                e.currentTarget.pause();
+                                                e.currentTarget.currentTime = 0;
+                                              }}
+                                            />
+                                          ) : (
+                                            <img
+                                              src={thumbUrl}
+                                              alt="background"
+                                              className="h-full w-full object-cover"
+                                            />
+                                          )}
+                                        </button>
+
+                                        {/* Badges */}
+                                        {active && (
+                                          <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm z-10">
+                                            已应用
+                                          </div>
+                                        )}
+
+                                        {bg.is_online && (
+                                          <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm z-10">
+                                            在线
+                                          </div>
+                                        )}
+
+                                        {/* Delete Overlay / Button */}
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDeleteBackground(bg.id);
+                                          }}
+                                          className="absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-opacity group-hover:opacity-100 shadow-sm z-20 cursor-pointer"
+                                          title="删除背景记录"
+                                        >
+                                          <Trash2 className="size-4" />
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
+
+                                  {/* Empty placeholders to preserve grid layout and column widths */}
+                                  {Array.from({ length: 4 - visibleBgs.length }).map((_, i) => (
+                                    <div
+                                      key={`placeholder-${i}`}
+                                      className="aspect-video rounded-xl border border-dashed border-border/30 bg-secondary/5 opacity-40"
+                                    />
+                                  ))}
+                                </>
+                              );
+                            })()}
+                          </div>
+
+                          {/* Right Arrow Button */}
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() => {
+                              const allBgs = [null, ...backgrounds];
+                              const totalPages = Math.ceil(allBgs.length / 4);
+                              setBgPage((prev) => Math.min(totalPages - 1, prev + 1));
+                            }}
+                            disabled={bgPage >= Math.ceil(([null, ...backgrounds].length) / 4) - 1}
+                            className="size-9 shrink-0 rounded-lg cursor-pointer"
+                          >
+                            <ChevronRight className="size-5" />
+                          </Button>
                         </div>
+                      </div>
 
-                        <div className="space-y-4">
-                          <div>
-                            <span className="block text-sm font-semibold leading-5 text-foreground">
-                              遮罩颜色
-                            </span>
-                            <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                              设置背景上的叠加遮罩颜色
-                            </p>
-                            <div className="mt-3 flex items-center gap-3">
-                              <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
-                                <input
-                                  type="color"
-                                  value={draft.interface.background_mask_color || "#000000"}
-                                  onChange={(e) =>
-                                    updateDraft((prev) => ({
-                                      ...prev,
-                                      interface: {
-                                        ...prev.interface,
-                                        background_mask_color: e.target.value,
-                                      },
-                                    }))
-                                  }
-                                  className="absolute -inset-2 size-[150%] cursor-pointer border-0 bg-transparent p-0"
-                                />
-                              </div>
-                              <SettingsInput
+                      {/* Config Options: Blur -> Opacity -> Mask Color -> Mask Opacity */}
+                      <div className="space-y-6 border-t border-border/60 pt-5">
+                        <Slider
+                          label="背景模糊"
+                          description="调整背景的模糊半径以提升前台文本可读性"
+                          value={draft.interface.background_blur ?? 0}
+                          min={0}
+                          max={40}
+                          step={1}
+                          valueText={`${draft.interface.background_blur ?? 0} px`}
+                          onValueChange={(val) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                background_blur: val,
+                              },
+                            }))
+                          }
+                        />
+
+                        <Slider
+                          label="整体背景不透明度"
+                          description="调整整体背景不透明度以穿透显示桌面（需要系统窗口透明支持）"
+                          value={draft.interface.background_opacity ?? 100}
+                          min={0}
+                          max={100}
+                          step={1}
+                          valueText={`${draft.interface.background_opacity ?? 100} %`}
+                          onValueChange={(val) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                background_opacity: val,
+                              },
+                            }))
+                          }
+                        />
+
+                        <div>
+                          <span className="block text-sm font-semibold leading-5 text-foreground">
+                            遮罩颜色
+                          </span>
+                          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                            设置背景上的叠加遮罩颜色
+                          </p>
+                          <div className="mt-3 flex items-center gap-3">
+                            <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
+                              <input
+                                type="color"
                                 value={draft.interface.background_mask_color || "#000000"}
                                 onChange={(e) =>
                                   updateDraft((prev) => ({
@@ -1776,150 +1969,44 @@ export default function SettingsWindow() {
                                     },
                                   }))
                                 }
-                                placeholder="#000000"
-                                className="max-w-[120px] font-mono text-sm uppercase bg-card/60"
+                                className="absolute -inset-2 size-[150%] cursor-pointer border-0 bg-transparent p-0"
                               />
                             </div>
-                          </div>
-
-                          <div className="pt-2">
-                            <Slider
-                              label="整体背景不透明度"
-                              description="调整整体背景不透明度以穿透显示桌面（需要系统窗口透明支持）"
-                              value={draft.interface.background_opacity ?? 100}
-                              min={0}
-                              max={100}
-                              step={1}
-                              valueText={`${draft.interface.background_opacity ?? 100} %`}
-                              onValueChange={(val) =>
+                            <SettingsInput
+                              value={draft.interface.background_mask_color || "#000000"}
+                              onChange={(e) =>
                                 updateDraft((prev) => ({
                                   ...prev,
                                   interface: {
                                     ...prev.interface,
-                                    background_opacity: val,
+                                    background_mask_color: e.target.value,
                                   },
                                 }))
                               }
+                              placeholder="#000000"
+                              className="max-w-[120px] font-mono text-sm uppercase bg-card/60"
                             />
                           </div>
                         </div>
 
-                      </div>
-
-                      {/* Background List Manager Grid */}
-                      <div>
-                        <span className="block text-sm font-semibold leading-5 text-foreground mb-3">
-                          已导入的背景
-                        </span>
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
-                          {/* Option A: Default (None) Background */}
-                          <button
-                            onClick={() =>
-                              updateDraft((prev) => ({
-                                ...prev,
-                                interface: {
-                                  ...prev.interface,
-                                  background_id: null,
-                                },
-                              }))
-                            }
-                            className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm text-left transition-all cursor-pointer ${
-                              draft.interface.background_id === null
-                                ? "border-primary ring-2 ring-primary/25"
-                                : "border-border hover:border-primary/45 hover:bg-card"
-                            }`}
-                          >
-                            <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center">
-                              <span className="text-sm font-bold text-foreground">无 / 默认背景</span>
-                              <span className="mt-1 text-xs text-muted-foreground">使用主题自带特效</span>
-                            </div>
-                            {draft.interface.background_id === null && (
-                              <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                                使用中
-                              </div>
-                            )}
-                          </button>
-
-                          {/* Option B: Custom Backgrounds List */}
-                          {backgrounds.map((bg) => {
-                            const active = draft.interface.background_id === bg.id;
-                            const assetUrl = bg.path ? convertFileSrc(bg.path) : "";
-                            const thumbUrl = bg.thumbnail ? convertFileSrc(bg.thumbnail) : assetUrl;
-
-                            return (
-                              <div
-                                key={bg.id}
-                                className={`group relative aspect-video overflow-hidden rounded-xl border bg-card/60 shadow-sm transition-all ${
-                                  active
-                                    ? "border-primary ring-2 ring-primary/25"
-                                    : "border-border hover:border-primary/45"
-                                }`}
-                              >
-                                {/* Background thumbnail render */}
-                                <button
-                                  onClick={() =>
-                                    updateDraft((prev) => ({
-                                      ...prev,
-                                      interface: {
-                                        ...prev.interface,
-                                        background_id: bg.id,
-                                      },
-                                    }))
-                                  }
-                                  className="h-full w-full focus:outline-none cursor-pointer"
-                                >
-                                  {bg.type === "video" ? (
-                                    <video
-                                      src={assetUrl}
-                                      muted
-                                      loop
-                                      className="h-full w-full object-cover"
-                                      onMouseEnter={(e) => {
-                                        e.currentTarget.play().catch(() => {});
-                                      }}
-                                      onMouseLeave={(e) => {
-                                        e.currentTarget.pause();
-                                        e.currentTarget.currentTime = 0;
-                                      }}
-                                    />
-                                  ) : (
-                                    <img
-                                      src={thumbUrl}
-                                      alt="background"
-                                      className="h-full w-full object-cover"
-                                    />
-                                  )}
-                                </button>
-
-
-                                {/* Badges */}
-                                {active && (
-                                  <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm z-10">
-                                    已应用
-                                  </div>
-                                )}
-
-                                {bg.is_online && (
-                                  <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm z-10">
-                                    在线
-                                  </div>
-                                )}
-
-                                {/* Delete Overlay / Button */}
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteBackground(bg.id);
-                                  }}
-                                  className="absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-opacity group-hover:opacity-100 shadow-sm z-20 cursor-pointer"
-                                  title="删除背景记录"
-                                >
-                                  <Trash2 className="size-4" />
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <Slider
+                          label="遮罩不透明度"
+                          description="调整背景遮罩的不透明度"
+                          value={draft.interface.background_mask_opacity ?? 0}
+                          min={0}
+                          max={100}
+                          step={1}
+                          valueText={`${draft.interface.background_mask_opacity ?? 0} %`}
+                          onValueChange={(val) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                background_mask_opacity: val,
+                              },
+                            }))
+                          }
+                        />
                       </div>
                     </div>
                   </div>

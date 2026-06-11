@@ -25,8 +25,8 @@ pub struct DownloadInspection {
 
 pub struct EngineWrapper {
     inner: Arc<DownloadEngine>,
-    probe_pool: ConnectionPool,
-    user_agent: String,
+    probe_pool: std::sync::RwLock<ConnectionPool>,
+    user_agent: std::sync::RwLock<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -38,11 +38,13 @@ pub struct HttpTaskOptions {
     pub cookies: Vec<String>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct EngineHttpConfig {
     pub max_connections_per_download: usize,
     pub max_retries: usize,
     pub accept_invalid_certs: bool,
+    pub proxy_url: Option<String>,
+    pub user_agent: String,
 }
 
 impl EngineWrapper {
@@ -60,6 +62,7 @@ impl EngineWrapper {
             config.max_connections_per_download = http_config.max_connections_per_download;
             config.http.max_retries = http_config.max_retries;
             config.http.accept_invalid_certs = http_config.accept_invalid_certs;
+            config.http.proxy_url = http_config.proxy_url;
         }
         let probe_pool = ConnectionPool::new(&config.http)
             .map_err(|e| format!("Failed to initialize gosh-dl HTTP probe: {}", e))?;
@@ -69,8 +72,8 @@ impl EngineWrapper {
             .map_err(|e| format!("Failed to initialize gosh-dl: {}", e))?;
         Ok(Self {
             inner: engine,
-            probe_pool,
-            user_agent,
+            probe_pool: std::sync::RwLock::new(probe_pool),
+            user_agent: std::sync::RwLock::new(user_agent),
         })
     }
 
@@ -80,17 +83,52 @@ impl EngineWrapper {
         &self.inner
     }
 
+    /// Update HTTP configurations dynamically (including probe pool setup)
+    pub fn update_http_config(&self, http_config: EngineHttpConfig) -> Result<(), String> {
+        let mut config = EngineConfig::default();
+        config.http.max_retries = http_config.max_retries;
+        config.http.accept_invalid_certs = http_config.accept_invalid_certs;
+        config.http.proxy_url = http_config.proxy_url;
+
+        let new_pool = ConnectionPool::new(&config.http)
+            .map_err(|e| format!("Failed to re-initialize gosh-dl HTTP probe pool: {}", e))?;
+
+        if let Ok(mut guard) = self.probe_pool.write() {
+            *guard = new_pool;
+        } else {
+            return Err("Failed to write lock probe pool".to_string());
+        }
+
+        if let Ok(mut ua_guard) = self.user_agent.write() {
+            *ua_guard = http_config.user_agent;
+        } else {
+            return Err("Failed to write lock user agent".to_string());
+        }
+
+        Ok(())
+    }
+
     /// Inspect HTTP metadata through gosh-dl's existing server probe.
     pub async fn inspect_http(
         &self,
         url: &str,
         user_agent: Option<&str>,
     ) -> Result<DownloadInspection, String> {
-        let effective_user_agent = user_agent
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .unwrap_or(&self.user_agent);
-        let capabilities = probe_server(self.probe_pool.client(), url, effective_user_agent)
+        let effective_user_agent = {
+            let ua_guard = self.user_agent.read().map_err(|e| format!("Failed to read lock user agent: {}", e))?;
+            user_agent
+                .map(str::trim)
+                .filter(|value| !value.is_empty())
+                .map(String::from)
+                .unwrap_or_else(|| ua_guard.clone())
+        };
+
+        let client = {
+            let guard = self.probe_pool.read().map_err(|e| format!("Failed to read lock probe pool: {}", e))?;
+            guard.client().clone()
+        };
+
+        let capabilities = probe_server(&client, url, &effective_user_agent)
             .await
             .map_err(|e| format!("Failed to inspect HTTP task: {}", e))?;
 

@@ -34,7 +34,15 @@ impl super::AppState {
             settings.transfer.task_thread_count as usize,
             settings.transfer.max_download_retries as usize,
             settings.transfer.ignore_ssl_certificate,
+            settings.transfer.proxy_url.clone(),
         )?;
+        self.engine.update_http_config(crate::download::EngineHttpConfig {
+            max_connections_per_download: settings.transfer.task_thread_count as usize,
+            max_retries: settings.transfer.max_download_retries as usize,
+            accept_invalid_certs: settings.transfer.ignore_ssl_certificate,
+            proxy_url: settings.transfer.proxy_url.clone(),
+            user_agent: settings.download.global_user_agent.clone(),
+        })?;
         manager.set_speed_limits(
             settings
                 .transfer
