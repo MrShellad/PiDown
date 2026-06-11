@@ -32,7 +32,7 @@ export interface Task {
   gid: string;
   name: string;
   url: string;
-  status: "Pending" | "Downloading" | "Paused" | "Completed" | "Failed" | "Cancelled";
+  status: "Pending" | "Downloading" | "Seeding" | "Paused" | "Completed" | "Failed" | "Cancelled";
   speed: string;
   progress: number; // 0 to 100
   eta: string;
@@ -87,6 +87,7 @@ export interface TaskProgressPayload {
   upload_speed: string;
   max_download_speed_kib?: number | null;
   max_upload_speed_kib?: number | null;
+  status: "Pending" | "Downloading" | "Seeding" | "Paused" | "Completed" | "Failed" | "Cancelled";
 }
 
 export interface DownloadSpeedPayload {
@@ -263,18 +264,18 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           payload.tasks.forEach((activeTask) => {
             const existing = updatedTasks[activeTask.gid];
             const progress = activeTask.progress;
-            const status = progress >= 100 ? "Completed" as const : "Downloading" as const;
+            const status = activeTask.status;
             
-            if (status === "Downloading") {
+            if (status === "Downloading" || status === "Seeding") {
               newActiveGids.add(activeTask.gid);
             }
 
             let startedAt = existing ? existing.startedAt : undefined;
             let completedAt = existing ? existing.completedAt : undefined;
-            if (status === "Downloading" && !startedAt) {
+            if ((status === "Downloading" || status === "Seeding") && !startedAt) {
               startedAt = Math.floor(Date.now() / 1000);
             }
-            if (status === "Completed" && !completedAt) {
+            if ((status === "Completed" || status === "Seeding") && !completedAt) {
               completedAt = Math.floor(Date.now() / 1000);
             }
 

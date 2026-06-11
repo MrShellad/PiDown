@@ -44,7 +44,7 @@ export default function NewTaskModal({
           </DialogHeader>
 
           <form onSubmit={actions.handleSubmit}>
-            <DialogBody className="px-8 py-5">
+            <DialogBody className="px-5 py-5">
               {state.step === "link" ? (
                 <NewTaskLinkStep
                   url={state.url}
@@ -91,7 +91,7 @@ export default function NewTaskModal({
               )}
             </DialogBody>
 
-            <DialogFooter className="justify-between px-8 sm:justify-between [&_[data-slot=button]]:w-auto sm:[&_[data-slot=button]]:w-auto">
+            <DialogFooter className="justify-between px-5 sm:justify-between [&_[data-slot=button]]:w-auto sm:[&_[data-slot=button]]:w-auto">
               {state.step === "link" ? (
                 <>
                   <Button
@@ -112,8 +112,7 @@ export default function NewTaskModal({
                     type="submit"
                     disabled={state.loading}
                     loading={state.loading}
-                    className="min-w-28"
-                    style={{ boxShadow: "var(--button-glow)" }}
+                    className="min-w-28 shadow-button-glow"
                   >
                     下载
                   </Button>

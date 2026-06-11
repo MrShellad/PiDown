@@ -78,7 +78,7 @@ function TitlebarTooltip({
 
 export default function WindowFrame({
   title,
-  showMenu = true,
+  showMenu = false,
   showSettingsButton = true,
   onOpenSettings,
   onClose,

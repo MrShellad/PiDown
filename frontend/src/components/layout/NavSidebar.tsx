@@ -13,6 +13,7 @@ import {
   Plus,
   Trash2,
   Settings,
+  Upload,
 } from "lucide-react";
 
 
@@ -40,8 +41,16 @@ import {
 import { Dialog, DialogBody, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { CategoryEditDialog } from "@/components/common";
+import { cn } from "@/lib/utils";
 
 export type { NavFilter } from "@/core/taskFilters";
+
+type StatusPrefix = "completed" | "incomplete" | "seeding" | null;
+
+const buildFilterId = (baseFilter: NavFilter, statusPrefix: StatusPrefix): NavFilter => {
+  if (!statusPrefix) return baseFilter;
+  return `${statusPrefix}:${baseFilter}` as NavFilter;
+};
 
 interface CategoryNavBranchProps {
   category: Category;
@@ -67,6 +76,7 @@ interface CategoryNavBranchProps {
     onToggle?: () => void;
   }) => React.ReactNode;
   renderAnimatedBranch: (key: string, children: React.ReactNode) => React.ReactNode;
+  statusPrefix?: StatusPrefix;
 }
 
 function CategoryNavBranch({
@@ -84,9 +94,10 @@ function CategoryNavBranch({
   onAddCategory,
   renderItem,
   renderAnimatedBranch,
+  statusPrefix = null,
 }: CategoryNavBranchProps) {
   const dragControls = useDragControls();
-  const categoryFilter = createCategoryFilter(category.id);
+  const categoryFilter = buildFilterId(createCategoryFilter(category.id), statusPrefix);
   const count = countTasks(tasks, categoryFilter, filterContext);
   const isActive = activeFilter === categoryFilter;
   const expandable = categoryTags.length > 0;
@@ -98,7 +109,7 @@ function CategoryNavBranch({
           value={category}
           dragListener={false}
           dragControls={dragControls}
-          className="list-none overflow-visible flex flex-col space-y-0.5"
+          className="list-none overflow-visible flex flex-col"
         >
           <div className="group relative flex items-center">
             {/* Hover-only drag handle */}
@@ -114,17 +125,12 @@ function CategoryNavBranch({
               onClick={() => {
                 onFilterChange(categoryFilter);
               }}
-              className={`flex w-full items-center gap-3 rounded-lg py-2 pr-3 pl-7 text-sm transition-all duration-150 font-bold text-foreground`}
-              style={{
-                background: isActive ? "var(--primary)" : "transparent",
-                color: isActive ? "var(--primary-foreground)" : undefined,
-              }}
-              onMouseEnter={(event) => {
-                if (!isActive) event.currentTarget.style.background = "var(--secondary)";
-              }}
-              onMouseLeave={(event) => {
-                if (!isActive) event.currentTarget.style.background = "transparent";
-              }}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg py-2 pr-3 pl-7 text-sm transition-all duration-150 font-bold text-foreground",
+                isActive
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-transparent hover:bg-secondary"
+              )}
             >
               <span
                 className="grid size-[18px] shrink-0 place-items-center"
@@ -150,11 +156,12 @@ function CategoryNavBranch({
               ) : null}
 
               <span
-                className="ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums"
-                style={{
-                  background: isActive ? "rgba(255,255,255,0.2)" : "var(--secondary)",
-                  color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)",
-                }}
+                className={cn(
+                  "ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums",
+                  isActive
+                    ? "bg-white/20 text-primary-foreground"
+                    : "bg-secondary text-muted-foreground"
+                )}
               >
                 {count}
               </span>
@@ -162,12 +169,12 @@ function CategoryNavBranch({
           </div>
 
           {renderAnimatedBranch(
-            `category:${category.id}-children`,
+            `${statusPrefix ? statusPrefix + ":" : ""}category:${category.id}-children`,
             categoryTags.length > 0 && !isCollapsed ? (
               <>
                 {categoryTags.map((tag) =>
                   renderItem({
-                    id: createTagFilter(tag.id),
+                    id: buildFilterId(createTagFilter(tag.id), statusPrefix),
                     label: tag.name,
                     icon: <IconPreview value={tag.icon} color={tag.color} className="size-[18px]" />,
                     kind: "tag",
@@ -307,6 +314,48 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
     setCollapsed((prev) => ({ ...prev, [groupId]: !prev[groupId] }));
   };
 
+  const handleSelectGroup = (groupId: string) => {
+    onFilterChange(groupId as NavFilter);
+    if (categories.length === 0) {
+      fetchCategoryTree(true).catch((error) => {
+        console.error("Failed to refresh navigation tree:", error);
+      });
+    }
+    setCollapsed((prev) => ({
+      ...prev,
+      all: groupId !== "all",
+      completed: groupId !== "completed",
+      incomplete: groupId !== "incomplete",
+      seeding: groupId !== "seeding",
+    }));
+  };
+
+  const handleToggleTopLevelGroup = (groupId: string) => {
+    if (categories.length === 0) {
+      fetchCategoryTree(true).catch((error) => {
+        console.error("Failed to refresh navigation tree:", error);
+      });
+    }
+    setCollapsed((prev) => {
+      const isCurrentlyCollapsed = prev[groupId] ?? (groupId !== "all");
+      if (isCurrentlyCollapsed) {
+        return {
+          ...prev,
+          all: groupId !== "all",
+          completed: groupId !== "completed",
+          incomplete: groupId !== "incomplete",
+          seeding: groupId !== "seeding",
+          [groupId]: false,
+        };
+      } else {
+        return {
+          ...prev,
+          [groupId]: true,
+        };
+      }
+    });
+  };
+
   const renderItem = ({
     id,
     label,
@@ -333,27 +382,26 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
     const inactiveWeight =
       kind === "tag" ? "font-normal text-muted-foreground" : "font-bold text-foreground";
 
+    const isTopLevel = id === "all" || id === "completed" || id === "incomplete" || id === "seeding";
+
     return (
       <button
         key={id}
         type="button"
         onClick={() => {
-          onFilterChange(id);
-          onToggle?.();
+          if (isTopLevel) {
+            handleSelectGroup(id);
+          } else {
+            onFilterChange(id);
+          }
         }}
-        className={`flex w-full items-center gap-3 rounded-lg py-2 pr-3 text-sm transition-all duration-150 ${paddingLeft} ${
-          isActive ? activeWeight : inactiveWeight
-        }`}
-        style={{
-          background: isActive ? "var(--primary)" : "transparent",
-          color: isActive ? "var(--primary-foreground)" : undefined,
-        }}
-        onMouseEnter={(event) => {
-          if (!isActive) event.currentTarget.style.background = "var(--secondary)";
-        }}
-        onMouseLeave={(event) => {
-          if (!isActive) event.currentTarget.style.background = "transparent";
-        }}
+        className={cn(
+          "flex w-full items-center gap-3 rounded-lg py-2 pr-3 text-sm transition-all duration-150",
+          paddingLeft,
+          isActive
+            ? `${activeWeight} bg-primary text-primary-foreground`
+            : `${inactiveWeight} bg-transparent hover:bg-secondary`
+        )}
       >
         <span
           className="grid size-[18px] shrink-0 place-items-center"
@@ -371,19 +419,24 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
 
         {expandable ? (
           <span
-            className="opacity-50 transition-opacity hover:opacity-90"
+            className="opacity-50 transition-opacity hover:opacity-90 p-0.5"
             style={{ color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle?.();
+            }}
           >
             {itemCollapsed ? <ChevronRight className="size-4" /> : <ChevronDown className="size-4" />}
           </span>
         ) : null}
 
         <span
-          className="ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums"
-          style={{
-            background: isActive ? "rgba(255,255,255,0.2)" : "var(--secondary)",
-            color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)",
-          }}
+          className={cn(
+            "ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums",
+            isActive
+              ? "bg-white/20 text-primary-foreground"
+              : "bg-secondary text-muted-foreground"
+          )}
         >
           {count}
         </span>
@@ -401,7 +454,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           exit="collapsed"
           variants={MOTION_TOKENS.collapseVariants}
           transition={MOTION_TOKENS.layoutSpring}
-          className="flex flex-col space-y-0.5"
+          className="flex flex-col space-y-0.5 pt-0.5"
         >
           {children}
         </motion.div>
@@ -409,10 +462,71 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
     </AnimatePresence>
   );
 
+  const renderCategoryTree = (statusPrefix: StatusPrefix, collapsedKey: string) => {
+    const isTreeCollapsed = collapsed[collapsedKey] ?? true;
+
+    return renderAnimatedBranch(
+      `${collapsedKey}-children`,
+      !isTreeCollapsed ? (
+        <>
+          <Reorder.Group
+            as="div"
+            axis="y"
+            values={sortedCategories}
+            onReorder={reorderCategories}
+            className="flex flex-col space-y-0.5"
+          >
+            {sortedCategories.map((category) => {
+              const categoryTags = tagsByCategory.get(category.id) ?? [];
+              const categoryGroupId = `${collapsedKey}:category:${category.id}`;
+              const isCategoryCollapsed = collapsed[categoryGroupId] ?? true;
+
+              return (
+                <CategoryNavBranch
+                  key={category.id}
+                  category={category}
+                  categoryTags={categoryTags}
+                  activeFilter={activeFilter}
+                  onFilterChange={onFilterChange}
+                  isCollapsed={isCategoryCollapsed}
+                  onToggle={() => toggleGroup(categoryGroupId)}
+                  filterContext={filterContext}
+                  tasks={tasks}
+                  onEdit={() => handleOpenEdit(category)}
+                  onOpenFolder={() => handleOpenFolder(category)}
+                  onDelete={() => handleRequestDelete(category)}
+                  onAddCategory={handleOpenCreate}
+                  renderItem={renderItem}
+                  renderAnimatedBranch={renderAnimatedBranch}
+                  statusPrefix={statusPrefix}
+                />
+              );
+            })}
+          </Reorder.Group>
+          {unboundTags.map((tag) =>
+            renderItem({
+              id: buildFilterId(createTagFilter(tag.id), statusPrefix),
+              label: tag.name,
+              icon: tag.icon ? (
+                <IconPreview value={tag.icon} color={tag.color} className="size-[18px]" />
+              ) : (
+                <Tags className="size-[18px] shrink-0" />
+              ),
+              kind: "tag",
+              depth: 1,
+            })
+          )}
+        </>
+      ) : null
+    );
+  };
+
+  const seedingTasksCount = countTasks(tasks, "seeding", filterContext);
+
   return (
     <nav
       data-tauri-drag-region
-      className="flex h-full min-h-0 flex-col bg-transparent pt-4 pb-4 pl-4 pr-0 select-none cursor-default"
+      className="flex h-full min-h-0 flex-col bg-transparent pt-6 pb-6 pl-6 pr-0 select-none cursor-default"
       style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-card text-card-foreground shadow-toolbar-glow">
@@ -422,7 +536,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           visibility="auto"
           viewportClassName="space-y-6"
         >
-          <div className="flex flex-col space-y-0.5">
+          <div className="flex flex-col">
             {renderItem({
               id: "all",
               label: UI_TEXT.sidebar.all,
@@ -430,84 +544,55 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
               kind: "system",
               expandable: sortedCategories.length > 0 || unboundTags.length > 0,
               collapsed: collapsed.all,
-              onToggle: () => toggleGroup("all"),
+              onToggle: () => handleToggleTopLevelGroup("all"),
             })}
-            {renderAnimatedBranch(
-              "all-children",
-              !collapsed.all ? (
-                <>
-                  <Reorder.Group
-                    as="div"
-                    axis="y"
-                    values={sortedCategories}
-                    onReorder={reorderCategories}
-                    className="flex flex-col space-y-0.5"
-                  >
-                    {sortedCategories.map((category) => {
-                      const categoryTags = tagsByCategory.get(category.id) ?? [];
-                      const groupId = `category:${category.id}`;
-                      const isCollapsed = collapsed[groupId] ?? false;
-
-                      return (
-                        <CategoryNavBranch
-                          key={category.id}
-                          category={category}
-                          categoryTags={categoryTags}
-                          activeFilter={activeFilter}
-                          onFilterChange={onFilterChange}
-                          isCollapsed={isCollapsed}
-                          onToggle={() => toggleGroup(groupId)}
-                          filterContext={filterContext}
-                          tasks={tasks}
-                          onEdit={() => handleOpenEdit(category)}
-                          onOpenFolder={() => handleOpenFolder(category)}
-                          onDelete={() => handleRequestDelete(category)}
-                          onAddCategory={handleOpenCreate}
-                          renderItem={renderItem}
-                          renderAnimatedBranch={renderAnimatedBranch}
-                        />
-                      );
-                    })}
-                  </Reorder.Group>
-                  {unboundTags.map((tag) =>
-                    renderItem({
-                      id: createTagFilter(tag.id),
-                      label: tag.name,
-                      icon: tag.icon ? (
-                        <IconPreview value={tag.icon} color={tag.color} className="size-[18px]" />
-                      ) : (
-                        <Tags className="size-[18px] shrink-0" />
-                      ),
-                      kind: "tag",
-                      depth: 1,
-                    })
-                  )}
-                </>
-              ) : null
-            )}
+            {renderCategoryTree(null, "all")}
           </div>
 
-          <div className="flex flex-col space-y-0.5">
+          {seedingTasksCount > 0 && (
+            <div className="flex flex-col">
+              {renderItem({
+                id: "seeding",
+                label: UI_TEXT.sidebar.seeding,
+                icon: <Upload className="size-[18px] shrink-0" />,
+                kind: "system",
+                expandable: sortedCategories.length > 0 || unboundTags.length > 0,
+                collapsed: collapsed.seeding ?? true,
+                onToggle: () => handleToggleTopLevelGroup("seeding"),
+              })}
+              {renderCategoryTree("seeding", "seeding")}
+            </div>
+          )}
+
+          <div className="flex flex-col">
             {renderItem({
               id: "completed",
               label: UI_TEXT.sidebar.completed,
               icon: <FolderCheck className="size-[18px] shrink-0" />,
               kind: "system",
+              expandable: sortedCategories.length > 0 || unboundTags.length > 0,
+              collapsed: collapsed.completed ?? true,
+              onToggle: () => handleToggleTopLevelGroup("completed"),
             })}
+            {renderCategoryTree("completed", "completed")}
           </div>
 
-          <div className="flex flex-col space-y-0.5">
+          <div className="flex flex-col">
             {renderItem({
               id: "incomplete",
               label: UI_TEXT.sidebar.incomplete,
               icon: <FolderDown className="size-[18px] shrink-0" />,
               kind: "system",
+              expandable: sortedCategories.length > 0 || unboundTags.length > 0,
+              collapsed: collapsed.incomplete ?? true,
+              onToggle: () => handleToggleTopLevelGroup("incomplete"),
             })}
+            {renderCategoryTree("incomplete", "incomplete")}
           </div>
         </ScrollArea>
         {hideBorderAndBg && (
           <div className="mt-auto shrink-0 border-t border-border/50 bg-secondary/20 p-2 flex justify-between items-center z-10">
-            <span className="text-[11px] text-muted-foreground pl-2 font-mono tracking-wider">PiDownloader</span>
+            <span className="text-xs text-muted-foreground pl-2 font-mono tracking-wider">PiDownloader</span>
             <Button
               variant="ghost"
               size="icon-sm"

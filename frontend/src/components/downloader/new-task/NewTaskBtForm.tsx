@@ -5,6 +5,8 @@ import { CategoryDropdown } from "@/components/common/CategoryDropdown"
 import { ActionInput } from "@/components/ui/input"
 import type { Category } from "@/core/store/useDownloadStore"
 import { formatBytes } from "./data"
+import { Checkbox } from "@/components/ui/checkbox"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export interface TorrentFileInspection {
   path: string
@@ -269,14 +271,9 @@ export function NewTaskBtForm({
             </button>
 
             <div className="flex items-center gap-2 shrink-0">
-              <input
-                type="checkbox"
-                checked={selectState === "all"}
-                ref={(el) => {
-                  if (el) el.indeterminate = selectState === "some"
-                }}
-                onChange={(e) => handleFolderSelect(node, e.target.checked)}
-                className="size-4 rounded border-input text-primary focus:ring-primary/30"
+              <Checkbox
+                checked={selectState === "all" ? true : selectState === "some" ? "indeterminate" : false}
+                onCheckedChange={(checked) => handleFolderSelect(node, checked === true)}
               />
               <span className="text-primary/80 shrink-0">
                 {isExpanded ? <FolderOpen className="size-4" /> : <Folder className="size-4" />}
@@ -312,11 +309,9 @@ export function NewTaskBtForm({
         >
           <div className="w-[26px] shrink-0" aria-hidden="true" />
           <div className="flex items-center gap-2 shrink-0">
-            <input
-              type="checkbox"
+            <Checkbox
               checked={isSelected}
-              onChange={(e) => handleFileSelect(node.index!, e.target.checked)}
-              className="size-4 rounded border-input text-primary focus:ring-primary/30"
+              onCheckedChange={(checked) => handleFileSelect(node.index!, checked === true)}
             />
             <span className="text-primary/75 shrink-0">
               {isVideoFile(node.name) ? <Film className="size-4" /> : <File className="size-4" />}
@@ -327,7 +322,7 @@ export function NewTaskBtForm({
             {node.name}
           </span>
 
-          <span className="ml-4 text-[10px] text-muted-foreground/60 font-mono uppercase bg-secondary/35 px-1.5 py-0.5 rounded">
+          <span className="ml-4 text-xs text-muted-foreground/60 font-mono uppercase bg-secondary/35 px-1.5 py-0.5 rounded">
             {fileExt}
           </span>
 
@@ -364,14 +359,9 @@ export function NewTaskBtForm({
         {/* Selector Toolbar */}
         <div className="flex items-center justify-between px-3.5 py-2.5 bg-secondary/20 border-b border-border/60 text-xs">
           <div className="flex items-center gap-2.5">
-            <input
-              type="checkbox"
-              checked={allSelected}
-              ref={(el) => {
-                if (el) el.indeterminate = someSelected
-              }}
-              onChange={(e) => handleSelectAll(e.target.checked)}
-              className="size-4 rounded border-input text-primary focus:ring-primary/30"
+            <Checkbox
+              checked={allSelected ? true : someSelected ? "indeterminate" : false}
+              onCheckedChange={(checked) => handleSelectAll(checked === true)}
               id="select-all"
             />
             <label htmlFor="select-all" className="font-medium text-foreground cursor-pointer select-none">
@@ -384,11 +374,9 @@ export function NewTaskBtForm({
 
           <div className="flex items-center gap-3">
             <label className="flex items-center gap-1.5 font-medium text-foreground cursor-pointer select-none">
-              <input
-                type="checkbox"
+              <Checkbox
                 checked={videoOnly}
-                onChange={(e) => handleSelectVideos(e.target.checked)}
-                className="size-4 rounded border-input text-primary focus:ring-primary/30"
+                onCheckedChange={(checked) => handleSelectVideos(checked === true)}
               />
               <Film className="size-3.5 text-primary/70" />
               <span>视频</span>
@@ -399,7 +387,7 @@ export function NewTaskBtForm({
         </div>
 
         {/* Tree Container */}
-        <div className="p-2 h-[260px] overflow-y-auto scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted">
+        <ScrollArea className="h-[260px] p-2" scrollbar="thin">
           {tree ? (
             renderNode(tree, 0)
           ) : (
@@ -407,17 +395,15 @@ export function NewTaskBtForm({
               无可用文件
             </div>
           )}
-        </div>
+        </ScrollArea>
       </div>
 
       {/* Options & sequential download */}
       <div className="flex items-center justify-between">
         <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none hover:text-foreground transition-colors">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={sequential}
-            onChange={(e) => onSequentialChange(e.target.checked)}
-            className="size-4 rounded border-input text-primary focus:ring-primary/30"
+            onCheckedChange={(checked) => onSequentialChange(checked === true)}
           />
           <span>启用列表顺序下载</span>
         </label>

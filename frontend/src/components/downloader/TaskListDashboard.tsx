@@ -1,15 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion, Reorder } from "motion/react";
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, FolderOpen, FolderCheck, FolderDown, Upload } from "lucide-react";
 
 import { UI_TEXT } from "@/core/locale";
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 import { filterTaskIds, parseNavFilter, type NavFilter } from "@/core/taskFilters";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
-import type { Task } from "@/core/store/useDownloadStore";
+import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
+import { IconPreview } from "@/components/ui/icon-picker";
 import {
   getTaskTableWidth,
 } from "@/core/taskTableLayout";
@@ -34,6 +35,53 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+const WatermarkIcon = ({
+  activeFilter,
+  categories,
+  tags,
+  color,
+}: {
+  activeFilter: NavFilter;
+  categories: Category[];
+  tags: Tag[];
+  color: string;
+}) => {
+  const parsed = parseNavFilter(activeFilter);
+  if (parsed.type === "category") {
+    const category = categories.find((c) => c.id === parsed.id);
+    return (
+      <IconPreview
+        value={category?.icon}
+        color={color}
+        className="w-full h-full stroke-[1.2]"
+      />
+    );
+  }
+  if (parsed.type === "tag") {
+    const tag = tags.find((t) => t.id === parsed.id);
+    return (
+      <IconPreview
+        value={tag?.icon ?? "tags"}
+        color={color}
+        className="w-full h-full stroke-[1.2]"
+      />
+    );
+  }
+
+  const iconClass = "w-full h-full stroke-[1.2]";
+  if (parsed.value === "completed") {
+    return <FolderCheck className={iconClass} style={{ color }} />;
+  }
+  if (parsed.value === "incomplete") {
+    return <FolderDown className={iconClass} style={{ color }} />;
+  }
+  if (parsed.value === "seeding") {
+    return <Upload className={iconClass} style={{ color }} />;
+  }
+  // "all"
+  return <FolderOpen className={iconClass} style={{ color }} />;
+};
+
 interface TaskListDashboardProps {
   activeFilter: NavFilter;
 }
@@ -57,11 +105,12 @@ const SCROLLBAR_WIDTH = 8;
 
 const STATUS_SORT_WEIGHT: Record<Task["status"], number> = {
   Downloading: 0,
-  Pending: 1,
-  Paused: 2,
-  Failed: 3,
-  Completed: 4,
-  Cancelled: 5,
+  Seeding: 1,
+  Pending: 2,
+  Paused: 3,
+  Failed: 4,
+  Completed: 5,
+  Cancelled: 6,
 };
 
 function compareText(a: string, b: string) {
@@ -89,36 +138,6 @@ function compareTaskByColumn(a: Task, b: Task, columnId: TaskTableColumnId) {
       );
     default:
       return 0;
-  }
-}
-
-function getFilterLabel(
-  activeFilter: NavFilter,
-  categories: ReturnType<typeof useDownloadStore.getState>["categories"],
-  tags: ReturnType<typeof useDownloadStore.getState>["tags"]
-) {
-  const parsed = parseNavFilter(activeFilter);
-
-  if (parsed.type === "category") {
-    return categories.find((category) => category.id === parsed.id)?.name ?? UI_TEXT.sidebar.all;
-  }
-
-  if (parsed.type === "tag") {
-    const tag = tags.find((item) => item.id === parsed.id);
-    if (!tag) return UI_TEXT.sidebar.all;
-
-    const category = categories.find((item) => item.id === tag.categoryId);
-    return category ? `${category.name} / ${tag.name}` : tag.name;
-  }
-
-  switch (parsed.value) {
-    case "completed":
-      return UI_TEXT.sidebar.completed;
-    case "incomplete":
-      return UI_TEXT.sidebar.incomplete;
-    case "all":
-    default:
-      return UI_TEXT.sidebar.all;
   }
 }
 
@@ -203,10 +222,24 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     return nextGids;
   }, [paginatedFilteredGids, exitingTaskIds, exitingTaskPositions, exitingTaskSnapshots]);
 
-  const filterLabel = useMemo(
-    () => getFilterLabel(activeFilter, categories, tags),
-    [activeFilter, categories, tags]
-  );
+  const activeFilterIconInfo = useMemo(() => {
+    const parsed = parseNavFilter(activeFilter);
+    if (parsed.type === "category") {
+      const category = categories.find((c) => c.id === parsed.id);
+      return {
+        color: category?.color ?? "var(--primary)",
+      };
+    }
+    if (parsed.type === "tag") {
+      const tag = tags.find((t) => t.id === parsed.id);
+      return {
+        color: tag?.color ?? "var(--primary)",
+      };
+    }
+    return {
+      color: "var(--primary)",
+    };
+  }, [activeFilter, categories, tags]);
   const tableWidth = getTaskTableWidth(columns);
   const selectedFilteredCount = paginatedFilteredGids.filter((gid) => selectedTaskIds.has(gid)).length;
   const allFilteredSelected =
@@ -453,7 +486,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     .map((gid) => tasks[gid])
     .filter((task): task is Task => Boolean(task));
   const selectedDownloadableGids = selectedTasks
-    .filter((task) => task.status === "Downloading")
+    .filter((task) => task.status === "Downloading" || task.status === "Seeding")
     .map((task) => task.gid);
   const selectedResumableGids = selectedTasks
     .filter((task) => task.status === "Paused" || task.status === "Failed")
@@ -474,8 +507,27 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-4 pb-4 pr-4 pl-4 select-none">
-      <div className="flex min-h-0 flex-1 flex-col gap-5 px-0 pt-0">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-6 select-none">
+      {/* Background Category Watermark */}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={activeFilter}
+          initial={{ opacity: 0, scale: 0.8, rotate: -25 }}
+          animate={{ opacity: 0.05, scale: 1, rotate: -15 }}
+          exit={{ opacity: 0, scale: 0.8, rotate: -25 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="absolute right-[-60px] bottom-[-60px] w-[360px] h-[360px] pointer-events-none select-none z-0"
+        >
+          <WatermarkIcon
+            activeFilter={activeFilter}
+            categories={categories}
+            tags={tags}
+            color={activeFilterIconInfo.color}
+          />
+        </motion.div>
+      </AnimatePresence>
+
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-5 px-0 pt-0">
           <div className="shrink-0 px-3">
             <DownloadToolbar
               selectedTaskCount={selectedTaskCount}
@@ -489,12 +541,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col gap-3">
-            <div className="flex shrink-0 items-center justify-between px-3">
-              <span className="text-sm font-semibold leading-5 text-muted-foreground">
-                {filterLabel} ({filteredGids.length})
-              </span>
-            </div>
-
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div
                 className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scrollbar-horizontal-margins"

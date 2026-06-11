@@ -717,6 +717,7 @@ impl super::AppState {
 
         for db_task in cache_tasks {
             let gid = db_task.id.clone();
+            let mut status = db_task.status.clone();
             let mut speed = "0 B/s".to_string();
             let mut eta = "--:--:--".to_string();
             let mut progress = 0.0;
@@ -748,6 +749,9 @@ impl super::AppState {
                 speed_bps = engine_status.progress.download_speed;
                 eta_seconds = engine_status.progress.eta_seconds;
                 upload_speed = format_speed(engine_status.progress.upload_speed, &speed_display_unit);
+                if matches!(engine_status.state, DownloadState::Seeding) {
+                    status = "Seeding".to_string();
+                }
             } else if total_bytes > 0 {
                 progress = (downloaded_bytes as f64 / total_bytes as f64) * 100.0;
             } else if db_task.status == "Completed" {
@@ -760,7 +764,7 @@ impl super::AppState {
                 gid,
                 url: db_task.url,
                 name: db_task.name,
-                status: db_task.status,
+                status,
                 speed,
                 progress,
                 eta,

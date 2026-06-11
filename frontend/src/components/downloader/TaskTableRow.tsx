@@ -44,6 +44,8 @@ function statusText(status: Task["status"]) {
       return UI_TEXT.taskCard.failed
     case "Paused":
       return UI_TEXT.taskCard.paused
+    case "Seeding":
+      return UI_TEXT.taskCard.seeding
     case "Downloading":
     default:
       return UI_TEXT.taskCard.downloading
@@ -225,7 +227,7 @@ function Cell({
     case "size":
       return (
         <span className="truncate tabular-nums text-foreground/80 font-medium">
-          {task.status === "Completed" ? totalStr : `${downloadedStr} / ${totalStr}`}
+          {task.status === "Completed" || task.status === "Seeding" ? totalStr : `${downloadedStr} / ${totalStr}`}
         </span>
       )
     case "status":
@@ -236,6 +238,7 @@ function Cell({
           className={cn(
             "truncate font-semibold",
             task.status === "Downloading" && "text-primary",
+            task.status === "Seeding" && "text-status-success",
             task.status === "Paused" && "text-status-warning",
             task.status === "Completed" && "text-status-success",
             task.status === "Failed" && "text-status-danger"
@@ -334,7 +337,7 @@ export default function TaskTableRow({
     task.downloadedBytes === 0 &&
     speedStr === "0 B/s"
   const safeProgress = Math.min(100, Math.max(0, progress))
-  const showProgressOverlay = task.status !== "Completed"
+  const showProgressOverlay = task.status !== "Completed" && task.status !== "Seeding"
   const progressTint =
     task.status === "Failed"
         ? "var(--task-progress-failed)"
@@ -509,14 +512,14 @@ export default function TaskTableRow({
             <span>文件校验</span>
           </ContextMenuItem>
           <ContextMenuItem
-            disabled={task.status === "Downloading" || task.status === "Completed"}
+            disabled={task.status === "Downloading" || task.status === "Seeding" || task.status === "Completed"}
             onSelect={() => toggleTask(gid)}
           >
             <Play className="size-5" />
             <span>恢复</span>
             <ContextMenuShortcut>Ctrl+R</ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem disabled={task.status !== "Downloading"} onSelect={() => toggleTask(gid)}>
+          <ContextMenuItem disabled={task.status !== "Downloading" && task.status !== "Seeding"} onSelect={() => toggleTask(gid)}>
             <Pause className="size-5" />
             <span>暂停</span>
             <ContextMenuShortcut>Ctrl+P</ContextMenuShortcut>

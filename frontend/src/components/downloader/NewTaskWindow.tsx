@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { UI_TEXT } from "@/core/locale";
 import { NewTaskConflictDialog } from "./new-task/NewTaskConflictDialog";
 import { NewTaskDetailsContent } from "./new-task/NewTaskDetailsContent";
@@ -59,7 +60,7 @@ export default function NewTaskWindow() {
         showSettingsButton={false}
         onClose={() => getCurrentWindow().close().catch(console.error)}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto px-8 py-6">
+      <ScrollArea className="flex-1 px-5 py-4" scrollbar="overlay" viewportClassName="h-full">
         <form onSubmit={actions.handleSubmit} className="flex flex-col h-full justify-between">
           <div className="flex-1 min-h-0">
             {state.step === "link" ? (
@@ -128,8 +129,7 @@ export default function NewTaskWindow() {
                   type="submit"
                   disabled={state.loading}
                   loading={state.loading}
-                  className="min-w-28 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold"
-                  style={{ boxShadow: "var(--button-glow)" }}
+                  className="min-w-28 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button-glow"
                 >
                   下载
                 </Button>
@@ -146,7 +146,7 @@ export default function NewTaskWindow() {
             )}
           </div>
         </form>
-      </div>
+      </ScrollArea>
 
       <NewTaskConflictDialog
         conflictCheck={state.conflictCheck}

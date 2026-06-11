@@ -357,14 +357,14 @@ export default function FloatDisc() {
 
                       {/* Background linear gradient */}
                       <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#1d4ed8" />
+                        <stop offset="0%" stopColor="var(--primary)" />
+                        <stop offset="100%" stopColor="color-mix(in oklch, var(--primary), black 20%)" />
                       </linearGradient>
 
                       {/* Wave progress gradient */}
                       <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#60a5fa" stopOpacity="0.55" />
-                        <stop offset="100%" stopColor="#1d4ed8" stopOpacity="0.75" />
+                        <stop offset="0%" stopColor="color-mix(in oklch, var(--primary), white 20%)" stopOpacity="0.55" />
+                        <stop offset="100%" stopColor="color-mix(in oklch, var(--primary), black 10%)" stopOpacity="0.75" />
                       </linearGradient>
                     </defs>
 
@@ -376,7 +376,7 @@ export default function FloatDisc() {
                       height="76"
                       rx="16"
                       fill="url(#bgGrad)"
-                      stroke={dragActive ? "var(--primary)" : "rgba(255, 255, 255, 0.15)"}
+                      stroke={dragActive ? "var(--primary)" : "var(--border)"}
                       strokeWidth={dragActive ? 3 : 1}
                       className="transition-all duration-300"
                     />
@@ -452,7 +452,7 @@ export default function FloatDisc() {
                         <span className="text-[11px] font-extrabold tracking-tight leading-none my-0.5 max-w-[56px] truncate">
                           {globalSpeed}
                         </span>
-                        <span className="text-[10px] text-[#93c5fd] font-bold leading-none mt-0.5">
+                        <span className="text-[10px] text-primary-foreground/90 font-bold leading-none mt-0.5">
                           {Math.round(averageProgress)}%
                         </span>
                       </div>

@@ -12,6 +12,7 @@ export const UI_TEXT = {
     civitai: "Civitai",
     completed: "已完成",
     incomplete: "未完成",
+    seeding: "正在做种",
   },
   windowFrame: {
     menu: "菜单",
@@ -196,6 +197,7 @@ export const UI_TEXT = {
     failed: "下载失败",
     paused: "已暂停",
     downloading: "下载中",
+    seeding: "正在做种",
     preparing: "准备中",
     preparingHint: "正在连接服务器并准备分段下载文件，超大文件或慢磁盘预分配 .part 文件时可能需要更久。",
     speed: "速度: ",

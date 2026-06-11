@@ -25,6 +25,7 @@ import type { Category, Task } from "@/core/store/useDownloadStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
 import { useToastStore } from "@/core/store/useToastStore"
 import { cn } from "@/lib/utils"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 interface TaskDetailsDrawerProps {
   open: boolean
@@ -312,7 +313,7 @@ export default function TaskDetailsDrawer({
               {/* Body Section */}
               <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {/* Content Area: Key-Value Grid */}
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-1 px-6 py-6 scrollbar-interactive scrollbar-overlay">
+                <ScrollArea className="flex-1 px-6 py-6" scrollbar="overlay" viewportClassName="space-y-1">
                   {activeTab === 0 && (
                     <div className="flex flex-col">
                       {/* 1. 下载地址 */}
@@ -448,19 +449,21 @@ export default function TaskDetailsDrawer({
                           />
                         ) : (
                           <div className="flex flex-col border border-border/80 rounded-xl bg-background/25 overflow-hidden">
-                            <div className="max-h-[350px] overflow-y-auto divide-y divide-border/40 scrollbar-interactive">
-                              {btDetails?.trackers && btDetails.trackers.length > 0 ? (
-                                btDetails.trackers.map((tracker, idx) => (
-                                  <div key={idx} className="px-4 py-3 text-xs font-mono break-all hover:bg-muted/10 transition-colors text-foreground/85">
-                                    {tracker}
+                            <ScrollArea className="max-h-[350px]" scrollbar="thin">
+                              <div className="divide-y divide-border/40">
+                                {btDetails?.trackers && btDetails.trackers.length > 0 ? (
+                                  btDetails.trackers.map((tracker, idx) => (
+                                    <div key={idx} className="px-4 py-3 text-xs font-mono break-all hover:bg-muted/10 transition-colors text-foreground/85">
+                                      {tracker}
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+                                    <span className="text-xs select-none">暂无 Tracker 服务器</span>
                                   </div>
-                                ))
-                              ) : (
-                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
-                                  <span className="text-xs select-none">暂无 Tracker 服务器</span>
-                                </div>
-                              )}
-                            </div>
+                                )}
+                              </div>
+                            </ScrollArea>
                           </div>
                         )}
                       </div>
@@ -505,39 +508,41 @@ export default function TaskDetailsDrawer({
                             <span className="w-24 text-right">上传速度</span>
                             <span className="w-16 text-right">进度</span>
                           </div>
-                          <div className="max-h-[300px] overflow-y-auto divide-y divide-border/40 scrollbar-interactive">
-                            {btDetails?.peers && btDetails.peers.length > 0 ? (
-                              btDetails.peers.map((peer, idx) => {
-                                const speedDisplay = peer.download_speed > 0 ? `${formatBytes(peer.download_speed)}/s` : "0 B/s";
-                                const uploadDisplay = peer.upload_speed > 0 ? `${formatBytes(peer.upload_speed)}/s` : "0 B/s";
-                                return (
-                                  <div key={idx} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
-                                    <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                      <span className="text-foreground/90 font-mono font-medium truncate select-all">
-                                        {peer.ip}:{peer.port}
+                          <ScrollArea className="max-h-[300px]" scrollbar="thin">
+                            <div className="divide-y divide-border/40">
+                              {btDetails?.peers && btDetails.peers.length > 0 ? (
+                                btDetails.peers.map((peer, idx) => {
+                                  const speedDisplay = peer.download_speed > 0 ? `${formatBytes(peer.download_speed)}/s` : "0 B/s";
+                                  const uploadDisplay = peer.upload_speed > 0 ? `${formatBytes(peer.upload_speed)}/s` : "0 B/s";
+                                  return (
+                                    <div key={idx} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
+                                      <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                        <span className="text-foreground/90 font-mono font-medium truncate select-all">
+                                          {peer.ip}:{peer.port}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground truncate select-none">
+                                          {peer.client || "未知客户端"}
+                                        </span>
+                                      </div>
+                                      <span className="w-24 text-right text-primary font-medium shrink-0 tabular-nums">
+                                        {speedDisplay}
                                       </span>
-                                      <span className="text-[10px] text-muted-foreground truncate select-none">
-                                        {peer.client || "未知客户端"}
+                                      <span className="w-24 text-right text-muted-foreground font-medium shrink-0 tabular-nums">
+                                        {uploadDisplay}
+                                      </span>
+                                      <span className="w-16 text-right text-foreground/85 font-semibold shrink-0 tabular-nums">
+                                        {(peer.progress * 100).toFixed(1)}%
                                       </span>
                                     </div>
-                                    <span className="w-24 text-right text-primary font-medium shrink-0 tabular-nums">
-                                      {speedDisplay}
-                                    </span>
-                                    <span className="w-24 text-right text-muted-foreground font-medium shrink-0 tabular-nums">
-                                      {uploadDisplay}
-                                    </span>
-                                    <span className="w-16 text-right text-foreground/85 font-semibold shrink-0 tabular-nums">
-                                      {(peer.progress * 100).toFixed(1)}%
-                                    </span>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground select-none">
-                                <span className="text-xs">未连接到 Peer 用户</span>
-                              </div>
-                            )}
-                          </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground select-none">
+                                  <span className="text-xs">未连接到 Peer 用户</span>
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
                         </div>
                       </div>
                     ) : (
@@ -584,49 +589,51 @@ export default function TaskDetailsDrawer({
                             <span className="w-20 text-right">大小</span>
                             <span className="w-24 text-right">下载进度</span>
                           </div>
-                          <div className="max-h-[300px] overflow-y-auto divide-y divide-border/40 scrollbar-interactive">
-                            {btDetails?.files && btDetails.files.length > 0 ? (
-                              btDetails.files.map((file) => {
-                                const progress = file.size > 0 ? (file.completed / file.size) * 100 : 0;
-                                const filename = file.path.includes('/') ? file.path.split('/').pop() : file.path.split('\\').pop();
-                                const dirPath = file.path.includes('/') 
-                                  ? file.path.substring(0, file.path.lastIndexOf('/')) 
-                                  : file.path.substring(0, file.path.lastIndexOf('\\'));
-                                return (
-                                  <div key={file.index} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
-                                    <div className="flex-1 min-w-0 flex flex-col gap-0.5 pr-4 select-all">
-                                      <span className="text-foreground/90 font-medium truncate" title={file.path}>
-                                        {filename}
-                                      </span>
-                                      {dirPath.length > 0 && (
-                                        <span className="text-[10px] text-muted-foreground truncate select-none" title={file.path}>
-                                          {dirPath}
+                          <ScrollArea className="max-h-[300px]" scrollbar="thin">
+                            <div className="divide-y divide-border/40">
+                              {btDetails?.files && btDetails.files.length > 0 ? (
+                                btDetails.files.map((file) => {
+                                  const progress = file.size > 0 ? (file.completed / file.size) * 100 : 0;
+                                  const filename = file.path.includes('/') ? file.path.split('/').pop() : file.path.split('\\').pop();
+                                  const dirPath = file.path.includes('/') 
+                                    ? file.path.substring(0, file.path.lastIndexOf('/')) 
+                                    : file.path.substring(0, file.path.lastIndexOf('\\'));
+                                  return (
+                                    <div key={file.index} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
+                                      <div className="flex-1 min-w-0 flex flex-col gap-0.5 pr-4 select-all">
+                                        <span className="text-foreground/90 font-medium truncate" title={file.path}>
+                                          {filename}
                                         </span>
-                                      )}
-                                    </div>
-                                    <span className="w-20 text-right text-muted-foreground font-medium shrink-0 tabular-nums select-none">
-                                      {formatBytes(file.size)}
-                                    </span>
-                                    <div className="w-24 shrink-0 flex flex-col items-end gap-1 pl-2 select-none">
-                                      <span className="font-semibold text-foreground/80 tabular-nums">
-                                        {progress.toFixed(1)}%
+                                        {dirPath.length > 0 && (
+                                          <span className="text-xs text-muted-foreground truncate select-none" title={file.path}>
+                                            {dirPath}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <span className="w-20 text-right text-muted-foreground font-medium shrink-0 tabular-nums select-none">
+                                        {formatBytes(file.size)}
                                       </span>
-                                      <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                                        <div
-                                          className="h-full bg-primary transition-all duration-300"
-                                          style={{ width: `${progress}%` }}
-                                        />
+                                      <div className="w-24 shrink-0 flex flex-col items-end gap-1 pl-2 select-none">
+                                        <span className="font-semibold text-foreground/80 tabular-nums">
+                                          {progress.toFixed(1)}%
+                                        </span>
+                                        <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden">
+                                          <div
+                                            className="h-full bg-primary transition-all duration-300"
+                                            style={{ width: `${progress}%` }}
+                                          />
+                                        </div>
                                       </div>
                                     </div>
-                                  </div>
-                                );
-                              })
-                            ) : (
-                              <div className="flex flex-col items-center justify-center py-8 text-muted-foreground select-none">
-                                <span className="text-xs">暂无文件信息</span>
-                              </div>
-                            )}
-                          </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-8 text-muted-foreground select-none">
+                                  <span className="text-xs">暂无文件信息</span>
+                                </div>
+                              )}
+                            </div>
+                          </ScrollArea>
                         </div>
                       </div>
                     ) : (
@@ -724,7 +731,7 @@ export default function TaskDetailsDrawer({
                       </InfoRow>
                     </div>
                   )}
-                </div>
+                </ScrollArea>
 
                 {/* Footer Action Bar */}
                 <div className="shrink-0 border-t border-border/30 bg-popover-soft px-6 py-4 flex items-center justify-between gap-4 select-none">

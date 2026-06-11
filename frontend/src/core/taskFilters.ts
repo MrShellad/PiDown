@@ -1,14 +1,16 @@
 import type { Category, Tag, Task } from "@/core/store/useDownloadStore";
 
-export type SystemNavFilter = "all" | "completed" | "incomplete";
-export type CategoryNavFilter = `category:${number}`;
-export type TagNavFilter = `tag:${number}`;
+export type SystemNavFilter = "all" | "completed" | "incomplete" | "seeding";
+export type CategoryNavFilter = `category:${number}` | `completed:category:${number}` | `incomplete:category:${number}` | `seeding:category:${number}`;
+export type TagNavFilter = `tag:${number}` | `completed:tag:${number}` | `incomplete:tag:${number}` | `seeding:tag:${number}`;
 export type NavFilter = SystemNavFilter | CategoryNavFilter | TagNavFilter;
 
+export type StatusPrefix = "completed" | "incomplete" | "seeding" | null;
+
 type ParsedNavFilter =
-  | { type: "system"; value: SystemNavFilter }
-  | { type: "category"; id: number }
-  | { type: "tag"; id: number };
+  | { type: "system"; value: SystemNavFilter; status: StatusPrefix }
+  | { type: "category"; id: number; status: StatusPrefix }
+  | { type: "tag"; id: number; status: StatusPrefix };
 
 interface TaskFilterContext {
   categories?: Category[];
@@ -25,15 +27,37 @@ export const createTagFilter = (tagId: number): TagNavFilter =>
   `${TAG_FILTER_PREFIX}${tagId}` as TagNavFilter;
 
 export function parseNavFilter(filter: NavFilter): ParsedNavFilter {
-  if (filter.startsWith(CATEGORY_FILTER_PREFIX)) {
-    return { type: "category", id: Number(filter.slice(CATEGORY_FILTER_PREFIX.length)) };
+  let status: StatusPrefix = null;
+  let remaining: string = filter;
+
+  if (filter.startsWith("completed:")) {
+    status = "completed";
+    remaining = filter.slice("completed:".length);
+  } else if (filter.startsWith("incomplete:")) {
+    status = "incomplete";
+    remaining = filter.slice("incomplete:".length);
+  } else if (filter.startsWith("seeding:")) {
+    status = "seeding";
+    remaining = filter.slice("seeding:".length);
   }
 
-  if (filter.startsWith(TAG_FILTER_PREFIX)) {
-    return { type: "tag", id: Number(filter.slice(TAG_FILTER_PREFIX.length)) };
+  if (remaining.startsWith(CATEGORY_FILTER_PREFIX)) {
+    return {
+      type: "category",
+      id: Number(remaining.slice(CATEGORY_FILTER_PREFIX.length)),
+      status,
+    };
   }
 
-  return { type: "system", value: filter as SystemNavFilter };
+  if (remaining.startsWith(TAG_FILTER_PREFIX)) {
+    return {
+      type: "tag",
+      id: Number(remaining.slice(TAG_FILTER_PREFIX.length)),
+      status,
+    };
+  }
+
+  return { type: "system", value: remaining as SystemNavFilter, status };
 }
 
 const normalizeRuleValues = (values?: string[]) =>
@@ -107,6 +131,10 @@ function taskMatchesTag(task: Task, tagId: number, context: TaskFilterContext) {
 export function taskMatchesFilter(task: Task, filter: NavFilter, context: TaskFilterContext = {}) {
   const parsed = parseNavFilter(filter);
 
+  if (parsed.status === "completed" && task.status !== "Completed") return false;
+  if (parsed.status === "incomplete" && task.status === "Completed") return false;
+  if (parsed.status === "seeding" && task.status !== "Seeding") return false;
+
   if (parsed.type === "category") return taskMatchesCategory(task, parsed.id, context);
   if (parsed.type === "tag") return taskMatchesTag(task, parsed.id, context);
 
@@ -115,6 +143,8 @@ export function taskMatchesFilter(task: Task, filter: NavFilter, context: TaskFi
       return task.status === "Completed";
     case "incomplete":
       return task.status !== "Completed";
+    case "seeding":
+      return task.status === "Seeding";
     case "all":
     default:
       return true;

@@ -1,5 +1,6 @@
 use crate::core::state::task_format::{format_eta, format_speed};
 use crate::core::state::AppState;
+use gosh_dl::DownloadState;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
@@ -27,6 +28,7 @@ pub struct TaskProgressPayload {
     pub speed_bps: u64,
     pub eta_seconds: Option<u64>,
     pub upload_speed: String,
+    pub status: String,
 }
 
 #[derive(Clone, Serialize)]
@@ -135,6 +137,14 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                     speed_bps: download_speed,
                     eta_seconds,
                     upload_speed: format_speed(upload_speed, &speed_display_unit),
+                    status: match &download.state {
+                        DownloadState::Queued => "Pending".to_string(),
+                        DownloadState::Connecting | DownloadState::Downloading => "Downloading".to_string(),
+                        DownloadState::Seeding => "Seeding".to_string(),
+                        DownloadState::Paused => "Paused".to_string(),
+                        DownloadState::Completed => "Completed".to_string(),
+                        DownloadState::Error { .. } => "Failed".to_string(),
+                    },
                 });
             }
             speed_samples.retain(|gid, _| active_gids.contains(gid));

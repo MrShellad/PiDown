@@ -529,7 +529,7 @@
               --sidebar-ring 400ms ease,
               --task-progress-active 400ms ease,
               --task-progress-paused 400ms ease,
-              --task-progress-failed 400ms ease !important;
+              --task-progress-failed 400ms ease;
 }
 
 .window-frame {

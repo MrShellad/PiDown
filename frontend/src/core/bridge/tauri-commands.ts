@@ -65,7 +65,7 @@ export interface TaskOverview {
   gid: string;
   url: string;
   name: string;
-  status: "Pending" | "Downloading" | "Paused" | "Completed" | "Failed" | "Cancelled";
+  status: "Pending" | "Downloading" | "Seeding" | "Paused" | "Completed" | "Failed" | "Cancelled";
   speed: string;
   progress: number;
   eta: string;
