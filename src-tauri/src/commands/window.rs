@@ -29,12 +29,9 @@ pub async fn switch_to_main(app: AppHandle) -> Result<(), String> {
     let main_win = app
         .get_webview_window("main")
         .ok_or("Main window not found")?;
-    let float_win = app
-        .get_webview_window("float")
-        .ok_or("Float window not found")?;
 
-    float_win.hide().map_err(|e| e.to_string())?;
     main_win.show().map_err(|e| e.to_string())?;
+    main_win.unminimize().map_err(|e| e.to_string())?;
     main_win.set_focus().map_err(|e| e.to_string())?;
 
     Ok(())
@@ -55,12 +52,25 @@ pub async fn handle_close_action(
         return Ok(());
     }
 
-    if state.should_close_to_float() {
-        switch_to_float(app.clone()).await
-    } else {
-        app.exit(0);
-        Ok(())
+    let close_action = state.get_settings().interface.close_action;
+    let main_win = app
+        .get_webview_window("main")
+        .ok_or("Main window not found")?;
+
+    use crate::core::settings::CloseAction;
+    match close_action {
+        CloseAction::Minimize => {
+            main_win.minimize().map_err(|e| e.to_string())?;
+        }
+        CloseAction::Tray => {
+            main_win.hide().map_err(|e| e.to_string())?;
+        }
+        CloseAction::Exit => {
+            app.exit(0);
+        }
     }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -114,3 +124,36 @@ pub fn set_window_shadow(_window: &tauri::WebviewWindow, _disable: bool) -> Resu
     Ok(())
 }
 
+#[tauri::command]
+pub fn exit_app(app: AppHandle) {
+    app.exit(0);
+}
+
+#[cfg(target_os = "windows")]
+#[tauri::command]
+pub fn get_cursor_screen_pos() -> Result<(i32, i32), String> {
+    #[repr(C)]
+    struct POINT {
+        x: i32,
+        y: i32,
+    }
+
+    #[link(name = "user32")]
+    extern "system" {
+        fn GetCursorPos(lp_point: *mut POINT) -> i32;
+    }
+
+    let mut point = POINT { x: 0, y: 0 };
+    unsafe {
+        if GetCursorPos(&mut point) == 0 {
+            return Err("GetCursorPos failed".to_string());
+        }
+    }
+    Ok((point.x, point.y))
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tauri::command]
+pub fn get_cursor_screen_pos() -> Result<(i32, i32), String> {
+    Err("Not supported on this platform".to_string())
+}

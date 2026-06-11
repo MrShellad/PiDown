@@ -251,6 +251,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   useEffect(() => {
     let disposed = false;
     let unlistenExternalDownload: (() => void) | undefined;
+    let unlistenOpenNewTask: (() => void) | undefined;
 
     listen<ExternalDownloadRequest>("external-download-request", (event) => {
       setExternalDownloadRequest(event.payload);
@@ -268,9 +269,24 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         console.error("Failed to listen external download requests:", error);
       });
 
+    listen<void>("open-new-task", () => {
+      setModalOpen(true);
+    })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+          return;
+        }
+        unlistenOpenNewTask = unlisten;
+      })
+      .catch((error) => {
+        console.error("Failed to listen open-new-task event:", error);
+      });
+
     return () => {
       disposed = true;
       unlistenExternalDownload?.();
+      unlistenOpenNewTask?.();
     };
   }, []);
 

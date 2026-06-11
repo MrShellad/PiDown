@@ -92,7 +92,8 @@ export interface TaskClassificationPreview {
   save_path: string;
 }
 
-export type CloseAction = "float" | "exit";
+export type CloseAction = "minimize" | "tray" | "exit";
+export type FloatDisplayMode = "always" | "only_downloading" | "hidden";
 export type SpeedDisplayUnit = "auto" | "kib" | "mib" | "mb";
 export type FileChecksumAlgorithm = "MD5" | "SHA-1" | "SHA-256" | "SHA-512";
 
@@ -151,6 +152,7 @@ export interface AppSettings {
   interface: {
     close_action: CloseAction;
     minimize_on_close_with_tasks: boolean;
+    float_display_mode: FloatDisplayMode;
     background_id: number | null;
     background_blur: number;
     background_mask_color: string;
@@ -391,8 +393,9 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       speed_display_unit: "auto",
     },
     interface: {
-      close_action: "float",
+      close_action: "minimize",
       minimize_on_close_with_tasks: false,
+      float_display_mode: "always",
       background_id: null,
       background_blur: 0,
       background_mask_color: "#000000",
@@ -492,5 +495,10 @@ export async function updateTaskTrackers(gid: string, trackers: string[]): Promi
   return invoke<void>("update_task_trackers", { gid, trackers });
 }
 
+export async function exitApp(): Promise<void> {
+  return invoke<void>("exit_app");
+}
 
-
+export async function getCursorScreenPos(): Promise<[number, number]> {
+  return invoke<[number, number]>("get_cursor_screen_pos");
+}

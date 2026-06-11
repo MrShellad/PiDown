@@ -12,13 +12,29 @@ pub const MAX_DOWNLOAD_RETRIES: u32 = 20;
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum CloseAction {
-    Float,
+    #[serde(alias = "float")]
+    Minimize,
+    Tray,
     Exit,
 }
 
 impl Default for CloseAction {
     fn default() -> Self {
-        Self::Float
+        Self::Minimize
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum FloatDisplayMode {
+    Always,
+    OnlyDownloading,
+    Hidden,
+}
+
+impl Default for FloatDisplayMode {
+    fn default() -> Self {
+        Self::Always
     }
 }
 
@@ -112,6 +128,7 @@ impl TransferSettings {
 pub struct InterfaceSettings {
     pub close_action: CloseAction,
     pub minimize_on_close_with_tasks: bool,
+    pub float_display_mode: FloatDisplayMode,
     pub background_id: Option<i64>,
     pub background_blur: u32,
     pub background_mask_color: String,
@@ -124,8 +141,9 @@ pub struct InterfaceSettings {
 impl Default for InterfaceSettings {
     fn default() -> Self {
         Self {
-            close_action: CloseAction::Float,
+            close_action: CloseAction::Minimize,
             minimize_on_close_with_tasks: false,
+            float_display_mode: FloatDisplayMode::Always,
             background_id: None,
             background_blur: 0,
             background_mask_color: "#000000".to_string(),

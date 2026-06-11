@@ -1,4 +1,4 @@
-use crate::core::settings::{AppSettings, AppSettingsDocument, CloseAction, APP_SETTINGS_VERSION};
+use crate::core::settings::{AppSettings, AppSettingsDocument, APP_SETTINGS_VERSION};
 use crate::download::DownloadManager;
 use std::path::PathBuf;
 
@@ -102,13 +102,6 @@ impl super::AppState {
         self.ensure_default_category_configs(Some(&previous_default_save_dir))?;
 
         Ok(settings)
-    }
-
-    pub fn should_close_to_float(&self) -> bool {
-        matches!(
-            self.settings.read().unwrap().interface.close_action,
-            CloseAction::Float
-        )
     }
 
     pub fn should_minimize_on_close_with_tasks(&self) -> bool {

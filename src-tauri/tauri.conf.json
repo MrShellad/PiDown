@@ -22,19 +22,22 @@
         "resizable": true,
         "fullscreen": false,
         "decorations": false,
-        "transparent": true
+        "transparent": true,
+        "shadow": false
       },
       {
         "label": "float",
         "title": "PiDownloader Float",
-        "width": 140,
-        "height": 140,
+        "url": "/float",
+        "width": 500,
+        "height": 500,
         "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
-        "visible": false
+        "visible": false,
+        "shadow": false
       }
     ],
     "security": {

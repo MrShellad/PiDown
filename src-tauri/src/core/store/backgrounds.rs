@@ -38,6 +38,7 @@ impl DbStore {
         Ok(backgrounds)
     }
 
+    #[allow(dead_code)]
     pub fn get_background(&self, id: i64) -> Result<Option<DbBackground>, rusqlite::Error> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(

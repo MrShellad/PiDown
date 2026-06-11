@@ -22,9 +22,6 @@ pub async fn update_app_settings(
     if let Some(main_win) = app.get_webview_window("main") {
         let _ = set_window_shadow(&main_win, disable_shadow);
     }
-    if let Some(float_win) = app.get_webview_window("float") {
-        let _ = set_window_shadow(&float_win, disable_shadow);
-    }
 
     Ok(result)
 }

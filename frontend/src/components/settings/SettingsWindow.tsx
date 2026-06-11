@@ -31,6 +31,7 @@ import {
   listSystemFonts,
   type AppSettings,
   type SpeedDisplayUnit,
+  type FloatDisplayMode,
   getBackgrounds,
   pickBackgroundFile,
   importBackgroundFile,
@@ -85,6 +86,12 @@ const SPEED_DISPLAY_UNIT_OPTIONS: { value: SpeedDisplayUnit; label: string }[] =
   { value: "kib", label: "KiB/s" },
   { value: "mib", label: "MiB/s" },
   { value: "mb", label: "MB/s" },
+];
+
+const FLOAT_DISPLAY_MODE_OPTIONS: { value: FloatDisplayMode; label: string }[] = [
+  { value: "always", label: UI_TEXT.settings.floatWindowAlways },
+  { value: "only_downloading", label: UI_TEXT.settings.floatWindowOnlyDownloading },
+  { value: "hidden", label: UI_TEXT.settings.floatWindowHidden },
 ];
 
 function FontDropdownSkeleton() {
@@ -1033,9 +1040,14 @@ export default function SettingsWindow() {
                     <SettingsList>
                       {[
                         {
-                          value: "float",
-                          title: UI_TEXT.settings.closeActionFloat,
-                          description: UI_TEXT.settings.closeActionFloatDesc,
+                          value: "minimize",
+                          title: UI_TEXT.settings.closeActionMinimize,
+                          description: UI_TEXT.settings.closeActionMinimizeDesc,
+                        },
+                        {
+                          value: "tray",
+                          title: UI_TEXT.settings.closeActionTray,
+                          description: UI_TEXT.settings.closeActionTrayDesc,
                         },
                         {
                           value: "exit",
@@ -1070,6 +1082,25 @@ export default function SettingsWindow() {
                           }
                         />
                       ))}
+                      <SettingsListItem
+                        title={UI_TEXT.settings.floatWindowSettingsTitle}
+                        description={UI_TEXT.settings.floatWindowSettingsDesc}
+                      >
+                        <OptionDropdown
+                          value={draft.interface.float_display_mode}
+                          options={FLOAT_DISPLAY_MODE_OPTIONS}
+                          onValueChange={(nextMode) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                float_display_mode: nextMode as AppSettings["interface"]["float_display_mode"],
+                              },
+                            }))
+                          }
+                          ariaLabel={UI_TEXT.settings.floatWindowSettingsTitle}
+                        />
+                      </SettingsListItem>
                       <SettingsListItem
                         title={UI_TEXT.settings.minimizeOnCloseWithTasks}
                         description={UI_TEXT.settings.minimizeOnCloseWithTasksDesc}

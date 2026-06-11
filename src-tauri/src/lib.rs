@@ -46,8 +46,52 @@ pub fn run() {
             if let Some(main_win) = app.get_webview_window("main") {
                 let _ = commands::window::set_window_shadow(&main_win, disable_shadow);
             }
-            if let Some(float_win) = app.get_webview_window("float") {
-                let _ = commands::window::set_window_shadow(&float_win, disable_shadow);
+
+            // Set up System Tray
+            use tauri::menu::{Menu, MenuItem};
+            use tauri::tray::{TrayIconBuilder, TrayIconEvent, MouseButton, MouseButtonState};
+
+            let tray_menu = Menu::with_items(app, &[
+                &MenuItem::with_id(app, "show", "显示主窗口", true, None::<&str>)?,
+                &MenuItem::with_id(app, "exit", "退出应用", true, None::<&str>)?,
+            ])?;
+
+            let tray_icon = app.default_window_icon().cloned();
+            if let Some(icon) = tray_icon {
+                let _tray = TrayIconBuilder::new()
+                    .icon(icon)
+                    .menu(&tray_menu)
+                    .on_menu_event(|app, event| match event.id.as_ref() {
+                        "show" => {
+                            if let Some(main_win) = app.get_webview_window("main") {
+                                let _ = main_win.show();
+                                let _ = main_win.unminimize();
+                                let _ = main_win.set_focus();
+                            }
+                        }
+                        "exit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    })
+                    .on_tray_icon_event(|tray, event| {
+                        if let TrayIconEvent::Click {
+                            button: MouseButton::Left,
+                            button_state: MouseButtonState::Up,
+                            ..
+                        } = event
+                        {
+                            let app = tray.app_handle();
+                            if let Some(main_win) = app.get_webview_window("main") {
+                                let _ = main_win.show();
+                                let _ = main_win.unminimize();
+                                let _ = main_win.set_focus();
+                            }
+                        }
+                    })
+                    .build(app)?;
+            } else {
+                log::warn!("Default window icon not found; system tray is disabled.");
             }
 
             log::info!("PiDownloader backend initialized successfully");
@@ -99,6 +143,8 @@ pub fn run() {
             commands::import_background_file,
             commands::import_background_url,
             commands::delete_background,
+            commands::exit_app,
+            commands::get_cursor_screen_pos,
         ])
 
         .on_window_event(|window, event| {

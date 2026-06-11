@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { emit, listen } from "@tauri-apps/api/event";
 import {
   getAppSettings,
   updateAppSettings,
@@ -22,6 +23,12 @@ interface AppSettingsState {
   load: () => Promise<void>;
   save: (settings: AppSettings) => Promise<void>;
   setActiveSection: (section: SettingsSectionId) => void;
+}
+
+const SETTINGS_SYNC_EVENT = "pidownloader-settings-sync";
+
+export function broadcastSettingsSync() {
+  emit(SETTINGS_SYNC_EVENT).catch(() => {});
 }
 
 export const useAppSettingsStore = create<AppSettingsState>((set) => ({
@@ -53,6 +60,7 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
     try {
       const next = await updateAppSettings(settings);
       set({ settings: next, saving: false, lastSavedAt: Date.now() });
+      broadcastSettingsSync();
     } catch (error) {
       set({
         saving: false,
@@ -64,3 +72,10 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
 
   setActiveSection: (activeSection) => set({ activeSection }),
 }));
+
+if (typeof window !== "undefined") {
+  listen(SETTINGS_SYNC_EVENT, () => {
+    useAppSettingsStore.getState().load().catch(console.error);
+  }).catch(() => {});
+}
+

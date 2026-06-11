@@ -64,7 +64,6 @@ export default function App() {
     return (
       <ThemeProvider taskRuntime>
         <TooltipProvider>
-          <ActiveBackground />
           <FloatDisc />
         </TooltipProvider>
       </ThemeProvider>
