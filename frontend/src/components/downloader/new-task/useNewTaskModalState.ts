@@ -232,6 +232,11 @@ export function useNewTaskModalState({
     loadSettings().catch(console.error)
   }, [loadSettings, open, settings])
 
+  useEffect(() => {
+    if (!open) return
+    useDownloadStore.getState().fetchCategoryTree().catch(console.error)
+  }, [open])
+
   const pasteFromClipboard = useCallback(async () => {
     try {
       const text = await readClipboardText()

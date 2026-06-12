@@ -190,9 +190,6 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
 
             match win_builder.build() {
                 Ok(window) => {
-                    let disable_shadow = state.get_settings().interface.disable_window_shadow;
-                    let _ = crate::commands::window::set_window_shadow(&window, disable_shadow);
-                    
                     let _ = window.show();
                     let _ = window.set_focus();
 

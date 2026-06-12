@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit } from "@tauri-apps/api/event";
 import {
   getAppSettings,
   updateAppSettings,
@@ -105,9 +105,4 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
   setActiveSection: (activeSection) => set({ activeSection }),
 }));
 
-if (typeof window !== "undefined") {
-  listen(SETTINGS_SYNC_EVENT, () => {
-    useAppSettingsStore.getState().load().catch(console.error);
-  }).catch(() => {});
-}
 

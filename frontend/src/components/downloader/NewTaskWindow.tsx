@@ -60,9 +60,9 @@ export default function NewTaskWindow() {
         showSettingsButton={false}
         onClose={() => getCurrentWindow().close().catch(console.error)}
       />
-      <ScrollArea className="flex-1 px-5 py-4" scrollbar="overlay" viewportClassName="h-full">
-        <form onSubmit={actions.handleSubmit} className="flex flex-col h-full justify-between">
-          <div className="flex-1 min-h-0">
+      <form onSubmit={actions.handleSubmit} className="flex flex-col min-h-0 flex-1 bg-transparent">
+        <ScrollArea className="flex-1 min-h-0" scrollbar="overlay">
+          <div className="px-5 py-5">
             {state.step === "link" ? (
               <NewTaskLinkStep
                 url={state.url}
@@ -107,49 +107,51 @@ export default function NewTaskWindow() {
                 onPickSaveDirectory={actions.pickSaveDirectory}
                 onSelectedFilesChange={actions.setSelectedFiles}
                 onSequentialChange={actions.setSequential}
+                onRetryMetadata={actions.retryMetadataProbe}
+                savePathHistory={state.savePathHistory}
               />
             )}
           </div>
+        </ScrollArea>
 
-          <div className="flex justify-end gap-3 mt-6 pt-4 border-t border-border shrink-0">
-            {state.step === "link" ? (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={actions.closeModal}
-                  disabled={state.loading}
-                >
-                  {UI_TEXT.newTask.cancel}
-                </Button>
-                <Button type="submit" disabled={state.loading || !state.url.trim()}>
-                  下一步
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  type="submit"
-                  disabled={state.loading}
-                  loading={state.loading}
-                  className="min-w-28 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button-glow"
-                >
-                  下载
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={actions.closeModal}
-                  disabled={state.loading}
-                  className="min-w-28"
-                >
-                  {UI_TEXT.newTask.cancel}
-                </Button>
-              </>
-            )}
-          </div>
-        </form>
-      </ScrollArea>
+        <div className="flex justify-end gap-3 px-5 py-4 border-t border-border shrink-0 bg-card/60">
+          {state.step === "link" ? (
+            <>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={actions.closeModal}
+                disabled={state.loading}
+              >
+                {UI_TEXT.newTask.cancel}
+              </Button>
+              <Button type="submit" disabled={state.loading || !state.url.trim()}>
+                下一步
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button
+                type="submit"
+                disabled={state.loading}
+                loading={state.loading}
+                className="min-w-28 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-button-glow"
+              >
+                下载
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={actions.closeModal}
+                disabled={state.loading}
+                className="min-w-28"
+              >
+                {UI_TEXT.newTask.cancel}
+              </Button>
+            </>
+          )}
+        </div>
+      </form>
 
       <NewTaskConflictDialog
         conflictCheck={state.conflictCheck}

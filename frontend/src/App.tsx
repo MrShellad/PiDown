@@ -52,7 +52,7 @@ export default function App() {
 
   if (isNewTask) {
     return (
-      <ThemeProvider taskRuntime>
+      <ThemeProvider taskRuntime={false}>
         <TooltipProvider>
           <ActiveBackground />
           <NewTaskWindow />

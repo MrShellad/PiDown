@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { applyThemeToDocument, useThemeStore } from "@/core/store/useThemeStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
@@ -38,34 +39,93 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
     }
   }, [colorMode, fontId, theme, effectsEnabled]);
 
-  // Hook up Tauri event listener and fetch initial task list
+  // Hook up Tauri event listeners and fetch initial states
   useEffect(() => {
+    // 1. Initial settings load
     useAppSettingsStore.getState().load().catch(err => {
       console.error("Failed to initial fetch app settings:", err);
     });
 
-    if (!taskRuntime) return;
+    let isSubscribed = true;
+    let unlistenTheme: (() => void) | undefined;
+    let unlistenSettings: (() => void) | undefined;
+    let runtimeCleanup: (() => void) | undefined;
 
-    let cleanup: (() => void) | undefined;
-    
-    setupTauriEvents().then((fn) => {
-      cleanup = fn;
-    }).catch(err => {
-      console.warn("Tauri API is not available (running in browser mode):", err);
-    });
+    const setupSync = async () => {
+      try {
+        if (!isSubscribed) return;
 
-    // Fetch initial task list from SQLite database
-    useDownloadStore.getState().fetchTasks().catch(err => {
-      console.error("Failed to initial fetch tasks:", err);
-    });
+        // Settings Sync
+        unlistenSettings = await listen("pidownloader-settings-sync", () => {
+          useAppSettingsStore.getState().load().catch(console.error);
+        });
 
-    // Fetch category navigation tree from SQLite database
-    useDownloadStore.getState().fetchCategoryTree().catch(err => {
-      console.error("Failed to initial fetch category tree:", err);
-    });
+        if (!isSubscribed) return;
+
+        // Theme Sync
+        unlistenTheme = await listen("pidownloader-theme-sync", (event: any) => {
+          let nextState: any = null;
+          if (event && event.payload) {
+            nextState = event.payload;
+          } else {
+            try {
+              const raw = window.localStorage.getItem("pidownloader-theme-config");
+              if (raw) {
+                const parsed = JSON.parse(raw);
+                nextState = parsed.state;
+              }
+            } catch (e) {
+              console.error("Failed to parse theme config from storage:", e);
+            }
+          }
+
+          if (nextState) {
+            const normalizedState = {
+              theme: nextState.theme || "modern",
+              colorMode: nextState.colorMode || "dark",
+              fontId: nextState.fontId || "builtin:geist",
+              effectsEnabled: nextState.effectsEnabled ?? true,
+              soundEnabled: nextState.soundEnabled ?? true,
+              customThemes: nextState.customThemes ?? [],
+            };
+            useThemeStore.setState(normalizedState);
+            applyThemeToDocument(normalizedState);
+          }
+        });
+      } catch (err) {
+        console.warn("Tauri events API not available or failed to register sync listeners:", err);
+      }
+    };
+
+    setupSync();
+
+    if (taskRuntime) {
+      setupTauriEvents().then((fn) => {
+        if (!isSubscribed) {
+          fn();
+          return;
+        }
+        runtimeCleanup = fn;
+      }).catch(err => {
+        console.warn("Tauri API is not available (running in browser mode):", err);
+      });
+
+      // Fetch initial task list from SQLite database
+      useDownloadStore.getState().fetchTasks().catch(err => {
+        console.error("Failed to initial fetch tasks:", err);
+      });
+
+      // Fetch category navigation tree from SQLite database
+      useDownloadStore.getState().fetchCategoryTree().catch(err => {
+        console.error("Failed to initial fetch category tree:", err);
+      });
+    }
 
     return () => {
-      if (cleanup) cleanup();
+      isSubscribed = false;
+      if (unlistenTheme) unlistenTheme();
+      if (unlistenSettings) unlistenSettings();
+      if (runtimeCleanup) runtimeCleanup();
     };
   }, [taskRuntime]);
 

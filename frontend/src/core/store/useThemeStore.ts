@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { emit, listen } from "@tauri-apps/api/event";
+import { emit } from "@tauri-apps/api/event";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import JSZip from "jszip";
 import {
@@ -108,8 +108,17 @@ function readPersistedThemeState(): PersistedThemeState | null {
 }
 
 function broadcastThemeSync() {
-  window.dispatchEvent(new CustomEvent(THEME_SYNC_EVENT));
-  emit(THEME_SYNC_EVENT).catch(() => {
+  const state = useThemeStore.getState();
+  const payload = {
+    theme: state.theme,
+    colorMode: state.colorMode,
+    fontId: state.fontId,
+    effectsEnabled: state.effectsEnabled,
+    soundEnabled: state.soundEnabled,
+    customThemes: state.customThemes,
+  };
+  window.dispatchEvent(new CustomEvent(THEME_SYNC_EVENT, { detail: payload }));
+  emit(THEME_SYNC_EVENT, payload).catch(() => {
     // Browser preview does not provide the Tauri event bridge.
   });
 }
@@ -583,8 +592,4 @@ if (typeof window !== "undefined") {
     if (event.key === THEME_STORAGE_KEY) syncFromStorage();
   });
   window.addEventListener(THEME_SYNC_EVENT, syncFromStorage);
-
-  listen(THEME_SYNC_EVENT, syncFromStorage).catch(() => {
-    // Browser preview does not provide the Tauri event bridge.
-  });
 }

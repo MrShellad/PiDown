@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PiDownloader - 极速、智能的现代桌面下载器</title>
+  <meta name="description" content="PiDownloader 是一款基于 Tauri + Rust + React 开发的现代化桌面下载器。支持多线程并发加速、BitTorrent/磁力链接下载、以及无缝浏览器扩展集成。极简无广告，为极速下载而生。">
+  <meta name="keywords" content="PiDownloader, PiDown, 下载器, 磁力下载, BT下载, 多线程加速, 极速下载, 现代化下载客户端">
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    /* Design Tokens matching Modern Fluid Theme */
+    :root {
+      --bg-color: #08060f;
+      --fg-color: #f4f4f7;
+      
+      /* Primary Colors */
+      --primary: #8b5cf6; /* Vibrant violet */
+      --primary-rgb: 139, 92, 246;
+      --primary-hover: #7c3aed;
+      --primary-glow: rgba(139, 92, 246, 0.4);
+      
+      /* Secondary Colors */
+      --secondary: #06b6d4; /* Vibrant cyan */
+      --secondary-rgb: 6, 182, 212;
+      --secondary-glow: rgba(6, 182, 212, 0.3);
+
+      /* Glassmorphic Surfaces */
+      --card-bg: rgba(19, 16, 36, 0.55);
+      --card-border: rgba(139, 92, 246, 0.12);
+      --card-hover-border: rgba(139, 92, 246, 0.35);
+      --card-shadow: 0 16px 36px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+
+      /* Text Colors */
+      --text-main: #f4f4f7;
+      --text-muted: #9fa0b0;
+      
+      --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --font-title: 'Outfit', var(--font-sans);
+      
+      --radius: 16px;
+      --radius-sm: 8px;
+    }
+
+    /* Reset */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-color);
+      color: var(--fg-color);
+      min-height: 100vh;
+      overflow-x: hidden;
+      line-height: 1.6;
+    }
+
+    /* Aurora Background Glows */
+    .aurora-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: -2;
+      overflow: hidden;
+      pointer-events: none;
+    }
+
+    .aurora-blob {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(140px);
+      opacity: 0.38;
+      mix-blend-mode: screen;
+    }
+
+    .blob-primary {
+      top: -10%;
+      left: 15%;
+      width: 550px;
+      height: 550px;
+      background: radial-gradient(circle, var(--primary) 0%, rgba(139, 92, 246, 0) 70%);
+      animation: float-purple 28s ease-in-out infinite alternate;
+    }
+
+    .blob-secondary {
+      bottom: -10%;
+      right: 10%;
+      width: 650px;
+      height: 650px;
+      background: radial-gradient(circle, var(--secondary) 0%, rgba(6, 182, 212, 0) 70%);
+      animation: float-cyan 32s ease-in-out infinite alternate;
+    }
+
+    .blob-accent {
+      top: 35%;
+      right: 20%;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(236, 72, 153, 0.45) 0%, rgba(236, 72, 153, 0) 70%);
+      animation: float-pink 24s ease-in-out infinite alternate;
+    }
+
+    @keyframes float-purple {
+      0% { transform: translate(0, 0) scale(1); }
+      100% { transform: translate(120px, 90px) scale(1.25); }
+    }
+
+    @keyframes float-cyan {
+      0% { transform: translate(0, 0) scale(1.1); }
+      100% { transform: translate(-140px, -80px) scale(0.9); }
+    }
+
+    @keyframes float-pink {
+      0% { transform: translate(0, 0) scale(0.9); }
+      100% { transform: translate(70px, -110px) scale(1.15); }
+    }
+
+    /* Grid Overlay */
+    .grid-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.007) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.007) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    /* Layout Wrapper */
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Header Styling */
+    header {
+      backdrop-filter: blur(12px);
+      background: rgba(8, 6, 15, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      height: 72px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-main);
+    }
+
+    .brand-logo {
+      width: 38px;
+      height: 38px;
+    }
+
+    .brand-name {
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, #ffffff 30%, #a78bfa 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-menu {
+      display: flex;
+      gap: 32px;
+      list-style: none;
+    }
+
+    .nav-menu a {
+      text-decoration: none;
+      color: var(--text-muted);
+      font-size: 14px;
+      font-weight: 500;
+      transition: color 0.2s, text-shadow 0.2s;
+    }
+
+    .nav-menu a:hover {
+      color: var(--text-main);
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+    }
+
+    .github-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Hero Section */
+    .hero {
+      padding: 80px 0 60px;
+      text-align: center;
+      position: relative;
+    }
+
+    .version-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 12px;
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.25);
+      border-radius: 20px;
+      color: #c084fc;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 24px;
+      font-family: var(--font-title);
+    }
+
+    .hero h1 {
+      font-family: var(--font-title);
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1.5px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 70%, #6366f1 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero p.tagline {
+      max-width: 680px;
+      margin: 0 auto 40px;
+      font-size: 18px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Download CTA Section */
+    .download-area {
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    .main-download-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 16px 36px;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      color: #ffffff;
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+      border: none;
+      border-radius: var(--radius);
+      cursor: pointer;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s, background-image 0.2s;
+      box-shadow: 0 8px 30px var(--primary-glow);
+    }
+
+    .main-download-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 35px rgba(139, 92, 246, 0.6);
+      background: linear-gradient(135deg, #9b6bf7 0%, #4f46e5 100%);
+    }
+
+    .main-download-btn:active {
+      transform: translateY(0);
+    }
+
+    .btn-icon {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    .download-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 12px;
+      margin-bottom: 40px;
+    }
+
+    /* Secondary Platforms List */
+    .other-platforms {
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .other-platforms h3 {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    .platform-links {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .platform-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 20px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: var(--radius-sm);
+      text-decoration: none;
+      color: var(--text-main);
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.2s, border 0.2s, transform 0.2s;
+    }
+
+    .platform-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--card-hover-border);
+      transform: translateY(-1px);
+    }
+
+    .platform-btn.active-platform {
+      background: rgba(139, 92, 246, 0.12);
+      border-color: var(--primary);
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.15);
+    }
+
+    /* Desktop Client UI Mockup */
+    .mockup-section {
+      padding: 40px 0 80px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .window-mockup {
+      width: 100%;
+      max-width: 960px;
+      border-radius: 14px;
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      box-shadow: var(--card-shadow);
+      backdrop-filter: blur(16px);
+      overflow: hidden;
+      transition: transform 0.3s, border-color 0.3s;
+    }
+
+    .window-mockup:hover {
+      border-color: var(--card-hover-border);
+    }
+
+    /* Title bar */
+    .title-bar {
+      height: 48px;
+      background: rgba(12, 10, 24, 0.7);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      position: relative;
+    }
+
+    .mac-dots {
+      display: flex;
+      gap: 8px;
+    }
+
+    .dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #4b5563;
+    }
+    .dot-close { background: #ef4444; }
+    .dot-min { background: #eab308; }
+    .dot-max { background: #22c55e; }
+
+    .window-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Mockup Layout */
+    .mockup-body {
+      display: flex;
+      height: 480px;
+    }
+
+    /* Mockup Sidebar */
+    .mockup-sidebar {
+      width: 180px;
+      background: rgba(10, 8, 20, 0.5);
+      border-right: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 20px 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .sidebar-menu {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: var(--text-muted);
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .menu-item:hover, .menu-item.active {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .menu-item.active {
+      background: rgba(139, 92, 246, 0.1);
+      color: #c084fc;
+    }
+
+    .menu-item svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .storage-indicator {
+      padding: 12px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .storage-bar {
+      height: 4px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      margin-top: 6px;
+      overflow: hidden;
+    }
+
+    .storage-fill {
+      height: 100%;
+      background: var(--primary);
+      width: 42%;
+    }
+
+    /* Mockup Main content */
+    .mockup-content {
+      flex: 1;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      overflow-y: auto;
+      position: relative;
+    }
+
+    .dashboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .dashboard-header h2 {
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .dashboard-stats {
+      display: flex;
+      gap: 24px;
+    }
+
+    .stat-val {
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Real-time Graph Box */
+    .graph-card {
+      background: rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: 10px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .graph-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .canvas-container {
+      height: 90px;
+      position: relative;
+    }
+
+    .speed-canvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Task List */
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .task-card {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      border-radius: 10px;
+      padding: 14px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .task-card:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(139, 92, 246, 0.2);
+    }
+
+    .task-icon-container {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .icon-iso {
+      background: rgba(59, 130, 246, 0.15);
+      color: #3b82f6;
+    }
+    
+    .icon-torrent {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+    }
+
+    .task-icon {
+      width: 20px;
+      height: 20px;
+      fill: currentColor;
+    }
+
+    .task-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .task-name-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .task-name {
+      font-size: 13px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: var(--text-main);
+    }
+
+    .task-status-text {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .progress-bar-wrapper {
+      height: 6px;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+      margin-bottom: 6px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+      border-radius: 3px;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    .progress-fill.active-loading {
+      background-size: 30px 30px;
+      background-image: linear-gradient(
+        45deg, 
+        rgba(255, 255, 255, 0.1) 25%, 
+        transparent 25%, 
+        transparent 50%, 
+        rgba(255, 255, 255, 0.1) 50%, 
+        rgba(255, 255, 255, 0.1) 75%, 
+        transparent 75%, 
+        transparent
+      );
+      animation: progress-animation 1.5s linear infinite;
+    }
+
+    @keyframes progress-animation {
+      0% { background-position: 0 0; }
+      100% { background-position: 30px 0; }
+    }
+
+    .task-meta-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .task-action-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .task-action-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.1);
+      border-color: rgba(139, 92, 246, 0.3);
+    }
+
+    /* Floating Disc Widget in Mockup */
+    .float-disc-mockup {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #1a1635 0%, #0d0a1b 100%);
+      border: 1px solid rgba(139, 92, 246, 0.35);
+      box-shadow: 0 8px 25px rgba(139, 92, 246, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      z-index: 10;
+    }
+
+    .float-disc-mockup:hover {
+      transform: scale(1.08) rotate(15deg);
+      box-shadow: 0 10px 30px rgba(139, 92, 246, 0.5);
+    }
+
+    .float-disc-outer-ring {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid rgba(139, 92, 246, 0.1);
+    }
+
+    .float-disc-inner-val {
+      font-family: var(--font-title);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-main);
+      z-index: 2;
+    }
+
+    .float-disc-wave {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 1px dashed rgba(6, 182, 212, 0.4);
+      animation: spin-disc 12s linear infinite;
+    }
+
+    @keyframes spin-disc {
+      100% { transform: rotate(360deg); }
+    }
+
+    /* Features Grid Section */
+    .features-section {
+      padding: 60px 0;
+    }
+
+    .section-title {
+      font-family: var(--font-title);
+      font-size: 32px;
+      font-weight: 700;
+      text-align: center;
+      margin-bottom: 48px;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 24px;
+    }
+
+    .feature-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: var(--radius);
+      padding: 32px;
+      transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    }
+
+    .feature-card:hover {
+      border-color: var(--card-hover-border);
+      transform: translateY(-5px);
+      box-shadow: 0 12px 30px rgba(139, 92, 246, 0.15);
+      background: rgba(25, 21, 46, 0.65);
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: rgba(139, 92, 246, 0.1);
+      border: 1px solid rgba(139, 92, 246, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      color: #c084fc;
+      transition: transform 0.3s;
+    }
+
+    .feature-card:hover .feature-icon-box {
+      transform: scale(1.1) rotate(5deg);
+      background: rgba(139, 92, 246, 0.18);
+      color: #ffffff;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.3);
+    }
+
+    .feature-icon-box svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    .feature-card h3 {
+      font-family: var(--font-title);
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-main);
+    }
+
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Integration Panel */
+    .integration-section {
+      padding: 60px 0;
+    }
+
+    .integration-panel {
+      background: linear-gradient(135deg, rgba(139, 92, 246, 0.08) 0%, rgba(6, 182, 212, 0.04) 100%);
+      border: 1px solid rgba(139, 92, 246, 0.15);
+      border-radius: var(--radius);
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 40px;
+      backdrop-filter: blur(10px);
+      box-shadow: var(--card-shadow);
+    }
+
+    .integration-content {
+      max-width: 580px;
+    }
+
+    .integration-content h3 {
+      font-family: var(--font-title);
+      font-size: 24px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .integration-content p {
+      font-size: 15px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+      line-height: 1.6;
+    }
+
+    .chrome-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 24px;
+      background: #ffffff;
+      color: #0f172a;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-size: 14px;
+      font-weight: 600;
+      text-decoration: none;
+      box-shadow: 0 4px 15px rgba(255, 255, 255, 0.15);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .chrome-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(255, 255, 255, 0.25);
+    }
+
+    .chrome-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .mock-chrome-ext {
+      width: 280px;
+      background: rgba(15, 12, 30, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      flex-shrink: 0;
+    }
+
+    .chrome-ext-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      margin-bottom: 10px;
+    }
+
+    .chrome-ext-logo {
+      width: 20px;
+      height: 20px;
+    }
+
+    .chrome-ext-title {
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .chrome-ext-status {
+      font-size: 11px;
+      color: #10b981;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .chrome-ext-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #10b981;
+      animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+      0% { opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+
+    .ext-task-mini {
+      font-size: 11px;
+      background: rgba(255, 255, 255, 0.03);
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .ext-task-mini-name {
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+
+    .ext-task-mini-meta {
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    /* Installation Steps */
+    .steps-section {
+      padding: 60px 0 80px;
+    }
+
+    .steps-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 32px;
+      position: relative;
+    }
+
+    .step-card {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      background: rgba(255, 255, 255, 0.01);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      border-radius: var(--radius);
+      padding: 28px;
+    }
+
+    .step-number {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary) 0%, #6366f1 100%);
+      color: #ffffff;
+      font-family: var(--font-title);
+      font-weight: 700;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 20px;
+      box-shadow: 0 0 15px rgba(139, 92, 246, 0.4);
+    }
+
+    .step-card h4 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    .step-card p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    footer {
+      background: #05040a;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      padding: 40px 0;
+      font-size: 13px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      list-style: none;
+      margin-bottom: 20px;
+    }
+
+    .footer-links a {
+      text-decoration: none;
+      color: var(--text-muted);
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--text-main);
+    }
+
+    /* Mobile Responsive styling */
+    @media (max-width: 768px) {
+      .header-nav {
+        padding: 0;
+      }
+      .nav-menu {
+        display: none; /* Hide top nav links on mobile */
+      }
+      .hero h1 {
+        font-size: 38px;
+      }
+      .hero p.tagline {
+        font-size: 16px;
+      }
+      .mockup-body {
+        height: 380px;
+      }
+      .mockup-sidebar {
+        width: 60px;
+        padding: 16px 4px;
+        align-items: center;
+      }
+      .sidebar-menu .menu-item span {
+        display: none; /* Icon-only sidebar on mobile */
+      }
+      .sidebar-menu {
+        align-items: center;
+      }
+      .menu-item {
+        padding: 10px;
+      }
+      .storage-indicator {
+        display: none;
+      }
+      .dashboard-stats {
+        display: none;
+      }
+      .integration-panel {
+        flex-direction: column;
+        text-align: center;
+        padding: 24px;
+      }
+      .mock-chrome-ext {
+        width: 100%;
+        max-width: 320px;
+      }
+      .steps-container {
+        flex-direction: column;
+        gap: 20px;
+      }
+      .float-disc-mockup {
+        width: 52px;
+        height: 52px;
+        bottom: 16px;
+        right: 16px;
+      }
+      .float-disc-outer-ring {
+        width: 44px;
+        height: 44px;
+      }
+      .float-disc-inner-val {
+        font-size: 11px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Aurora Glowing Background Elements -->
+  <div class="aurora-container">
+    <div class="aurora-blob blob-primary"></div>
+    <div class="aurora-blob blob-secondary"></div>
+    <div class="aurora-blob blob-accent"></div>
+  </div>
+
+  <!-- Tech Grid Overlay -->
+  <div class="grid-overlay"></div>
+
+  <!-- Header -->
+  <header>
+    <div class="container header-nav">
+      <a href="#" class="brand">
+        <!-- Embedded SVG Logo matching the project's logo.svg -->
+        <svg class="brand-logo" viewBox="0 0 512 512" width="100%" height="100%">
+          <defs>
+            <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#E1F3FD" />
+              <stop offset="100%" stop-color="#B6DAFB" />
+            </linearGradient>
+            <linearGradient id="arrowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#2D79E6" />
+              <stop offset="100%" stop-color="#174EA6" />
+            </linearGradient>
+            <filter id="dropShadow" x="-10%" y="-10%" width="130%" height="130%">
+              <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#1A3169" flood-opacity="0.15"/>
+            </filter>
+          </defs>
+          <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#bgGrad)" stroke="#1A3169" stroke-width="12" filter="url(#dropShadow)" />
+          <path d="M 120,260 L 120,380 A 20,20 0 0 0 140,400 L 372,400 A 20,20 0 0 0 392,380 L 392,260" fill="none" stroke="#1A3169" stroke-width="20" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 120,260 L 120,380 A 20,20 0 0 0 140,400 L 372,400 A 20,20 0 0 0 392,380 L 392,260" fill="none" stroke="#75C8FF" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" />
+          <g filter="url(#dropShadow)">
+            <path d="M 200,80 L 312,80 L 312,220 L 380,220 L 256,360 L 132,220 L 200,220 Z" fill="url(#arrowGrad)" stroke="#1A3169" stroke-width="12" stroke-linejoin="round" />
+          </g>
+          <path d="M 230,150 L 282,150 M 242,150 L 242,210 A 12,12 0 0 1 230,222 M 270,150 L 270,215 A 8,8 0 0 0 278,223" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M 226,150 Q 256,146 286,152" fill="none" stroke="#FFFFFF" stroke-width="10" stroke-linecap="round" />
+        </svg>
+        <span class="brand-name">PiDownloader</span>
+      </a>
+      <ul class="nav-menu">
+        <li><a href="#features">核心功能</a></li>
+        <li><a href="#mockup">界面预览</a></li>
+        <li><a href="#integration">浏览器扩展</a></li>
+        <li><a href="https://github.com/MrShellad/PiDown" target="_blank" class="github-link">
+          <svg style="width:16px; height:16px; fill:currentColor; vertical-align:middle;" viewBox="0 0 24 24">
+            <path d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.579.688.481C19.137 20.162 22 16.418 22 12c0-5.523-4.477-10-10-10z"/>
+          </svg>
+          GitHub
+        </a></li>
+      </ul>
+    </div>
+  </header>
+
+  <!-- Hero & Download Area -->
+  <section class="container hero">
+    <div class="version-tag">🎉 v0.0.1 Stable Release</div>
+    <h1>极速 · 智能 · 现代化的桌面下载器</h1>
+    <p class="tagline">基于 Tauri + Rust 强劲驱动，拥有毫秒级的启动速度与极致轻量的资源占用。融合多线程并发加速、BT/磁力协议支持、以及一键式浏览器接管。</p>
+    
+    <div class="download-area">
+      <!-- Main OS CTA Button (Dynamic) -->
+      <a href="https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_x64-setup.exe" id="main-download" class="main-download-btn">
+        <svg class="btn-icon" id="main-btn-icon" viewBox="0 0 24 24">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+        </svg>
+        <span id="main-btn-text">立即下载 Windows 版 (.exe)</span>
+      </a>
+      
+      <div class="download-meta" id="main-btn-meta">文件大小: ~12.5 MB | 适用于 Windows 10/11 x64</div>
+
+      <!-- Other platforms list -->
+      <div class="other-platforms">
+        <h3>其他平台安装包</h3>
+        <div class="platform-links">
+          <!-- Windows Button -->
+          <a href="https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_x64-setup.exe" class="platform-btn" id="btn-win" data-os="win">
+            <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24">
+              <path d="M3 12.016l8.835-1.2v7.917L3 18.733v-6.717zM12.923 10.66L21 9.5v9.183l-8.077.587v-8.61zM12.923 4.417L21 5.58v4.06l-8.077-.14v-5.083zm-9.923.978l8.835 1.28v3.982L3 10.51v-5.115z"/>
+            </svg>
+            Windows (NSIS)
+          </a>
+          <!-- macOS Apple Silicon / Intel -->
+          <a href="https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_aarch64.dmg" class="platform-btn" id="btn-mac-arm" data-os="mac-arm">
+            <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.2.67-2.92 1.5-.62.71-1.16 1.85-1.01 2.96 1.1.09 2.23-.59 2.94-1.4z"/>
+            </svg>
+            macOS (Apple Silicon)
+          </a>
+          <a href="https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_x64.dmg" class="platform-btn" id="btn-mac-intel" data-os="mac-intel">
+            <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24">
+              <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.2.67-2.92 1.5-.62.71-1.16 1.85-1.01 2.96 1.1.09 2.23-.59 2.94-1.4z"/>
+            </svg>
+            macOS (Intel)
+          </a>
+          <!-- Linux DEB -->
+          <a href="https://github.com/MrShellad/PiDown/releases/latest/download/pidownloader_0.0.1_amd64.deb" class="platform-btn" id="btn-linux" data-os="linux">
+            <svg style="width:16px; height:16px; fill:currentColor;" viewBox="0 0 24 24">
+              <path d="M12 2a5 5 0 0 0-5 5v3.5A7.5 7.5 0 0 0 1 18a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1 7.5 7.5 0 0 0-6-7.5V7a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v2.6a5.5 5.5 0 0 0-6 0V7zm3 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-6 7a5.5 5.5 0 0 1 5-4.9v4.9H6zm7 0v-4.9a5.5 5.5 0 0 1 5 4.9h-5z"/>
+            </svg>
+            Linux (.deb)
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive App UI Preview Mockup -->
+  <section class="container mockup-section" id="mockup">
+    <div class="window-mockup">
+      <!-- Title bar -->
+      <div class="title-bar">
+        <div class="mac-dots">
+          <div class="dot dot-close"></div>
+          <div class="dot dot-min"></div>
+          <div class="dot dot-max"></div>
+        </div>
+        <div class="window-title">
+          <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 512 512">
+            <path d="M120,260 L120,380 A20,20 0 0 0 140,400 L372,400 A20,20 0 0 0 392,380 L392,260" fill="none" stroke="currentColor" stroke-width="32" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M200,80 L312,80 L312,220 L380,220 L256,360 L132,220 L200,220 Z" fill="currentColor" stroke="currentColor" stroke-width="12" stroke-linejoin="round"/>
+          </svg>
+          PiDownloader
+        </div>
+      </div>
+      
+      <!-- Mockup Body -->
+      <div class="mockup-body">
+        
+        <!-- Sidebar -->
+        <aside class="mockup-sidebar">
+          <ul class="sidebar-menu">
+            <li class="menu-item active">
+              <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+              <span>正在下载 (2)</span>
+            </li>
+            <li class="menu-item">
+              <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+              <span>已完成</span>
+            </li>
+            <li class="menu-item">
+              <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM19 18H6c-2.21 0-4-1.79-4-4 0-2.05 1.53-3.76 3.56-3.97l1.07-.11.5-.95C8.08 7.14 9.94 6 12 6c2.62 0 4.88 1.86 5.39 4.43l.3 1.5 1.53.11c1.56.1 2.78 1.41 2.78 2.96 0 1.65-1.35 3-3 3z"/></svg>
+              <span>浏览器扩展</span>
+            </li>
+            <li class="menu-item">
+              <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+              <span>设置中心</span>
+            </li>
+          </ul>
+          
+          <div class="storage-indicator">
+            <div style="display:flex; justify-content:space-between;">
+              <span>本地存储</span>
+              <span>240 GB 可用</span>
+            </div>
+            <div class="storage-bar">
+              <div class="storage-fill"></div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Workspace -->
+        <main class="mockup-content">
+          <!-- Realtime Speed widget -->
+          <div class="graph-card">
+            <div class="graph-title">
+              <span>实时下载带宽统计</span>
+              <span style="color:var(--secondary);" id="mock-total-speed">总下载速度: 85.4 MB/s</span>
+            </div>
+            <div class="canvas-container">
+              <canvas id="speedGraph" class="speed-canvas"></canvas>
+            </div>
+          </div>
+
+          <!-- Tasks Box -->
+          <div class="task-list">
+            <!-- Task 1 -->
+            <div class="task-card" id="task-1">
+              <div class="task-icon-container icon-iso">
+                <svg class="task-icon" viewBox="0 0 24 24"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
+              </div>
+              <div class="task-info">
+                <div class="task-name-row">
+                  <span class="task-name">ubuntu-24.04-desktop-amd64.iso</span>
+                  <span class="task-status-text" id="task-1-status">下载中 (65%)</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                  <div class="progress-fill active-loading" id="task-1-bar" style="width: 65%;"></div>
+                </div>
+                <div class="task-meta-row">
+                  <span id="task-1-speed">速度: 42.1 MB/s</span>
+                  <span id="task-1-time">剩余时间: 25秒</span>
+                  <span>文件大小: 4.7 GB</span>
+                </div>
+              </div>
+              <div class="task-actions">
+                <button class="task-action-btn" onclick="toggleTask(1)" id="task-1-btn" title="暂停">
+                  <svg style="width:12px; height:12px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Task 2 -->
+            <div class="task-card" id="task-2">
+              <div class="task-icon-container icon-torrent">
+                <svg class="task-icon" viewBox="0 0 24 24"><path d="M19 13H5v-2h14v2z"/></svg>
+              </div>
+              <div class="task-info">
+                <div class="task-name-row">
+                  <span class="task-name">Big.Buck.Bunny.1080p.HEVC.BTRip.torrent</span>
+                  <span class="task-status-text" id="task-2-status">下载中 (88%)</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                  <div class="progress-fill active-loading" id="task-2-bar" style="width: 88%;"></div>
+                </div>
+                <div class="task-meta-row">
+                  <span id="task-2-speed">速度: 43.3 MB/s</span>
+                  <span>连接数: 186 Peers</span>
+                  <span>文件大小: 2.4 GB</span>
+                </div>
+              </div>
+              <div class="task-actions">
+                <button class="task-action-btn" onclick="toggleTask(2)" id="task-2-btn" title="暂停">
+                  <svg style="width:12px; height:12px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Circular Floating Disc Widget (Tauri Float Disc Replica) -->
+          <div class="float-disc-mockup" title="PiDown 悬浮球 (双击展开/拖拽/隐藏)">
+            <div class="float-disc-outer-ring"></div>
+            <div class="float-disc-wave"></div>
+            <span class="float-disc-inner-val" id="float-percentage">76%</span>
+          </div>
+
+        </main>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="container features-section" id="features">
+    <h2 class="section-title">为极致下载体验而生</h2>
+    <div class="features-grid">
+      <!-- Feature 1 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </div>
+        <h3>多线程并发加速</h3>
+        <p>支持将单个任务分割为数十个高并发线程，瞬间榨干物理带宽极限，提供数倍于普通下载器的下载速度。</p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg viewBox="0 0 24 24"><path d="M12.01 21.49L23.64 7c-.45-.34-4.93-4-11.64-4C5.28 3 .81 6.66.36 7l11.63 14.49.01.01.01-.01z"/></svg>
+        </div>
+        <h3>BitTorrent / 磁力下载</h3>
+        <p>内嵌高吞吐量的 BT 下载内核，具备优异的 tracker 寻找、DHT 穿透能力，轻松满速下载各种大体积种子与磁链。</p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+        </div>
+        <h3>Tauri 轻量底层</h3>
+        <p>摒弃了臃肿的 Electron 架构，全面基于 Rust + Webview2/WebKit 底层构建，开机秒起，仅占用区区十几兆内存。</p>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature-card">
+        <div class="feature-icon-box">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z"/></svg>
+        </div>
+        <h3>纯净绿色无广告</h3>
+        <p>我们坚决拥护纯净、绿色的工具理念。界面无任何牛皮癣、无商业广告干扰，让你心无旁骛专注于极速体验。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Chrome/Edge Extension Capture Integration -->
+  <section class="container integration-section" id="integration">
+    <div class="integration-panel">
+      <div class="integration-content">
+        <h3 style="font-family: var(--font-title); color: #ffffff;">浏览器拦截扩展支持</h3>
+        <p>搭配我们的专配浏览器拦截扩展，可以实现完全的自动嗅探。当你在 Chrome、Edge 或 Firefox 浏览器中点击文件下载链接时，PiDownloader 将会自动唤醒并接管任务，省去手动复制粘贴的繁琐过程。</p>
+        <a href="https://github.com/MrShellad/PiDown/tree/main/chrome-extension" target="_blank" class="chrome-btn">
+          <!-- Chrome Icon SVG -->
+          <svg class="chrome-icon" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M12 2a10 10 0 0 0-7.88 3.82l3.54 6.13c.27-.77.85-1.4 1.59-1.8L5.7 4.15A9.95 9.95 0 0 0 12 2zm0 20c3.27 0 6.13-1.57 7.9-4l-3.5-6.1c-.24.78-.82 1.43-1.55 1.83l3.55 6.15A9.97 9.97 0 0 0 12 22z"/>
+            <path fill="#EA4335" d="M22 12a10 10 0 0 0-2.1-6.18L12.02 12h7.82c.07-.63.16-1.3.16-2 0-3.32-1.63-6.26-4.14-8.08z"/>
+            <path fill="#FBBC05" d="M12 8a4 4 0 1 1 0 8 4 4 0 0 1 0-8zm0-6a9.98 9.98 0 0 0-7.9 3.82L12 18V2a10 10 0 0 0-10 10H2a10 10 0 0 0 10 10 10 10 0 0 0 10-10 10 10 0 0 0-10-10z"/>
+          </svg>
+          查看浏览器扩展源码
+        </a>
+      </div>
+      
+      <!-- Interactive Miniature Mockup for Chrome Extension -->
+      <div class="mock-chrome-ext">
+        <div class="chrome-ext-header">
+          <svg class="chrome-ext-logo" viewBox="0 0 512 512">
+            <defs>
+              <linearGradient id="extBg" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#E1F3FD" />
+                <stop offset="100%" stop-color="#B6DAFB" />
+              </linearGradient>
+            </defs>
+            <rect x="32" y="32" width="448" height="448" rx="96" fill="url(#extBg)" stroke="#1A3169" stroke-width="20" />
+            <path d="M 200,80 L 312,80 L 312,220 L 380,220 L 256,360 L 132,220 L 200,220 Z" fill="#2D79E6" stroke="#1A3169" stroke-width="20" />
+          </svg>
+          <span class="chrome-ext-title">PiDown 接管助手</span>
+          <div class="chrome-ext-status">
+            <div class="chrome-ext-status-dot"></div>
+            <span>服务已连接</span>
+          </div>
+        </div>
+        
+        <div style="font-size: 11px; margin-bottom: 12px; color: var(--text-muted);">最近捕获的任务:</div>
+        
+        <div class="ext-task-mini">
+          <div class="ext-task-mini-name">Vite-Guide-Booklet.pdf</div>
+          <div class="ext-task-mini-meta">
+            <span>来自: github.com</span>
+            <span style="color:var(--secondary);">接管成功</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup Instructions -->
+  <section class="container steps-section">
+    <h2 class="section-title">快速开始安装</h2>
+    <div class="steps-container">
+      <div class="step-card">
+        <div class="step-number">1</div>
+        <h4>下载安装包</h4>
+        <p>基于您的系统（页面已为您自动推荐合适版本），点击下载对应的安装包文件。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">2</div>
+        <h4>安全安装</h4>
+        <p>双击打开安装程序。由于是全新开发的桌面端项目，如有系统拦截警示，点击信任并继续安装即可。</p>
+      </div>
+      <div class="step-card">
+        <div class="step-number">3</div>
+        <h4>启动极速之旅</h4>
+        <p>打开 PiDownloader，即可新建或拖入链接体验极速下载，支持自定义限速与同时下载配置。</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <ul class="footer-links">
+        <li><a href="#features">功能介绍</a></li>
+        <li><a href="#mockup">UI 演示</a></li>
+        <li><a href="https://github.com/MrShellad/PiDown" target="_blank">GitHub 仓库</a></li>
+      </ul>
+      <p>© 2026 PiDownloader Project. 由 Tauri, Rust 与 React 强力驱动.</p>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script>
+    // ----------------------------------------------------
+    // OS Detection and Recommendation Logic
+    // ----------------------------------------------------
+    const winUrl = "https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_x64-setup.exe";
+    const macArmUrl = "https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_aarch64.dmg";
+    const macIntelUrl = "https://github.com/MrShellad/PiDown/releases/latest/download/PiDownloader_0.0.1_x64.dmg";
+    const linuxUrl = "https://github.com/MrShellad/PiDown/releases/latest/download/pidownloader_0.0.1_amd64.deb";
+
+    // Detect operating system from userAgent/platform
+    function getOS() {
+      const userAgent = window.navigator.userAgent.toLowerCase();
+      const platform = window.navigator.platform.toLowerCase();
+      
+      if (platform.indexOf('win') !== -1 || userAgent.indexOf('windows') !== -1) {
+        return 'win';
+      }
+      
+      if (platform.indexOf('mac') !== -1 || userAgent.indexOf('macintosh') !== -1 || userAgent.indexOf('mac os') !== -1) {
+        // Simple heuristic for Apple Silicon (mac OS can report arm64 or we can check maxTouchPoints/WebGL renderer)
+        const isArm = (navigator.maxTouchPoints > 1) || 
+                      (userAgent.indexOf('arm64') !== -1) || 
+                      (platform.indexOf('iphone') !== -1) || 
+                      (platform.indexOf('ipad') !== -1);
+        return isArm ? 'mac-arm' : 'mac-intel';
+      }
+      
+      if (platform.indexOf('linux') !== -1 || userAgent.indexOf('linux') !== -1) {
+        return 'linux';
+      }
+      
+      return 'win'; // default fallback
+    }
+
+    // Set recommended download button attributes
+    function setupDownloadButton() {
+      const os = getOS();
+      const mainBtn = document.getElementById('main-download');
+      const btnText = document.getElementById('main-btn-text');
+      const btnMeta = document.getElementById('main-btn-meta');
+      const mainIcon = document.getElementById('main-btn-icon');
+
+      // SVG path helpers
+      const winIconPath = '<path d="M3 12.016l8.835-1.2v7.917L3 18.733v-6.717zM12.923 10.66L21 9.5v9.183l-8.077.587v-8.61zM12.923 4.417L21 5.58v4.06l-8.077-.14v-5.083zm-9.923.978l8.835 1.28v3.982L3 10.51v-5.115z"/>';
+      const macIconPath = '<path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.81-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M15.97 4.17c.66-.81 1.11-1.93.99-3.06-1 .04-2.2.67-2.92 1.5-.62.71-1.16 1.85-1.01 2.96 1.1.09 2.23-.59 2.94-1.4z"/>';
+      const linuxIconPath = '<path d="M12 2a5 5 0 0 0-5 5v3.5A7.5 7.5 0 0 0 1 18a1 1 0 0 0 1 1h20a1 1 0 0 0 1-1 7.5 7.5 0 0 0-6-7.5V7a5 5 0 0 0-5-5zm-3 5a3 3 0 0 1 6 0v2.6a5.5 5.5 0 0 0-6 0V7zm3 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-6 7a5.5 5.5 0 0 1 5-4.9v4.9H6zm7 0v-4.9a5.5 5.5 0 0 1 5 4.9h-5z"/>';
+
+      let selectedBtn = null;
+
+      if (os === 'win') {
+        mainBtn.href = winUrl;
+        btnText.innerText = "立即下载 Windows 版 (.exe)";
+        btnMeta.innerText = "文件大小: ~12.5 MB | 适用于 Windows 10/11 x64";
+        mainIcon.innerHTML = winIconPath;
+        selectedBtn = document.getElementById('btn-win');
+      } else if (os === 'mac-arm') {
+        mainBtn.href = macArmUrl;
+        btnText.innerText = "立即下载 macOS 版 (Apple Silicon / .dmg)";
+        btnMeta.innerText = "文件大小: ~15.2 MB | 适用于 Apple M1/M2/M3 芯片设备";
+        mainIcon.innerHTML = macIconPath;
+        selectedBtn = document.getElementById('btn-mac-arm');
+      } else if (os === 'mac-intel') {
+        mainBtn.href = macIntelUrl;
+        btnText.innerText = "立即下载 macOS 版 (Intel 芯片 / .dmg)";
+        btnMeta.innerText = "文件大小: ~16.8 MB | 适用于 Intel Core 芯片设备";
+        mainIcon.innerHTML = macIconPath;
+        selectedBtn = document.getElementById('btn-mac-intel');
+      } else if (os === 'linux') {
+        mainBtn.href = linuxUrl;
+        btnText.innerText = "立即下载 Linux 版 (.deb)";
+        btnMeta.innerText = "文件大小: ~9.8 MB | 适用于 Ubuntu/Debian x64 架构";
+        mainIcon.innerHTML = linuxIconPath;
+        selectedBtn = document.getElementById('btn-linux');
+      }
+
+      if (selectedBtn) {
+        selectedBtn.classList.add('active-platform');
+      }
+    }
+
+    // ----------------------------------------------------
+    // Mockup Interactive Speed Graph Logic
+    // ----------------------------------------------------
+    const canvas = document.getElementById('speedGraph');
+    const ctx = canvas.getContext('2d');
+    
+    // Set internal resolution for canvas to match display size
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width;
+      canvas.height = rect.height;
+    }
+    
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    let speedPoints = [30, 42, 50, 48, 65, 58, 85.4]; // Initial speed points
+    let maxPoints = 20;
+    while(speedPoints.length < maxPoints) {
+      speedPoints.unshift(0);
+    }
+
+    // Draw grid lines and bezier curve
+    function drawSpeedChart() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      const width = canvas.width;
+      const height = canvas.height;
+      
+      // Draw grid helper lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.02)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 4; i++) {
+        const y = (height / 3) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+      }
+      
+      const stepX = width / (maxPoints - 1);
+      const scaleY = (height - 20) / 100; // max speed around 100 MB/s
+      
+      // Plot Points path
+      ctx.beginPath();
+      
+      // Curve start point
+      ctx.moveTo(0, height - (speedPoints[0] * scaleY));
+      
+      for (let i = 0; i < speedPoints.length - 1; i++) {
+        const x1 = i * stepX;
+        const y1 = height - (speedPoints[i] * scaleY);
+        const x2 = (i + 1) * stepX;
+        const y2 = height - (speedPoints[i+1] * scaleY);
+        
+        // Bezier connection point
+        const xc = (x1 + x2) / 2;
+        ctx.quadraticCurveTo(x1, y1, xc, (y1 + y2) / 2);
+      }
+      
+      // Final line point
+      const lastIdx = speedPoints.length - 1;
+      ctx.lineTo(width, height - (speedPoints[lastIdx] * scaleY));
+      
+      // Clone path for filling area under the curve
+      const areaPath = new Path2D(ctx);
+      areaPath.lineTo(width, height);
+      areaPath.lineTo(0, height);
+      areaPath.closePath();
+      
+      // Fill gradient area
+      const fillGrad = ctx.createLinearGradient(0, 0, 0, height);
+      fillGrad.addColorStop(0, 'rgba(139, 92, 246, 0.25)'); // Violet
+      fillGrad.addColorStop(1, 'rgba(6, 182, 212, 0.0)');   // Cyan transparent
+      ctx.fillStyle = fillGrad;
+      ctx.fill(areaPath);
+      
+      // Draw Stroke line
+      const strokeGrad = ctx.createLinearGradient(0, 0, width, 0);
+      strokeGrad.addColorStop(0, '#8b5cf6');
+      strokeGrad.addColorStop(0.5, '#c084fc');
+      strokeGrad.addColorStop(1, '#06b6d4');
+      ctx.strokeStyle = strokeGrad;
+      ctx.lineWidth = 2.5;
+      ctx.shadowColor = 'rgba(139, 92, 246, 0.4)';
+      ctx.shadowBlur = 10;
+      ctx.stroke();
+      ctx.shadowBlur = 0; // reset
+    }
+
+    // Task simulation states
+    const taskStates = {
+      1: { active: true, progress: 65, speed: 42.1, maxSpeed: 45, name: 'ubuntu-24.04-desktop-amd64.iso', ext: 'iso' },
+      2: { active: true, progress: 88, speed: 43.3, maxSpeed: 48, name: 'Big.Buck.Bunny.1080p.HEVC.BTRip.torrent', ext: 'torrent' }
+    };
+
+    // Toggle Task play/pause state
+    function toggleTask(id) {
+      const task = taskStates[id];
+      const taskCard = document.getElementById(`task-${id}`);
+      const btn = document.getElementById(`task-${id}-btn`);
+      const statusText = document.getElementById(`task-${id}-status`);
+      const speedText = document.getElementById(`task-${id}-speed`);
+      const timeText = document.getElementById(`task-${id}-time`);
+      const bar = document.getElementById(`task-${id}-bar`);
+      
+      task.active = !task.active;
+      
+      if (task.active) {
+        taskCard.style.opacity = '1';
+        btn.innerHTML = '<svg style="width:12px; height:12px; fill:currentColor;" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        btn.title = "暂停";
+        bar.classList.add('active-loading');
+        statusText.innerText = `下载中 (${Math.floor(task.progress)}%)`;
+      } else {
+        taskCard.style.opacity = '0.75';
+        btn.innerHTML = '<svg style="width:12px; height:12px; fill:currentColor;" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        btn.title = "继续";
+        bar.classList.remove('active-loading');
+        statusText.innerText = `已暂停 (${Math.floor(task.progress)}%)`;
+        speedText.innerText = "速度: 0 KB/s";
+        if (timeText) timeText.innerText = "剩余时间: --";
+      }
+    }
+
+    // Tick update for speeds, progress, and chart
+    function tick() {
+      let totalSpeed = 0;
+      
+      // Update each task
+      for (const id in taskStates) {
+        const task = taskStates[id];
+        const statusText = document.getElementById(`task-${id}-status`);
+        const speedText = document.getElementById(`task-${id}-speed`);
+        const timeText = document.getElementById(`task-${id}-time`);
+        const bar = document.getElementById(`task-${id}-bar`);
+        
+        if (task.active) {
+          // Add minor noise to speed
+          const speedOffset = (Math.random() - 0.5) * 5;
+          task.speed = Math.max(10, Math.min(task.maxSpeed, task.speed + speedOffset));
+          totalSpeed += task.speed;
+          
+          // Increment progress
+          const progressInc = (task.speed / 100) * 0.3; // proportional progress
+          task.progress = Math.min(100, task.progress + progressInc);
+          
+          if (task.progress >= 100) {
+            task.progress = 100;
+            task.active = false;
+            toggleTask(id); // auto pause on complete simulation
+            statusText.innerText = "已完成";
+          } else {
+            statusText.innerText = `下载中 (${Math.floor(task.progress)}%)`;
+            speedText.innerText = `速度: ${task.speed.toFixed(1)} MB/s`;
+            if (timeText) {
+              const remainingBytes = (4.7 * 1024 * (1 - task.progress / 100)); // GB to MB
+              const remainingSecs = Math.max(1, Math.round(remainingBytes * 1024 / task.speed));
+              timeText.innerText = `剩余时间: ${remainingSecs}秒`;
+            }
+          }
+          bar.style.width = `${task.progress}%`;
+        }
+      }
+      
+      // Update overall speed status
+      const totalSpeedEl = document.getElementById('mock-total-speed');
+      totalSpeedEl.innerText = `总下载速度: ${totalSpeed.toFixed(1)} MB/s`;
+      
+      // Push speed point to graph
+      speedPoints.push(totalSpeed);
+      if (speedPoints.length > maxPoints) {
+        speedPoints.shift();
+      }
+      
+      // Draw chart
+      drawSpeedChart();
+      
+      // Update floating ball percentage
+      const avgProgress = Math.floor((taskStates[1].progress + taskStates[2].progress) / 2);
+      document.getElementById('float-percentage').innerText = `${avgProgress}%`;
+    }
+
+    // Initialize OS and start task intervals
+    setupDownloadButton();
+    setInterval(tick, 1000);
+    drawSpeedChart(); // First draw
+  </script>
+
+</body>
+</html>
