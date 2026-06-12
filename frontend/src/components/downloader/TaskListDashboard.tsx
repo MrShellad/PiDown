@@ -597,7 +597,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       {activeFilter === "all" && (
                         <Button
                           onClick={() => setModalOpen(true)}
-                          className="mt-2 flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold px-5 py-2.5 h-10 rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all duration-150"
+                          className="mt-2 flex items-center gap-1.5 bg-primary hover:bg-[color-mix(in_srgb,var(--primary),var(--foreground)_15%)] text-primary-foreground font-semibold px-5 py-2.5 h-10 rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all duration-150"
                         >
                           <Plus className="h-4 w-4" />
                           <span>新建下载任务</span>

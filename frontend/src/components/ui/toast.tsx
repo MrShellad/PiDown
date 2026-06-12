@@ -60,7 +60,7 @@ function ToastViewport() {
   const toasts = useToastStore((state) => state.toasts);
 
   return (
-    <div className="pointer-events-none fixed right-4 top-4 z-[120] flex flex-col items-end gap-3">
+    <div className="pointer-events-none fixed left-1/2 top-4 z-[9999] -translate-x-1/2 flex flex-col items-center gap-3">
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
           <ToastCard key={toast.id} toast={toast} />
