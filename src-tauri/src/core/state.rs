@@ -27,6 +27,7 @@ pub struct AppState {
     pub(crate) gid_cache: Mutex<HashMap<DownloadId, String>>,
     pub(crate) progress_throttle: Mutex<HashMap<String, (u64, Instant)>>,
     pub(crate) task_cache: RwLock<HashMap<String, DbTask>>,
+    pub(crate) config_mutex: tokio::sync::Mutex<()>,
 }
 
 impl AppState {
@@ -58,15 +59,18 @@ impl AppState {
             cache.insert(task.id.clone(), task);
         }
 
+        let settings_created_at = settings_doc.created_at;
+
         let state = Arc::new(Self {
             engine,
             db,
             settings: RwLock::new(settings),
-            settings_file,
-            settings_created_at: RwLock::new(settings_doc.created_at),
+            settings_file: settings_file.to_path_buf(),
+            settings_created_at: RwLock::new(settings_created_at),
             gid_cache: Mutex::new(HashMap::new()),
             progress_throttle: Mutex::new(HashMap::new()),
             task_cache: RwLock::new(cache),
+            config_mutex: tokio::sync::Mutex::new(()),
         });
 
         state.persist_settings()?;

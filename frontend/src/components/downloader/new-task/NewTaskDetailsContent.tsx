@@ -1,5 +1,5 @@
 import type { Category, Tag } from "@/core/store/useDownloadStore"
-import type { TorrentFileInspection } from "@/core/bridge/tauri-commands"
+import type { TorrentFileInspection, FileConflictCheck } from "@/core/bridge/tauri-commands"
 import { NewTaskAdvancedForm } from "./NewTaskAdvancedForm"
 import { NewTaskBasicForm } from "./NewTaskBasicForm"
 import { NewTaskBtForm } from "./NewTaskBtForm"
@@ -28,6 +28,10 @@ interface NewTaskDetailsContentProps {
   sequential: boolean
   infoHash: string | null
   isPrivate: boolean | null
+  freeSpaceText?: string
+  isDiskSpaceWarning?: boolean
+  formConflict?: FileConflictCheck | null
+  savePathHistory?: string[]
   onDetailsTabChange: (value: NewTaskDetailsTab) => void
   onUrlChange: (value: string) => void
   onFilenameChange: (value: string) => void
@@ -63,6 +67,10 @@ export function NewTaskDetailsContent({
   sequential,
   infoHash,
   isPrivate,
+  freeSpaceText,
+  isDiskSpaceWarning,
+  formConflict,
+  savePathHistory,
   onDetailsTabChange,
   onUrlChange,
   onFilenameChange,
@@ -97,6 +105,11 @@ export function NewTaskDetailsContent({
             categories={categories}
             onCategoryChange={onCategoryChange}
             onSavePathChange={onSavePathChange}
+            freeSpaceText={freeSpaceText}
+            isDiskSpaceWarning={isDiskSpaceWarning}
+            formConflict={formConflict}
+            onFilenameChange={onFilenameChange}
+            savePathHistory={savePathHistory}
           />
         ) : (
           <NewTaskBasicForm
@@ -118,6 +131,10 @@ export function NewTaskDetailsContent({
             onPasteFromClipboard={onPasteFromClipboard}
             onPickSaveDirectory={onPickSaveDirectory}
             onRetryMetadata={onRetryMetadata}
+            freeSpaceText={freeSpaceText}
+            isDiskSpaceWarning={isDiskSpaceWarning}
+            formConflict={formConflict}
+            savePathHistory={savePathHistory}
           />
         )
       ) : (

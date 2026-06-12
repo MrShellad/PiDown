@@ -68,5 +68,6 @@ export function buildAdvancedOptions(draft: NewTaskAdvancedDraft): TaskAdvancedO
     cookies: parseCookieInput(draft.cookiesInput),
     autoVerify: draft.autoVerify,
     disableDhtPexLpd: draft.disableDhtPexLpd,
+    fileAllocation: draft.fileAllocation,
   }
 }

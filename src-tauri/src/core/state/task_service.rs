@@ -21,6 +21,7 @@ pub struct TaskCreateOptions {
     pub sequential: Option<bool>,
     pub auto_verify: Option<bool>,
     pub disable_dht_pex_lpd: Option<bool>,
+    pub file_allocation: Option<String>,
 }
 
 fn normalize_optional_header_value(value: Option<String>) -> Option<String> {
@@ -268,6 +269,45 @@ impl super::AppState {
         total_size: Option<u64>,
         task_options: TaskCreateOptions,
     ) -> Result<String, String> {
+        let _config_lock = self.config_mutex.lock().await;
+
+        let mut original_mode = None;
+        if let Some(ref alloc_mode) = task_options.file_allocation {
+            if alloc_mode != "default" {
+                let mut config = self.engine.inner().get_config();
+                original_mode = Some(config.torrent.allocation_mode);
+                config.torrent.allocation_mode = match alloc_mode.as_str() {
+                    "sparse" => gosh_dl::config::AllocationMode::Sparse,
+                    "full" => gosh_dl::config::AllocationMode::Full,
+                    _ => gosh_dl::config::AllocationMode::None,
+                };
+                self.engine
+                    .inner()
+                    .set_config(config)
+                    .map_err(|e| e.to_string())?;
+            }
+        }
+
+        struct AllocationModeGuard<'a> {
+            engine: &'a gosh_dl::DownloadEngine,
+            original_mode: Option<gosh_dl::config::AllocationMode>,
+        }
+
+        impl<'a> Drop for AllocationModeGuard<'a> {
+            fn drop(&mut self) {
+                if let Some(mode) = self.original_mode {
+                    let mut config = self.engine.get_config();
+                    config.torrent.allocation_mode = mode;
+                    let _ = self.engine.set_config(config);
+                }
+            }
+        }
+
+        let _guard = AllocationModeGuard {
+            engine: &**self.engine.inner(),
+            original_mode,
+        };
+
         let protocol = detect_protocol(url);
         let settings = self.settings.read().unwrap().clone();
 

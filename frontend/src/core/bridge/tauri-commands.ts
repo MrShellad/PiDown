@@ -17,6 +17,7 @@ export interface TaskAdvancedOptions {
   cookies?: string[];
   autoVerify?: boolean;
   disableDhtPexLpd?: boolean;
+  fileAllocation?: string;
 }
 
 export interface TorrentFileInspection {
@@ -227,7 +228,12 @@ export async function createTask(
     sequential: sequential ?? null,
     autoVerify: advancedOptions.autoVerify ?? null,
     disableDhtPexLpd: advancedOptions.disableDhtPexLpd ?? null,
+    fileAllocation: advancedOptions.fileAllocation ?? null,
   });
+}
+
+export async function getDiskSpace(path: string): Promise<[number, number]> {
+  return invoke<[number, number]>("get_disk_space", { path });
 }
 
 export async function checkFileConflict(

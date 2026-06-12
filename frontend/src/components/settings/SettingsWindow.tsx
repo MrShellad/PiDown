@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   AlertTriangle,
@@ -13,9 +13,13 @@ import {
   Paintbrush,
   Plus,
   Trash2,
+  Upload,
+  FileCode,
+  Sparkles,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { OptionDropdown } from "@/components/common";
+import { OptionDropdown, SegmentedControl, useCustomFileIcons, saveCustomFileIcons, preprocessSvg } from "@/components/common";
+import type { CustomFileIcon } from "@/components/common";
 import {
   Dialog,
   DialogBody,
@@ -217,6 +221,172 @@ export default function SettingsWindow() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
+
+  // File Format and Icon Manager States & Handlers
+  const customFileIcons = useCustomFileIcons();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [addIconOpen, setAddIconOpen] = useState(false);
+  const [formatsInput, setFormatsInput] = useState("");
+  const [selectedIconData, setSelectedIconData] = useState<{
+    type: "png" | "svg";
+    data: string;
+    fileName: string;
+  } | null>(null);
+  const [svgColor, setSvgColor] = useState("#3b82f6");
+
+  const handlePickIconFile = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; // clear previous choice
+      fileInputRef.current.click();
+    }
+  };
+
+  const handleIconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const name = file.name;
+    const isSvg = file.type === "image/svg+xml" || name.toLowerCase().endsWith(".svg");
+    const isPng = file.type === "image/png" || name.toLowerCase().endsWith(".png");
+
+    if (!isSvg && !isPng) {
+      useToastStore.getState().pushToast({
+        title: "文件格式不支持",
+        description: "仅支持上传 PNG 或者是 SVG 格式的图标",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 200 * 1024) {
+      useToastStore.getState().pushToast({
+        title: "文件大小超限",
+        description: "图片大小不能超过 200KB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const reader = new FileReader();
+    if (isSvg) {
+      reader.onload = (event) => {
+        const text = event.target?.result as string;
+        const processed = preprocessSvg(text);
+        setSelectedIconData({
+          type: "svg",
+          data: processed,
+          fileName: name,
+        });
+      };
+      reader.readAsText(file);
+    } else {
+      reader.onload = (event) => {
+        const dataUrl = event.target?.result as string;
+        
+        // Validate PNG width/height
+        const img = new Image();
+        img.onload = () => {
+          if (img.width > 512 || img.height > 512) {
+            useToastStore.getState().pushToast({
+              title: "图片尺寸超限",
+              description: "PNG 分辨率不能超过 512x512 像素",
+              variant: "destructive",
+            });
+            return;
+          }
+          setSelectedIconData({
+            type: "png",
+            data: dataUrl,
+            fileName: name,
+          });
+        };
+        img.onerror = () => {
+          useToastStore.getState().pushToast({
+            title: "图片加载失败",
+            description: "请检查上传的文件是否损坏",
+            variant: "destructive",
+          });
+        };
+        img.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveIcon = () => {
+    if (!formatsInput.trim()) {
+      useToastStore.getState().pushToast({
+        title: "保存失败",
+        description: "请输入要关联的文件格式",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!selectedIconData) {
+      useToastStore.getState().pushToast({
+        title: "保存失败",
+        description: "请上传图标文件",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const formats = formatsInput
+      .split(/[,;\s]+/)
+      .map((f) => f.trim().toLowerCase().replace(/^\./, ""))
+      .filter(Boolean);
+
+    if (formats.length === 0) {
+      useToastStore.getState().pushToast({
+        title: "保存失败",
+        description: "请输入合法的文件格式",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const newIcon: CustomFileIcon = {
+      id: Date.now().toString(),
+      extensions: formats,
+      iconType: selectedIconData.type,
+      iconData: selectedIconData.data,
+      color: selectedIconData.type === "svg" ? svgColor : undefined,
+    };
+
+    saveCustomFileIcons([...customFileIcons, newIcon]);
+
+    setFormatsInput("");
+    setSelectedIconData(null);
+    setSvgColor("#3b82f6");
+    setAddIconOpen(false);
+
+    useToastStore.getState().pushToast({
+      title: "保存成功",
+      description: "已添加新的文件图标映射",
+      variant: "success",
+    });
+  };
+
+  const handleDeleteIcon = (id: string) => {
+    saveCustomFileIcons(customFileIcons.filter((item) => item.id !== id));
+    useToastStore.getState().pushToast({
+      title: "删除成功",
+      description: "已移除该图标映射",
+      variant: "success",
+    });
+  };
+
+  const handleUpdateIconColor = (id: string, color: string) => {
+    saveCustomFileIcons(
+      customFileIcons.map((item) => {
+        if (item.id === id) {
+          return { ...item, color };
+        }
+        return item;
+      })
+    );
+  };
   const fontOptions = useMemo(() => {
     const opts = createFontOptions(systemFonts);
     const selected = getThemeFontOption(fontId, opts);
@@ -960,6 +1130,29 @@ export default function SettingsWindow() {
                           valueText={`每个任务最多 ${draft.transfer.task_thread_count} 条连接`}
                         />
                       </SettingsListItem>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.diskAllocation}
+                        description={UI_TEXT.settings.diskAllocationDesc}
+                      >
+                        <SegmentedControl
+                          value={draft.bt.allocation_mode}
+                          options={[
+                            { value: "none", label: UI_TEXT.settings.allocNone },
+                            { value: "sparse", label: UI_TEXT.settings.allocSparse },
+                            { value: "full", label: UI_TEXT.settings.allocFull },
+                          ]}
+                          onValueChange={(nextMode) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              bt: {
+                                ...prev.bt,
+                                allocation_mode: nextMode,
+                              },
+                            }))
+                          }
+                          size="lg"
+                        />
+                      </SettingsListItem>
                     </SettingsList>
 
                     {/* Group 2: 网络与安全 */}
@@ -1371,29 +1564,6 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
 
-                      <SettingsListItem
-                        title={UI_TEXT.settings.diskAllocation}
-                        description={UI_TEXT.settings.diskAllocationDesc}
-                      >
-                        <OptionDropdown
-                          value={draft.bt.allocation_mode}
-                          options={[
-                            { value: "none", label: UI_TEXT.settings.allocNone },
-                            { value: "sparse", label: UI_TEXT.settings.allocSparse },
-                            { value: "full", label: UI_TEXT.settings.allocFull },
-                          ]}
-                          onValueChange={(nextMode) =>
-                            updateDraft((prev) => ({
-                              ...prev,
-                              bt: {
-                                ...prev.bt,
-                                allocation_mode: nextMode,
-                              },
-                            }))
-                          }
-                          ariaLabel={UI_TEXT.settings.diskAllocation}
-                        />
-                      </SettingsListItem>
 
                       <SettingsListItem
                         title={UI_TEXT.settings.seedRatioThreshold}
@@ -1507,7 +1677,8 @@ export default function SettingsWindow() {
               ) : null}
 
               {activeSection === "appearance" ? (
-                <SettingsSectionCard>
+                <>
+                  <SettingsSectionCard>
                   <SettingsSectionHeader
                     icon={<Paintbrush className="size-5" />}
                     title={UI_TEXT.settings.navAppearance}
@@ -2127,7 +2298,135 @@ export default function SettingsWindow() {
                   </div>
                 </SettingsSectionCard>
 
-              ) : null}
+                <SettingsSectionCard className="mt-6">
+                  <SettingsSectionHeader
+                    icon={<FileCode className="size-5" />}
+                    title="文件格式和图标管理"
+                    description="为特定的文件格式配置个性化图标（支持 PNG 或 SVG），并可针对 SVG 调整显示颜色"
+                    action={
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        leftIcon={<Plus className="size-4" />}
+                        onClick={() => {
+                          setFormatsInput("");
+                          setSelectedIconData(null);
+                          setSvgColor("#3b82f6");
+                          setAddIconOpen(true);
+                        }}
+                        className="h-8 font-normal"
+                      >
+                        添加映射
+                      </Button>
+                    }
+                  />
+                  
+                  {/* Local stylesheet for SVG scale */}
+                  <style>{`
+                    .custom-file-icon-svg svg {
+                      width: 100%;
+                      height: 100%;
+                      display: block;
+                    }
+                  `}</style>
+
+                  <div className="mt-5 space-y-4">
+                    {/* Hidden file input */}
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleIconFileChange}
+                      accept=".png,.svg"
+                      className="hidden"
+                    />
+
+                    {/* Mappings List */}
+                    <div className="space-y-3">
+                      <span className="block text-sm font-semibold leading-5 text-foreground">
+                        已配置的格式图标 ({customFileIcons.length})
+                      </span>
+                      
+                      {customFileIcons.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-border/40 bg-secondary/5 text-muted-foreground">
+                          <Sparkles className="size-7 mb-2 opacity-50 text-muted-foreground" />
+                          <span className="text-xs">暂无自定义图标映射，请点击右上角添加</span>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                          {customFileIcons.map((icon) => (
+                            <div
+                              key={icon.id}
+                              className="flex items-center justify-between p-3 border border-border/60 rounded-xl bg-secondary/10 hover:bg-secondary/20 hover:border-border transition-all gap-4"
+                            >
+                              {/* Left: Icon preview */}
+                              <div className="size-10 shrink-0 flex items-center justify-center rounded-lg bg-card/60 border border-border/40 shadow-sm overflow-hidden">
+                                {icon.iconType === "png" ? (
+                                  <img
+                                    src={icon.iconData}
+                                    alt="icon"
+                                    className="size-7 object-contain"
+                                  />
+                                ) : (
+                                  <div
+                                    className="size-7 flex items-center justify-center custom-file-icon-svg"
+                                    style={icon.color ? { color: icon.color } : undefined}
+                                    dangerouslySetInnerHTML={{ __html: icon.iconData }}
+                                  />
+                                )}
+                              </div>
+
+                              {/* Middle: File extensions */}
+                              <div className="flex-1 min-w-0">
+                                <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                  映射格式
+                                </span>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {icon.extensions.map((ext) => (
+                                    <span
+                                      key={ext}
+                                      className="px-1.5 py-0.5 text-[10px] font-semibold font-mono uppercase bg-card rounded border border-border/40 text-foreground/80"
+                                    >
+                                      .{ext}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Right: Actions (Color Picker & Delete) */}
+                              <div className="flex items-center gap-2 shrink-0">
+                                {icon.iconType === "svg" && (
+                                  <div
+                                    className="relative size-6 shrink-0 rounded-full border border-border/80 overflow-hidden shadow-sm hover:scale-105 transition-transform"
+                                    style={{ backgroundColor: icon.color || "#000000" }}
+                                    title="修改 SVG 颜色"
+                                  >
+                                    <input
+                                      type="color"
+                                      value={icon.color || "#000000"}
+                                      onChange={(e) => handleUpdateIconColor(icon.id, e.target.value)}
+                                      className="absolute -inset-1 size-[150%] cursor-pointer border-0 bg-transparent p-0 opacity-0"
+                                    />
+                                  </div>
+                                )}
+                                
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => handleDeleteIcon(icon.id)}
+                                  className="text-destructive hover:bg-destructive/10 hover:text-destructive size-8 rounded-lg cursor-pointer"
+                                >
+                                  <Trash2 className="size-4" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </SettingsSectionCard>
+              </>
+            ) : null}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -2161,6 +2460,129 @@ export default function SettingsWindow() {
               }}
             >
               {UI_TEXT.settings.resetConfirm}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={addIconOpen} onOpenChange={setAddIconOpen}>
+        <DialogContent size="default" variant="modal">
+          <DialogHeader>
+            <DialogTitle>添加文件图标映射</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-4">
+            {/* Associated file formats */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                关联文件格式
+              </label>
+              <SettingsInput
+                value={formatsInput}
+                onChange={(e) => setFormatsInput(e.target.value)}
+                placeholder="例如: mp4, mkv, avi (使用空格或逗号分隔)"
+                className="w-full bg-card border-border/80 focus:border-primary/50"
+              />
+              <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+                输入需要映射的文件后缀名，多个格式用逗号或空格分开，如 `zip rar 7z`
+              </p>
+            </div>
+
+            {/* Icon File Upload */}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                图标文件 (.png / .svg)
+              </label>
+              <button
+                type="button"
+                onClick={handlePickIconFile}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-dashed border-border/80 bg-card/40 p-3 text-sm text-muted-foreground hover:bg-card/75 hover:text-foreground transition-all cursor-pointer h-10 min-w-0"
+              >
+                <Upload className="size-4 shrink-0" />
+                <span className="truncate max-w-[280px]">
+                  {selectedIconData ? selectedIconData.fileName : "选择图标文件..."}
+                </span>
+              </button>
+              <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+                文件大小不能超过 200KB，PNG 分辨率不能大于 512x512 像素
+              </p>
+            </div>
+
+            {/* SVG Custom Color */}
+            {selectedIconData?.type === "svg" && (
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  图标颜色
+                </label>
+                <div className="flex items-center gap-2">
+                  <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
+                    <input
+                      type="color"
+                      value={svgColor}
+                      onChange={(e) => setSvgColor(e.target.value)}
+                      className="absolute -inset-2 size-[150%] cursor-pointer border-0 bg-transparent p-0"
+                    />
+                  </div>
+                  <SettingsInput
+                    value={svgColor}
+                    onChange={(e) => setSvgColor(e.target.value)}
+                    placeholder="#3b82f6"
+                    className="max-w-[120px] font-mono text-sm uppercase bg-card"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Icon Preview */}
+            {selectedIconData && (
+              <div className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-secondary/15">
+                <span className="text-xs text-muted-foreground font-medium">预览:</span>
+                <div className="size-8 flex items-center justify-center rounded bg-card border border-border/30 overflow-hidden shrink-0">
+                  {selectedIconData.type === "png" ? (
+                    <img
+                      src={selectedIconData.data}
+                      alt="preview"
+                      className="size-6 object-contain"
+                    />
+                  ) : (
+                    <div
+                      className="size-6 flex items-center justify-center custom-file-icon-svg"
+                      style={{ color: svgColor }}
+                      dangerouslySetInnerHTML={{ __html: selectedIconData.data }}
+                    />
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground truncate flex-1 font-medium">
+                  {selectedIconData.fileName}
+                </span>
+                <Button
+                  variant="outline"
+                  size="xs"
+                  onClick={() => setSelectedIconData(null)}
+                  className="h-7 text-xs font-normal"
+                >
+                  清除
+                </Button>
+              </div>
+            )}
+          </DialogBody>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAddIconOpen(false);
+                setFormatsInput("");
+                setSelectedIconData(null);
+              }}
+            >
+              取消
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSaveIcon}
+              disabled={!formatsInput.trim() || !selectedIconData}
+              leftIcon={<Plus className="size-4" />}
+            >
+              确认添加
             </Button>
           </DialogFooter>
         </DialogContent>

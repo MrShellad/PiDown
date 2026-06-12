@@ -94,6 +94,9 @@ export default function NewTaskWindow() {
                 sequential={state.sequential}
                 infoHash={state.infoHash}
                 isPrivate={state.isPrivate}
+                freeSpaceText={state.freeSpaceText}
+                isDiskSpaceWarning={state.isDiskSpaceWarning}
+                formConflict={state.formConflict}
                 onDetailsTabChange={actions.setDetailsTab}
                 onUrlChange={actions.setUrl}
                 onFilenameChange={actions.setFilename}

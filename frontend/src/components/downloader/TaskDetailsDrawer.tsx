@@ -12,6 +12,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
+import { FileIcon } from "@/components/common/FileIcon"
 import { IconPreview } from "@/components/ui/icon-picker"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import {
@@ -601,11 +602,14 @@ export default function TaskDetailsDrawer({
                                   return (
                                     <div key={file.index} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
                                       <div className="flex-1 min-w-0 flex flex-col gap-0.5 pr-4 select-all">
-                                        <span className="text-foreground/90 font-medium truncate" title={file.path}>
-                                          {filename}
-                                        </span>
+                                        <div className="flex items-center gap-2 min-w-0">
+                                          <FileIcon filename={filename || ""} className="size-4 shrink-0 text-muted-foreground/85" />
+                                          <span className="text-foreground/90 font-medium truncate" title={file.path}>
+                                            {filename}
+                                          </span>
+                                        </div>
                                         {dirPath.length > 0 && (
-                                          <span className="text-xs text-muted-foreground truncate select-none" title={file.path}>
+                                          <span className="text-xs text-muted-foreground truncate select-none pl-6" title={file.path}>
                                             {dirPath}
                                           </span>
                                         )}

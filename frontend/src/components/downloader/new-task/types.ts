@@ -24,4 +24,5 @@ export interface NewTaskAdvancedDraft {
   cookiesInput: string
   autoVerify: boolean
   disableDhtPexLpd: boolean
+  fileAllocation: string
 }

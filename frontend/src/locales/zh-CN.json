@@ -221,7 +221,7 @@
     "encryptRequired": "强制加密 (Required)",
     "encryptDisabled": "禁用加密 (Disabled)",
     "diskAllocation": "磁盘预分配模式",
-    "diskAllocationDesc": "新建 BT 任务时如何预先分配磁盘空间，避免文件碎片。",
+    "diskAllocationDesc": "新建下载任务时如何预先分配磁盘空间，避免文件碎片。",
     "allocNone": "不分配 (None)",
     "allocSparse": "稀疏分配 (Sparse)",
     "allocFull": "完全预分配 (Full)",

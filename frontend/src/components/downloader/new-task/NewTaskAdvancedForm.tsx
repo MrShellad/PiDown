@@ -1,7 +1,8 @@
 import type { ReactNode } from "react"
 import { motion } from "motion/react"
-import { Cookie, Cpu, ExternalLink, Gauge, UserRound, Fingerprint } from "lucide-react"
+import { Cookie, Cpu, ExternalLink, Gauge, UserRound, Fingerprint, HardDrive } from "lucide-react"
 
+import { SegmentedControl } from "@/components/common"
 import { Input, Textarea } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { MAX_TASK_THREAD_COUNT } from "./data"
@@ -113,6 +114,24 @@ export function NewTaskAdvancedForm({
           />
         </AdvancedField>
       )}
+
+      <div className="md:col-span-2">
+        <AdvancedField icon={<HardDrive />} label="磁盘预分配">
+          <div className="flex items-center justify-center h-12">
+            <SegmentedControl
+              value={draft.fileAllocation}
+              options={[
+                { value: "default", label: "继承全局" },
+                { value: "none", label: "不分配" },
+                { value: "sparse", label: "稀疏分配" },
+                { value: "full", label: "完全分配" },
+              ]}
+              onValueChange={(val) => onDraftChange({ fileAllocation: val })}
+              size="lg"
+            />
+          </div>
+        </AdvancedField>
+      </div>
 
       {/* Switches for Torrent Options */}
       {isTorrent && (

@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useMemo, useState, useRef, type FormEvent } from "react"
 
 import {
   checkFileConflict,
   createTask,
+  getDiskSpace,
   inspectDownloadMetadata,
   pickDownloadDirectory,
   pickTorrentFile,
@@ -21,6 +22,7 @@ import {
   DEFAULT_TASK_THREAD_COUNT,
   inferFileName,
   parseCookieInput,
+  formatBytes,
 } from "./data"
 import type { NewTaskAdvancedDraft, NewTaskDetailsTab, NewTaskStep, PendingTaskCreate } from "./types"
 
@@ -42,6 +44,7 @@ export function useNewTaskModalState({
   const [url, setUrl] = useState("")
   const [filename, setFilename] = useState("")
   const [savePath, setSavePath] = useState("")
+  const savePathIsManual = useRef(false)
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [categoryTouched, setCategoryTouched] = useState(false)
   const [advancedDraft, setAdvancedDraft] = useState<NewTaskAdvancedDraft>({
@@ -53,6 +56,7 @@ export function useNewTaskModalState({
     cookiesInput: "",
     autoVerify: true,
     disableDhtPexLpd: false,
+    fileAllocation: "default",
   })
   const [previewTagIds, setPreviewTagIds] = useState<number[]>([])
   const [totalSize, setTotalSize] = useState<number | null>(null)
@@ -66,6 +70,76 @@ export function useNewTaskModalState({
   const [sequential, setSequential] = useState(false)
   const [infoHash, setInfoHash] = useState<string | null>(null)
   const [isPrivate, setIsPrivate] = useState<boolean | null>(null)
+
+  const [diskSpace, setDiskSpace] = useState<{ free: number; total: number } | null>(null)
+  const [formConflict, setFormConflict] = useState<FileConflictCheck | null>(null)
+
+  // Query disk space whenever savePath changes
+  useEffect(() => {
+    if (!savePath.trim()) {
+      setDiskSpace(null)
+      return
+    }
+
+    let active = true
+    const fetchSpace = async () => {
+      try {
+        const [free, total] = await getDiskSpace(savePath.trim())
+        if (active) {
+          setDiskSpace({ free, total })
+        }
+      } catch (err) {
+        console.error("Failed to query disk space:", err)
+      }
+    }
+
+    fetchSpace()
+    return () => {
+      active = false
+    }
+  }, [savePath])
+
+  // Debounced proactive conflict checking
+  useEffect(() => {
+    if (!savePath || !filename) {
+      setFormConflict(null)
+      return
+    }
+
+    let active = true
+    const check = async () => {
+      try {
+        const res = await checkFileConflict(savePath, filename)
+        if (active) {
+          setFormConflict(res)
+        }
+      } catch (err) {
+        console.error("Error checking file conflict:", err)
+      }
+    }
+
+    const timer = setTimeout(check, 300)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [savePath, filename])
+
+  const selectedSize = useMemo(() => {
+    if (isTorrent && torrentFiles) {
+      return selectedFiles.reduce((acc, index) => acc + (torrentFiles[index]?.size || 0), 0)
+    }
+    return totalSize
+  }, [isTorrent, torrentFiles, selectedFiles, totalSize])
+
+  const isDiskSpaceWarning = useMemo(() => {
+    if (selectedSize === null || !diskSpace) return false
+    return selectedSize > diskSpace.free
+  }, [selectedSize, diskSpace])
+
+  const freeSpaceText = useMemo(() => {
+    return diskSpace ? formatBytes(diskSpace.free) : "--"
+  }, [diskSpace])
 
   const tags = useDownloadStore((state) => state.tags)
   const categories = useDownloadStore((state) => state.categories)
@@ -109,11 +183,13 @@ export function useNewTaskModalState({
     setCategoryId(preview.category?.id ?? null)
     setPreviewTagIds(preview.tags.map((tag) => tag.id))
     if (options?.touchPath !== false) {
+      savePathIsManual.current = false
       setSavePath(preview.save_path || globalSaveDir)
     }
   }, [globalSaveDir])
 
   const resetForm = useCallback(() => {
+    savePathIsManual.current = false
     setStep("link")
     setDetailsTab("basic")
     setUrl("")
@@ -130,6 +206,7 @@ export function useNewTaskModalState({
       cookiesInput: "",
       autoVerify: true,
       disableDhtPexLpd: false,
+      fileAllocation: "default",
     })
     setPreviewTagIds([])
     setTotalSize(null)
@@ -169,10 +246,18 @@ export function useNewTaskModalState({
     }
   }, [pushToast])
 
+  const handleSavePathChange = useCallback((value: string) => {
+    savePathIsManual.current = true
+    setSavePath(value)
+  }, [])
+
   const pickSaveDirectory = useCallback(async () => {
     try {
       const directory = await pickDownloadDirectory(savePath.trim() || globalSaveDir || undefined)
-      if (directory) setSavePath(directory)
+      if (directory) {
+        savePathIsManual.current = true
+        setSavePath(directory)
+      }
     } catch (err) {
       console.error("Failed to pick download directory:", err)
       pushToast({
@@ -244,6 +329,7 @@ export function useNewTaskModalState({
       cookies?: string[]
     }
   ) => {
+    savePathIsManual.current = false
     setUrl(nextUrl)
     setFilename(fallbackFilename)
     setTotalSize(nextTotalSize === null || nextTotalSize <= 0 ? null : nextTotalSize)
@@ -373,6 +459,10 @@ export function useNewTaskModalState({
         task.sequential
       )
 
+      if (savePathIsManual.current && task.savePath) {
+        savePathToHistory(task.savePath)
+      }
+
       await useDownloadStore.getState().fetchTasks()
       closeModal()
     } catch (err) {
@@ -474,6 +564,10 @@ export function useNewTaskModalState({
     }
   }, [inspectMetadata, url, filename])
 
+  const savePathHistory = useMemo(() => {
+    return getPathHistory()
+  }, [savePath])
+
   return {
     state: {
       step,
@@ -493,6 +587,10 @@ export function useNewTaskModalState({
       sequential,
       infoHash,
       isPrivate,
+      freeSpaceText,
+      isDiskSpaceWarning,
+      formConflict,
+      savePathHistory,
     },
     data: {
       categories,
@@ -508,7 +606,7 @@ export function useNewTaskModalState({
       setDetailsTab,
       setUrl,
       setFilename,
-      setSavePath,
+      setSavePath: handleSavePathChange,
       handleCategoryChange,
       updateAdvancedDraft,
       pasteFromClipboard,
@@ -521,5 +619,27 @@ export function useNewTaskModalState({
       handleRenameManually,
       retryMetadataProbe,
     },
+  }
+}
+
+function savePathToHistory(path: string) {
+  const trimmed = path.trim()
+  if (!trimmed) return
+  try {
+    const raw = localStorage.getItem("pidown_savepath_history")
+    const history: string[] = raw ? JSON.parse(raw) : []
+    const nextHistory = [trimmed, ...history.filter((p) => p !== trimmed)].slice(0, 5)
+    localStorage.setItem("pidown_savepath_history", JSON.stringify(nextHistory))
+  } catch (e) {
+    console.error("Failed to save path history:", e)
+  }
+}
+
+export function getPathHistory(): string[] {
+  try {
+    const raw = localStorage.getItem("pidown_savepath_history")
+    return raw ? JSON.parse(raw) : []
+  } catch {
+    return []
   }
 }

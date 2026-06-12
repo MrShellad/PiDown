@@ -60,7 +60,10 @@ interface ScrollAreaProps
   safePadding?: boolean;
 }
 
-export function ScrollArea({
+export const ScrollArea = React.forwardRef<
+  HTMLDivElement,
+  ScrollAreaProps
+>(({
   className,
   viewportClassName,
   variant,
@@ -71,9 +74,10 @@ export function ScrollArea({
   safePadding = false,
   children,
   ...props
-}: ScrollAreaProps) {
+}, ref) => {
   return (
     <div
+      ref={ref}
       data-slot="scroll-area"
       className={cn(scrollAreaVariants({ variant, className }))}
       {...props}
@@ -90,6 +94,8 @@ export function ScrollArea({
       </div>
     </div>
   );
-}
+});
+
+ScrollArea.displayName = "ScrollArea";
 
 export { scrollAreaVariants };

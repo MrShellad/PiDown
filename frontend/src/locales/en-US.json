@@ -221,7 +221,7 @@
     "encryptRequired": "Required (Required)",
     "encryptDisabled": "Disabled (Disabled)",
     "diskAllocation": "Disk Allocation Mode",
-    "diskAllocationDesc": "Select pre-allocation schemes for new BT downloads to avoid file fragmentation.",
+    "diskAllocationDesc": "Select pre-allocation schemes for new downloads to avoid file fragmentation.",
     "allocNone": "None (None)",
     "allocSparse": "Sparse (Sparse)",
     "allocFull": "Full (Full)",

@@ -91,6 +91,7 @@ dependencies = [
  "dirs",
  "gosh-dl",
  "image",
+ "libc",
  "log",
  "md-5",
  "raw-window-handle",

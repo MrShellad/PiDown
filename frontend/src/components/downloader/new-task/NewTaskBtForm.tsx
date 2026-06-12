@@ -1,12 +1,15 @@
-import { useState, useMemo, useEffect } from "react"
-import { ChevronDown, ChevronRight, File, Folder, FolderOpen, HardDrive, Film, List } from "lucide-react"
+import { useState, useMemo, useEffect, useRef } from "react"
+import { ChevronDown, ChevronRight, Folder, FolderOpen, HardDrive, Film, List, Magnet } from "lucide-react"
 
 import { CategoryDropdown } from "@/components/common/CategoryDropdown"
+import { FileIcon } from "@/components/common/FileIcon"
 import { ActionInput } from "@/components/ui/input"
 import type { Category } from "@/core/store/useDownloadStore"
+import type { FileConflictCheck } from "@/core/bridge/tauri-commands"
 import { formatBytes } from "./data"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 
 export interface TorrentFileInspection {
   path: string
@@ -29,6 +32,11 @@ interface NewTaskBtFormProps {
   categories: Category[]
   onCategoryChange: (value: number | null) => void
   onSavePathChange: (value: string) => void
+  freeSpaceText?: string
+  isDiskSpaceWarning?: boolean
+  formConflict?: FileConflictCheck | null
+  onFilenameChange?: (value: string) => void
+  savePathHistory?: string[]
 }
 
 interface TreeNode {
@@ -130,15 +138,82 @@ export function NewTaskBtForm({
   categories,
   onCategoryChange,
   onSavePathChange,
+  freeSpaceText,
+  isDiskSpaceWarning,
+  formConflict,
+  onFilenameChange,
+  savePathHistory = [],
 }: NewTaskBtFormProps) {
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
   const [videoOnly, setVideoOnly] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
 
   // Memoize tree representation
   const tree = useMemo(() => {
     if (!files || files.length === 0) return null
     return buildTree(files)
   }, [files])
+
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [scrollTop, setScrollTop] = useState(0)
+
+  // Listen to custom scroll event of ScrollArea viewport
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+
+    const viewport = el.querySelector('[data-slot="scroll-area-viewport"]')
+    if (!viewport) return
+
+    const handleScroll = (e: Event) => {
+      setScrollTop((e.target as HTMLElement).scrollTop)
+    }
+
+    viewport.addEventListener("scroll", handleScroll)
+    return () => {
+      viewport.removeEventListener("scroll", handleScroll)
+    }
+  }, [])
+
+  interface FlatNode {
+    node: TreeNode
+    depth: number
+  }
+
+  // Flatten the tree into an array of visible nodes
+  const visibleNodes = useMemo(() => {
+    if (!tree) return []
+    const flat: FlatNode[] = []
+
+    function traverse(node: TreeNode, depth: number) {
+      if (node.path === "") {
+        node.children.forEach((child) => traverse(child, depth))
+        return
+      }
+
+      flat.push({ node, depth })
+
+      if (node.isFolder && expandedFolders[node.path]) {
+        node.children.forEach((child) => traverse(child, depth + 1))
+      }
+    }
+
+    traverse(tree, 0)
+    return flat
+  }, [tree, expandedFolders])
+
+  const ROW_HEIGHT = 36
+  const VIEWPORT_HEIGHT = 180 // Reduced height to 180px
+  const OVERSCAN = 5
+
+  const totalHeight = visibleNodes.length * ROW_HEIGHT
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN)
+  const endIndex = Math.min(visibleNodes.length, Math.ceil((scrollTop + VIEWPORT_HEIGHT) / ROW_HEIGHT) + OVERSCAN)
+
+  const visibleSlice = visibleNodes.slice(startIndex, endIndex)
+  const topSpacerHeight = startIndex * ROW_HEIGHT
+
+
 
   // Automatically expand the root folder by default
   useEffect(() => {
@@ -244,56 +319,45 @@ export function NewTaskBtForm({
     return "none"
   }
 
-  // Render tree node recursively
-  const renderNode = (node: TreeNode, depth: number) => {
+  // Render flat node in the virtual list
+  const renderFlatNode = (node: TreeNode, depth: number) => {
     const indent = depth * 18
 
     if (node.isFolder) {
       const isExpanded = expandedFolders[node.path]
       const selectState = getFolderSelectState(node)
-      // Skip rendering empty root container node (that holds the main contents)
-      if (node.path === "") {
-        return <div key="root">{node.children.map((child) => renderNode(child, depth))}</div>
-      }
 
       return (
-        <div key={node.path} className="flex flex-col">
-          <div
-            className="group flex h-9 items-center hover:bg-secondary/40 px-2 rounded-md transition-colors"
-            style={{ paddingLeft: `${indent}px` }}
+        <div
+          key={node.path}
+          className="group flex h-9 items-center hover:bg-secondary/40 px-2 rounded-md transition-colors"
+          style={{ paddingLeft: `${indent}px` }}
+        >
+          <button
+            type="button"
+            onClick={() => toggleFolderExpand(node.path)}
+            className="p-1 text-muted-foreground/70 hover:text-foreground hover:bg-secondary rounded-sm mr-0.5 transition-colors"
           >
-            <button
-              type="button"
-              onClick={() => toggleFolderExpand(node.path)}
-              className="p-1 text-muted-foreground/70 hover:text-foreground hover:bg-secondary rounded-sm mr-0.5 transition-colors"
-            >
-              {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
-            </button>
+            {isExpanded ? <ChevronDown className="size-4" /> : <ChevronRight className="size-4" />}
+          </button>
 
-            <div className="flex items-center gap-2 shrink-0">
-              <Checkbox
-                checked={selectState === "all" ? true : selectState === "some" ? "indeterminate" : false}
-                onCheckedChange={(checked) => handleFolderSelect(node, checked === true)}
-              />
-              <span className="text-primary/80 shrink-0">
-                {isExpanded ? <FolderOpen className="size-4" /> : <Folder className="size-4" />}
-              </span>
-            </div>
-
-            <span className="ml-2 text-sm font-medium text-foreground truncate max-w-[280px]">
-              {node.name}
-            </span>
-
-            <span className="ml-auto text-xs text-muted-foreground/75 font-mono">
-              {formatBytes(node.size)}
+          <div className="flex items-center gap-2 shrink-0">
+            <Checkbox
+              checked={selectState === "all" ? true : selectState === "some" ? "indeterminate" : false}
+              onCheckedChange={(checked) => handleFolderSelect(node, checked === true)}
+            />
+            <span className="text-primary/80 shrink-0">
+              {isExpanded ? <FolderOpen className="size-4" /> : <Folder className="size-4" />}
             </span>
           </div>
 
-          {isExpanded && (
-            <div className="flex flex-col">
-              {node.children.map((child) => renderNode(child, depth + 1))}
-            </div>
-          )}
+          <span className="ml-2 text-sm font-medium text-foreground truncate max-w-[280px]">
+            {node.name}
+          </span>
+
+          <span className="ml-auto text-xs text-muted-foreground/75 font-mono">
+            {formatBytes(node.size)}
+          </span>
         </div>
       )
     } else {
@@ -314,7 +378,7 @@ export function NewTaskBtForm({
               onCheckedChange={(checked) => handleFileSelect(node.index!, checked === true)}
             />
             <span className="text-primary/75 shrink-0">
-              {isVideoFile(node.name) ? <Film className="size-4" /> : <File className="size-4" />}
+              <FileIcon filename={node.name} className="size-4" />
             </span>
           </div>
 
@@ -341,8 +405,8 @@ export function NewTaskBtForm({
     <div className="space-y-4">
       {/* Torrent Header Info */}
       <div className="flex items-center gap-3 bg-secondary/20 p-3.5 rounded-xl border border-border/60">
-        <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary font-bold text-lg select-none">
-          BT
+        <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary select-none">
+          <Magnet className="size-6 rotate-45" />
         </div>
         <div className="min-w-0">
           <div className="text-sm font-semibold text-foreground truncate max-w-[400px]">
@@ -387,9 +451,12 @@ export function NewTaskBtForm({
         </div>
 
         {/* Tree Container */}
-        <ScrollArea className="h-[260px] p-2" scrollbar="thin">
-          {tree ? (
-            renderNode(tree, 0)
+        <ScrollArea ref={containerRef} className="h-[180px] p-2" scrollbar="overlay">
+          {tree && visibleNodes.length > 0 ? (
+            <div className="relative" style={{ height: totalHeight }}>
+              <div style={{ height: topSpacerHeight }} aria-hidden="true" />
+              {visibleSlice.map(({ node, depth }) => renderFlatNode(node, depth))}
+            </div>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               无可用文件
@@ -409,35 +476,42 @@ export function NewTaskBtForm({
         </label>
       </div>
 
-      {/* Category Dropdown Selection & Download Directory Selector */}
-      <div className="grid gap-4 md:grid-cols-2 pt-1">
-        {/* Category Dropdown Selection */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between h-5">
-            <label className="block text-xs font-semibold text-foreground/80">分类到</label>
-          </div>
-          <CategoryDropdown
-            categories={categories}
-            value={categoryId}
-            onValueChange={onCategoryChange}
-            disabled={loading}
-            noCategoryLabel="不分类"
-            triggerClassName="h-12 bg-background/70 px-4 text-base w-full"
-          />
+      {/* Category Dropdown Selection */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between h-5">
+          <label className="block text-xs font-semibold text-foreground/80">分类到</label>
         </div>
+        <CategoryDropdown
+          categories={categories}
+          value={categoryId}
+          onValueChange={onCategoryChange}
+          disabled={loading}
+          noCategoryLabel="不分类"
+          triggerClassName="h-12 bg-background/70 px-4 text-base w-full"
+        />
+      </div>
 
-        {/* Download Directory Selector */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between h-5">
-            <label className="block text-xs font-semibold text-foreground/80">下载到</label>
-            <span className="text-xs text-muted-foreground/60 font-mono">
-              剩余: 454.0 GB
-            </span>
-          </div>
+      {/* Download Directory Selector */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between h-5">
+          <label className="block text-xs font-semibold text-foreground/80">下载到</label>
+          <span className={cn(
+            "text-xs font-mono transition-colors duration-200",
+            isDiskSpaceWarning
+              ? "text-destructive font-semibold animate-pulse"
+              : "text-muted-foreground/60"
+          )}>
+            剩余: {freeSpaceText} {isDiskSpaceWarning && "(空间不足)"}
+          </span>
+        </div>
+        <div className="relative">
           <ActionInput
             type="text"
             value={savePath}
             onChange={(event) => onSavePathChange(event.target.value)}
+            onFocus={() => setShowHistory(true)}
+            onClick={() => setShowHistory(true)}
+            onBlur={() => setTimeout(() => setShowHistory(false), 200)}
             disabled={loading}
             leadingIcon={<HardDrive />}
             actionIcon={<FolderOpen />}
@@ -445,7 +519,50 @@ export function NewTaskBtForm({
             onAction={onPickSaveDirectory}
             inputClassName="font-mono"
           />
+          {showHistory && savePathHistory && savePathHistory.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+              {savePathHistory.map((path, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onMouseDown={(e) => {
+                    // Prevent input blur before onClick fires
+                    e.preventDefault()
+                  }}
+                  onClick={() => {
+                    onSavePathChange(path)
+                    setShowHistory(false)
+                  }}
+                  className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground font-mono transition-colors"
+                >
+                  <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                  <span className="truncate">{path}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        {formConflict && formConflict.exists && (
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-1.5 text-left">
+            <div className="flex items-center gap-1.5 font-semibold">
+              <span>⚠️ 目标目录下已存在同名文件或文件夹</span>
+            </div>
+            <div className="font-mono break-all text-muted-foreground/80">
+              建议名称: <span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
+            </div>
+            {onFilenameChange && (
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors animate-pulse"
+                  onClick={() => onFilenameChange(formConflict.suggested_filename)}
+                >
+                  使用建议名称
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

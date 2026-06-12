@@ -102,6 +102,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::create_task,
             commands::check_file_conflict,
+            commands::get_disk_space,
             commands::inspect_download_metadata,
             commands::preview_task_classification,
             commands::read_clipboard_text,

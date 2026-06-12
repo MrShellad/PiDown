@@ -15,7 +15,7 @@ const DialogSurfaceContext = React.createContext<DialogSurfaceVariant>("modal")
 const DialogOpenContext = React.createContext<boolean | null>(null)
 
 const dialogContentVariants = cva(
-  "fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] overflow-hidden rounded-lg bg-popover text-sm text-popover-foreground shadow-2xl shadow-black/15 ring-1 ring-foreground/10 outline-none",
+  "fixed top-1/2 left-1/2 z-[150] grid w-full max-w-[calc(100%-2rem)] overflow-hidden rounded-lg bg-popover text-sm text-popover-foreground shadow-2xl shadow-black/15 ring-1 ring-foreground/10 outline-none",
   {
     variants: {
       variant: {
@@ -95,7 +95,7 @@ function DialogOverlay({
       <motion.div
         data-slot="dialog-overlay"
         className={cn(
-          "fixed inset-0 isolate z-50 bg-black/10 backdrop-blur-xs",
+          "fixed inset-0 isolate z-[150] bg-black/10 backdrop-blur-xs",
           className
         )}
         initial={{ opacity: 0 }}

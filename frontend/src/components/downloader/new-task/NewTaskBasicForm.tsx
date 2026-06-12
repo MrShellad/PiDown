@@ -1,11 +1,13 @@
+import { useState } from "react"
 import { motion } from "motion/react"
-import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle, Radar } from "lucide-react"
+import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle, Radar, HardDrive } from "lucide-react"
 
 import { CategoryDropdown } from "@/components/common/CategoryDropdown"
 import { IconPreview } from "@/components/ui/icon-picker"
 import { ActionInput, Input } from "@/components/ui/input"
 import { UI_TEXT } from "@/core/locale"
 import type { Category, Tag } from "@/core/store/useDownloadStore"
+import type { FileConflictCheck } from "@/core/bridge/tauri-commands"
 import { cn } from "@/lib/utils"
 import { formatBytes } from "./data"
 
@@ -28,6 +30,10 @@ interface NewTaskBasicFormProps {
   onPasteFromClipboard: () => void
   onPickSaveDirectory: () => void
   onRetryMetadata?: () => void
+  freeSpaceText?: string
+  isDiskSpaceWarning?: boolean
+  formConflict?: FileConflictCheck | null
+  savePathHistory?: string[]
 }
 
 function RuleIconPreview({
@@ -135,7 +141,12 @@ export function NewTaskBasicForm({
   onPasteFromClipboard,
   onPickSaveDirectory,
   onRetryMetadata,
+  freeSpaceText,
+  isDiskSpaceWarning,
+  formConflict,
+  savePathHistory = [],
 }: NewTaskBasicFormProps) {
+  const [showHistory, setShowHistory] = useState(false)
   return (
     <motion.div
       className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_13.5rem]"
@@ -157,39 +168,106 @@ export function NewTaskBasicForm({
           required
         />
 
-        <div className="grid h-auto md:h-12 gap-3 md:grid-cols-[auto_1fr] md:items-center">
-          <label className="flex h-12 items-center text-sm font-medium text-foreground">
-            分类到
-          </label>
+        {/* Category Dropdown Selection */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between h-5">
+            <label className="block text-xs font-semibold text-foreground/80">分类到</label>
+          </div>
           <CategoryDropdown
             categories={categories}
             value={categoryId}
             onValueChange={onCategoryChange}
             disabled={loading}
             noCategoryLabel="不分类"
-            triggerClassName="h-12 bg-background/70 px-4 text-base"
+            triggerClassName="h-12 bg-background/70 px-4 text-base w-full"
           />
         </div>
 
-        <ActionInput
-          type="text"
-          value={savePath}
-          onChange={(event) => onSavePathChange(event.target.value)}
-          disabled={loading}
-          leadingIcon={<FolderOpen />}
-          actionIcon={<FolderOpen />}
-          actionLabel="选择下载目录"
-          onAction={onPickSaveDirectory}
-          inputClassName="font-mono"
-        />
+        {/* Download Directory Selector */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between h-5">
+            <label className="block text-xs font-semibold text-foreground/80">下载到</label>
+            <span className={cn(
+              "text-xs font-mono transition-colors duration-200",
+              isDiskSpaceWarning
+                ? "text-destructive font-semibold animate-pulse"
+                : "text-muted-foreground/60"
+            )}>
+              剩余: {freeSpaceText} {isDiskSpaceWarning && "(空间不足)"}
+            </span>
+          </div>
+          <div className="relative">
+            <ActionInput
+              type="text"
+              value={savePath}
+              onChange={(event) => onSavePathChange(event.target.value)}
+              onFocus={() => setShowHistory(true)}
+              onClick={() => setShowHistory(true)}
+              onBlur={() => setTimeout(() => setShowHistory(false), 200)}
+              disabled={loading}
+              leadingIcon={<HardDrive />}
+              actionIcon={<FolderOpen />}
+              actionLabel="选择下载目录"
+              onAction={onPickSaveDirectory}
+              inputClassName="font-mono"
+            />
+            {showHistory && savePathHistory && savePathHistory.length > 0 && (
+              <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+                {savePathHistory.map((path, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onMouseDown={(e) => {
+                      // Prevent input blur before onClick fires
+                      e.preventDefault()
+                    }}
+                    onClick={() => {
+                      onSavePathChange(path)
+                      setShowHistory(false)
+                    }}
+                    className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground font-mono transition-colors"
+                  >
+                    <FolderOpen className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate">{path}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-        <Input
-          value={filename}
-          onChange={(event) => onFilenameChange(event.target.value)}
-          disabled={loading}
-          placeholder="文件名"
-          className="h-12 rounded-lg bg-background/70 px-4 text-base"
-        />
+        {/* Filename Input with conflict check warning */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between h-5">
+            <label className="block text-xs font-semibold text-foreground/80">文件名</label>
+          </div>
+          <Input
+            value={filename}
+            onChange={(event) => onFilenameChange(event.target.value)}
+            disabled={loading}
+            placeholder="文件名"
+            className="h-12 rounded-lg bg-background/70 px-4 text-base"
+          />
+          {formConflict && formConflict.exists && (
+            <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-1.5">
+              <div className="flex items-center gap-1.5 font-semibold">
+                <span>⚠️ 目录下已存在同名文件或文件夹</span>
+              </div>
+              <div className="font-mono break-all text-muted-foreground/80">
+                建议名称: <span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
+              </div>
+              <div className="flex gap-2 mt-1">
+                <button
+                  type="button"
+                  className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors"
+                  onClick={() => onFilenameChange(formConflict.suggested_filename)}
+                >
+                  使用建议名称
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <aside className="flex h-[228px] min-w-0 flex-col gap-3 rounded-lg bg-background/35 px-3.5 py-3 text-sm text-muted-foreground">
