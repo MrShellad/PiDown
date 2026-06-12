@@ -5,7 +5,7 @@ use std::net::{TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager};
 
 const MAX_HTTP_BODY_BYTES: usize = 1024 * 1024;
 const HEADER_LIMIT_BYTES: usize = 16 * 1024;
@@ -64,6 +64,17 @@ impl NativeResponse {
             error: Some(error.into()),
         }
     }
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+struct ExternalDownloadRequestPayload {
+    url: String,
+    filename: Option<String>,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    cookies: Vec<String>,
+    total_size: Option<u64>,
 }
 
 pub fn start_native_bridge_server(
@@ -157,45 +168,28 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
                 return NativeResponse::error("Unsupported or missing download URL");
             }
 
-            let filename = download.filename.unwrap_or_default();
-            let user_agent = download.user_agent.unwrap_or_default();
-            let referer = download.referer.unwrap_or_default();
-            let cookies = download.cookies.unwrap_or_default().join(";");
-            let total_size = download.total_size.unwrap_or(0);
+            let payload = ExternalDownloadRequestPayload {
+                url,
+                filename: download.filename,
+                user_agent: download.user_agent,
+                referer: download.referer,
+                cookies: download.cookies.unwrap_or_default(),
+                total_size: download.total_size,
+            };
 
-            // Construct query parameters
-            let url_encoded = urlencoding::encode(&url);
-            let filename_encoded = urlencoding::encode(&filename);
-            let user_agent_encoded = urlencoding::encode(&user_agent);
-            let referer_encoded = urlencoding::encode(&referer);
-            let cookies_encoded = urlencoding::encode(&cookies);
-
-            let window_url = format!(
-                "index.html?new_task=1&url={}&filename={}&userAgent={}&referer={}&cookies={}&totalSize={}",
-                url_encoded, filename_encoded, user_agent_encoded, referer_encoded, cookies_encoded, total_size
-            );
-
-            let label = format!("new_task_{}", uuid::Uuid::new_v4());
-
-            let win_builder = WebviewWindowBuilder::new(
-                app_handle,
-                &label,
-                WebviewUrl::App(window_url.into()),
-            )
-            .title("新建下载任务")
-            .inner_size(800.0, 560.0)
-            .resizable(false)
-            .decorations(false)
-            .transparent(true);
-
-            match win_builder.build() {
-                Ok(window) => {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-
+            match app_handle.emit("external-download-request", payload) {
+                Ok(_) => {
+                    if let Some(float_win) = app_handle.get_webview_window("float") {
+                        let _ = float_win.show();
+                        let _ = float_win.unminimize();
+                        let _ = float_win.set_focus();
+                    }
                     NativeResponse::ok()
                 }
-                Err(error) => NativeResponse::error(format!("Failed to build new task window: {error}")),
+                Err(error) => {
+                    log::error!("Failed to emit external-download-request: {}", error);
+                    NativeResponse::error(format!("Failed to emit download request event: {error}"))
+                }
             }
         }
     }

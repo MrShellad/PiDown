@@ -63,6 +63,7 @@ export function useNewTaskModalState({
   const [metadataLoading, setMetadataLoading] = useState(false)
   const [loading, setLoading] = useState(false)
   const [conflictCheck, setConflictCheck] = useState<FileConflictCheck | null>(null)
+  const [overwrite, setOverwrite] = useState(false)
   const [pendingTaskCreate, setPendingTaskCreate] = useState<PendingTaskCreate | null>(null)
   const [isTorrent, setIsTorrent] = useState(false)
   const [torrentFiles, setTorrentFiles] = useState<TorrentFileInspection[] | null>(null)
@@ -73,6 +74,11 @@ export function useNewTaskModalState({
 
   const [diskSpace, setDiskSpace] = useState<{ free: number; total: number } | null>(null)
   const [formConflict, setFormConflict] = useState<FileConflictCheck | null>(null)
+
+  // Reset overwrite when filename or savePath changes
+  useEffect(() => {
+    setOverwrite(false)
+  }, [savePath, filename])
 
   // Query disk space whenever savePath changes
   useEffect(() => {
@@ -496,14 +502,14 @@ export function useNewTaskModalState({
       }
 
       const conflict = await checkFileConflict(nextTask.savePath, nextTask.filename)
-      if (conflict.exists) {
+      if (conflict.exists && !overwrite) {
         setPendingTaskCreate(nextTask)
         setConflictCheck(conflict)
         setLoading(false)
         return
       }
 
-      await submitTaskCreate(nextTask)
+      await submitTaskCreate(nextTask, overwrite)
     } catch (err) {
       console.error("Failed to create download task:", err)
       alert(UI_TEXT.newTask.errorAlert)
@@ -517,6 +523,7 @@ export function useNewTaskModalState({
     filename,
     globalSaveDir,
     isTorrent,
+    overwrite,
     savePath,
     selectedFiles,
     sequential,
@@ -596,6 +603,7 @@ export function useNewTaskModalState({
       isDiskSpaceWarning,
       formConflict,
       savePathHistory,
+      overwrite,
     },
     data: {
       categories,
@@ -623,6 +631,7 @@ export function useNewTaskModalState({
       handleOverwriteExistingFile,
       handleRenameManually,
       retryMetadataProbe,
+      setOverwrite,
     },
   }
 }

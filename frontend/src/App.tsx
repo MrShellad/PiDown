@@ -16,7 +16,7 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
-import NewTaskWindow from "./components/downloader/NewTaskWindow";
+
 
 function resolveActiveFilter(
   filter: NavFilter,
@@ -47,19 +47,7 @@ export default function App() {
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
 
 
-  const params = new URLSearchParams(window.location.search);
-  const isNewTask = path === "/new-task" || path.startsWith("/new-task") || params.has("new_task");
 
-  if (isNewTask) {
-    return (
-      <ThemeProvider taskRuntime={false}>
-        <TooltipProvider>
-          <ActiveBackground />
-          <NewTaskWindow />
-        </TooltipProvider>
-      </ThemeProvider>
-    );
-  }
 
   if (path === "/float") {
     return (

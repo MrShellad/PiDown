@@ -52,11 +52,8 @@ export function NewTaskAdvancedForm({
   isPrivate = null,
 }: NewTaskAdvancedFormProps) {
   return (
-    <motion.div
+    <div
       className="grid gap-4 md:grid-cols-2"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.16, ease: "easeOut" }}
     >
       {/* Torrent Infohash Block */}
       {isTorrent && infoHash && (
@@ -203,6 +200,6 @@ export function NewTaskAdvancedForm({
           </AdvancedField>
         </div>
       )}
-    </motion.div>
+    </div>
   )
 }

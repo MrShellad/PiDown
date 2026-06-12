@@ -27,8 +27,10 @@ import {
   ContextMenuRadioItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { emitTo } from "@tauri-apps/api/event";
+import { getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
+import { emitTo, listen } from "@tauri-apps/api/event";
+import NewTaskModal from "./NewTaskModal";
+import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 
 type TauriDroppedFile = File & { path?: string };
 function getDroppedFilePath(file: File) {
@@ -45,6 +47,143 @@ export default function FloatDisc() {
   const [dragActive, setDragActive] = useState(false);
   const displayMode = settings?.interface.float_display_mode || "always";
   const [alwaysOnTop, setAlwaysOnTop] = useState(true); // float window defaults to always on top
+
+  const [modalOpen, setModalOpen] = useState(false);
+  const [externalDownloadRequest, setExternalDownloadRequest] = useState<ExternalDownloadRequest | null>(null);
+
+  const originalPositionRef = useRef<PhysicalPosition | null>(null);
+  const originalSizeRef = useRef<PhysicalSize | null>(null);
+  const isModalOpenRef = useRef(false);
+
+  useEffect(() => {
+    isModalOpenRef.current = modalOpen;
+  }, [modalOpen]);
+
+  const handleOpenModal = useCallback(async (req: ExternalDownloadRequest) => {
+    console.log("FloatDisc: handleOpenModal triggered with request:", req);
+    try {
+      const win = getCurrentWindow();
+      await win.show();
+      await win.unminimize();
+      await win.setFocus();
+
+      const size = await win.outerSize();
+      const pos = await win.outerPosition();
+      originalSizeRef.current = size;
+      originalPositionRef.current = pos;
+      console.log("FloatDisc: Saved original window position:", pos, "size:", size);
+
+      await win.setIgnoreCursorEvents(false);
+      await win.setResizable(true);
+      await win.setSize(new LogicalSize(736, 420));
+      await win.center();
+      console.log("FloatDisc: Resized window to 736x420 and centered.");
+
+      setExternalDownloadRequest(req);
+      setModalOpen(true);
+    } catch (e) {
+      console.error("Failed to open task modal in float window:", e);
+    }
+  }, []);
+
+  const handleCloseModal = useCallback(async () => {
+    console.log("FloatDisc: handleCloseModal triggered");
+    try {
+      const win = getCurrentWindow();
+      setModalOpen(false);
+      setExternalDownloadRequest(null);
+
+      if (originalSizeRef.current) {
+        await win.setSize(originalSizeRef.current);
+      } else {
+        await win.setSize(new LogicalSize(500, 500));
+      }
+
+      await win.setResizable(false);
+
+      if (originalPositionRef.current) {
+        await win.setPosition(originalPositionRef.current);
+      }
+      console.log("FloatDisc: Restored window position and size.");
+    } catch (e) {
+      console.error("Failed to restore float window position/size:", e);
+    }
+  }, []);
+
+  useEffect(() => {
+    let disposed = false;
+    let unlistenExternalDownload: (() => void) | undefined;
+
+    console.log("FloatDisc: Registering listener for external-download-request");
+    listen<ExternalDownloadRequest>("external-download-request", (event) => {
+      console.log("FloatDisc: Received external-download-request event:", event);
+      handleOpenModal(event.payload).catch(console.error);
+    })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+          return;
+        }
+        unlistenExternalDownload = unlisten;
+        console.log("FloatDisc: Successfully registered event listener");
+      })
+      .catch((error) => {
+        console.error("Failed to listen to external-download-request in float window:", error);
+      });
+
+    return () => {
+      disposed = true;
+      unlistenExternalDownload?.();
+      console.log("FloatDisc: Unregistered event listener");
+    };
+  }, [handleOpenModal]);
+
+  // Dynamically resize window to fit the DialogContent height when modal is open
+  useEffect(() => {
+    if (!modalOpen) return;
+
+    let active = true;
+    let observer: ResizeObserver | null = null;
+
+    const resizeToFit = async () => {
+      try {
+        const el = document.querySelector('[data-slot="dialog-content"]') as HTMLElement;
+        if (!el || !active) return;
+
+        const win = getCurrentWindow();
+        const height = el.offsetHeight;
+        if (height > 0) {
+          console.log("FloatDisc: Detected dialog height:", height);
+          await win.setResizable(true);
+          await win.setSize(new LogicalSize(736, height));
+        }
+      } catch (err) {
+        console.error("FloatDisc: Failed to resize window to dialog height:", err);
+      }
+    };
+
+    const run = () => {
+      const el = document.querySelector('[data-slot="dialog-content"]');
+      if (el) {
+        observer = new ResizeObserver(() => {
+          resizeToFit().catch(console.error);
+        });
+        observer.observe(el);
+        resizeToFit().catch(console.error);
+      } else {
+        requestAnimationFrame(run);
+      }
+    };
+
+    requestAnimationFrame(run);
+
+    return () => {
+      active = false;
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [modalOpen]);
 
   // Set html and body backgrounds to transparent for Tauri window transparency
   useEffect(() => {
@@ -79,8 +218,8 @@ export default function FloatDisc() {
         const isVisible = await win.isVisible();
         if (!isVisible) return;
 
-        // If the context menu is open, always allow mouse events (do not ignore)
-        if (isMenuOpenRef.current) {
+        // If the context menu or modal is open, always allow mouse events (do not ignore)
+        if (isMenuOpenRef.current || isModalOpenRef.current) {
           if (isIgnore) {
             isIgnore = false;
             await win.setIgnoreCursorEvents(false);
@@ -129,7 +268,7 @@ export default function FloatDisc() {
   const activeTasks = Object.values(tasks).filter((t) => t.status === "Downloading");
 
   useEffect(() => {
-    if (!settings) return;
+    if (!settings || modalOpen) return;
     const mode = settings.interface.float_display_mode;
     const win = getCurrentWindow();
 
@@ -144,7 +283,7 @@ export default function FloatDisc() {
         win.show().catch(console.error);
       }
     }
-  }, [settings, settings?.interface.float_display_mode, activeTasks.length]);
+  }, [settings, settings?.interface.float_display_mode, activeTasks.length, modalOpen]);
 
   // Persist display mode changes to settings store
   const changeDisplayMode = useCallback(async (mode: FloatDisplayMode) => {
@@ -331,6 +470,7 @@ export default function FloatDisc() {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {!modalOpen && (
       <ContextMenu onOpenChange={setIsMenuOpen}>
         <ContextMenuTrigger asChild>
           <div className="flex items-center justify-center">
@@ -540,6 +680,18 @@ export default function FloatDisc() {
           </ContextMenuItem>
         </ContextMenuContent>
       </ContextMenu>
+      )}
+
+      <NewTaskModal
+        open={modalOpen}
+        onOpenChange={(open) => {
+          if (!open) {
+            handleCloseModal().catch(console.error);
+          }
+        }}
+        initialRequest={externalDownloadRequest}
+        onInitialRequestConsumed={() => setExternalDownloadRequest(null)}
+      />
     </div>
   );
 }

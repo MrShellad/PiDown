@@ -5,6 +5,7 @@ import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle, Radar, HardDri
 import { CategoryDropdown } from "@/components/common/CategoryDropdown"
 import { IconPreview } from "@/components/ui/icon-picker"
 import { ActionInput, Input } from "@/components/ui/input"
+import { Checkbox } from "@/components/ui/checkbox"
 import { UI_TEXT } from "@/core/locale"
 import type { Category, Tag } from "@/core/store/useDownloadStore"
 import type { FileConflictCheck } from "@/core/bridge/tauri-commands"
@@ -23,6 +24,8 @@ interface NewTaskBasicFormProps {
   totalSize: number | null
   metadataLoading: boolean
   loading: boolean
+  overwrite: boolean
+  onOverwriteChange: (value: boolean) => void
   onUrlChange: (value: string) => void
   onFilenameChange: (value: string) => void
   onSavePathChange: (value: string) => void
@@ -134,6 +137,8 @@ export function NewTaskBasicForm({
   totalSize,
   metadataLoading,
   loading,
+  overwrite,
+  onOverwriteChange,
   onUrlChange,
   onFilenameChange,
   onSavePathChange,
@@ -148,11 +153,8 @@ export function NewTaskBasicForm({
 }: NewTaskBasicFormProps) {
   const [showHistory, setShowHistory] = useState(false)
   return (
-    <motion.div
-      className="grid items-start gap-5 md:grid-cols-[minmax(0,1fr)_13.5rem]"
-      initial={{ opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.16, ease: "easeOut" }}
+    <div
+      className="grid items-start gap-5 sm:grid-cols-[minmax(0,1fr)_13.5rem]"
     >
       <div className="space-y-3">
         <ActionInput
@@ -256,7 +258,7 @@ export function NewTaskBasicForm({
               <div className="font-mono break-all text-muted-foreground/80">
                 建议名称: <span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
               </div>
-              <div className="flex gap-2 mt-1">
+              <div className="flex items-center gap-4 mt-1">
                 <button
                   type="button"
                   className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors"
@@ -264,6 +266,13 @@ export function NewTaskBasicForm({
                 >
                   使用建议名称
                 </button>
+                <label className="flex items-center gap-1.5 text-xs text-destructive cursor-pointer select-none font-semibold">
+                  <Checkbox
+                    checked={overwrite}
+                    onCheckedChange={(checked) => onOverwriteChange(checked === true)}
+                  />
+                  <span>直接覆盖已存在文件</span>
+                </label>
               </div>
             </div>
           )}
@@ -295,6 +304,6 @@ export function NewTaskBasicForm({
           className="w-full text-left"
         />
       </aside>
-    </motion.div>
+    </div>
   )
 }

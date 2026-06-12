@@ -2,6 +2,7 @@ import { Link2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { cn } from "@/lib/utils"
 import { Dialog, DialogBody, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download"
 import { UI_TEXT } from "@/core/locale"
@@ -30,14 +31,24 @@ export default function NewTaskModal({
     onInitialRequestConsumed,
   })
 
+  const isFloat = window.location.pathname === "/float";
+
   return (
     <>
       <Dialog open={open} onOpenChange={(nextOpen) => (nextOpen ? onOpenChange(true) : actions.closeModal())}>
         <DialogContent
           variant="modal"
-          className="border-border bg-card text-card-foreground sm:max-w-[46rem] max-h-[calc(100vh-4rem)] flex flex-col"
+          overlayClassName={isFloat ? "bg-transparent backdrop-blur-none" : undefined}
+          className={cn(
+            "border-border bg-card text-card-foreground sm:max-w-[46rem] flex flex-col",
+            isFloat ? "max-h-none h-fit" : "max-h-[calc(100vh-4rem)]"
+          )}
         >
-          <DialogHeader className="shrink-0">
+          <DialogHeader 
+            data-tauri-drag-region={isFloat ? "true" : undefined}
+            style={isFloat ? { cursor: "move" } : undefined}
+            className="shrink-0"
+          >
             <DialogTitle className="flex items-center justify-center gap-2 text-lg font-bold tracking-tight">
               <Link2 className="size-5 text-primary" />
               {UI_TEXT.newTask.title}
@@ -45,7 +56,13 @@ export default function NewTaskModal({
           </DialogHeader>
 
           <form onSubmit={actions.handleSubmit} className="flex flex-col min-h-0 flex-1">
-            <ScrollArea className="flex-1 max-h-[calc(100vh-12rem)] min-h-0" scrollbar="overlay">
+            <ScrollArea 
+              className={cn(
+                "flex-1 min-h-0",
+                isFloat ? "max-h-none h-auto" : "max-h-[calc(100vh-12rem)]"
+              )} 
+              scrollbar="overlay"
+            >
               <DialogBody className="px-5 py-5">
                 {state.step === "link" ? (
                   <NewTaskLinkStep
@@ -93,6 +110,8 @@ export default function NewTaskModal({
                     onSequentialChange={actions.setSequential}
                     onRetryMetadata={actions.retryMetadataProbe}
                     savePathHistory={state.savePathHistory}
+                    overwrite={state.overwrite}
+                    onOverwriteChange={actions.setOverwrite}
                   />
                 )}
               </DialogBody>

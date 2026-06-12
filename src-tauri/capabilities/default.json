@@ -19,6 +19,11 @@
     "core:window:allow-set-focus",
     "core:window:allow-set-ignore-cursor-events",
     "core:window:allow-set-always-on-top",
+    "core:window:allow-set-size",
+    "core:window:allow-set-position",
+    "core:window:allow-set-resizable",
+    "core:window:allow-center",
+    "core:window:allow-unminimize",
     "core:event:default",
     "notification:default"
   ]
