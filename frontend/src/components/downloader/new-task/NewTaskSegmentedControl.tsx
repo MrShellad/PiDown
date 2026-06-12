@@ -1,6 +1,7 @@
 import type { NewTaskDetailsTab } from "./types"
 import { cn } from "@/lib/utils"
 import { motion } from "motion/react"
+import { UI_TEXT } from "@/core/locale"
 
 interface NewTaskSegmentedControlProps {
   value: NewTaskDetailsTab
@@ -30,7 +31,7 @@ export function NewTaskSegmentedControl({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <span className="relative z-10">基础信息</span>
+          <span className="relative z-10">{UI_TEXT.newTask.tabs.basic}</span>
         </button>
         <button
           type="button"
@@ -48,7 +49,7 @@ export function NewTaskSegmentedControl({
               transition={{ type: "spring", stiffness: 380, damping: 30 }}
             />
           )}
-          <span className="relative z-10">高级设置</span>
+          <span className="relative z-10">{UI_TEXT.newTask.tabs.advanced}</span>
         </button>
       </div>
     </div>

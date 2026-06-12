@@ -81,27 +81,6 @@ interface SettingsNavItem {
   icon: React.ReactNode;
 }
 
-const NAV_ITEMS: SettingsNavItem[] = [
-  { id: "download", label: UI_TEXT.settings.navDownload, icon: <Download className="size-4" /> },
-  { id: "transfer", label: UI_TEXT.settings.navTransfer, icon: <Gauge className="size-4" /> },
-  { id: "magnet", label: UI_TEXT.settings.navMagnet, icon: <Magnet className="size-4" /> },
-  { id: "integration", label: UI_TEXT.settings.navIntegration, icon: <MonitorCog className="size-4" /> },
-  { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
-];
-
-const SPEED_DISPLAY_UNIT_OPTIONS: { value: SpeedDisplayUnit; label: string }[] = [
-  { value: "auto", label: "自动 (B/s, KiB/s, MiB/s)" },
-  { value: "kib", label: "KiB/s" },
-  { value: "mib", label: "MiB/s" },
-  { value: "mb", label: "MB/s" },
-];
-
-const FLOAT_DISPLAY_MODE_OPTIONS: { value: FloatDisplayMode; label: string }[] = [
-  { value: "always", label: UI_TEXT.settings.floatWindowAlways },
-  { value: "only_downloading", label: UI_TEXT.settings.floatWindowOnlyDownloading },
-  { value: "hidden", label: UI_TEXT.settings.floatWindowHidden },
-];
-
 function FontDropdownSkeleton() {
   return (
     <div className="space-y-2 p-2">
@@ -185,6 +164,7 @@ function ResetSettingsButton({ onClick }: { onClick: () => void }) {
 
 export default function SettingsWindow() {
   const prefersReducedMotion = useReducedMotion();
+
   const {
     settings,
     loading,
@@ -234,6 +214,27 @@ export default function SettingsWindow() {
   } | null>(null);
   const [svgColor, setSvgColor] = useState("#3b82f6");
 
+  const navItems = useMemo<SettingsNavItem[]>(() => [
+    { id: "download", label: UI_TEXT.settings.navDownload, icon: <Download className="size-4" /> },
+    { id: "transfer", label: UI_TEXT.settings.navTransfer, icon: <Gauge className="size-4" /> },
+    { id: "magnet", label: UI_TEXT.settings.navMagnet, icon: <Magnet className="size-4" /> },
+    { id: "integration", label: UI_TEXT.settings.navIntegration, icon: <MonitorCog className="size-4" /> },
+    { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
+  ], [draft?.interface?.language]);
+
+  const speedDisplayUnitOptions = useMemo<{ value: SpeedDisplayUnit; label: string }[]>(() => [
+    { value: "auto", label: UI_TEXT.settings.speedDisplayUnitAuto },
+    { value: "kib", label: "KiB/s" },
+    { value: "mib", label: "MiB/s" },
+    { value: "mb", label: "MB/s" },
+  ], [draft?.interface?.language]);
+
+  const floatDisplayModeOptions = useMemo<{ value: FloatDisplayMode; label: string }[]>(() => [
+    { value: "always", label: UI_TEXT.settings.floatWindowAlways },
+    { value: "only_downloading", label: UI_TEXT.settings.floatWindowOnlyDownloading },
+    { value: "hidden", label: UI_TEXT.settings.floatWindowHidden },
+  ], [draft?.interface?.language]);
+
   const handlePickIconFile = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = ""; // clear previous choice
@@ -251,8 +252,8 @@ export default function SettingsWindow() {
 
     if (!isSvg && !isPng) {
       useToastStore.getState().pushToast({
-        title: "文件格式不支持",
-        description: "仅支持上传 PNG 或者是 SVG 格式的图标",
+        title: UI_TEXT.settings.errFileFormatNotSupported,
+        description: UI_TEXT.settings.errFileFormatNotSupportedDesc,
         variant: "destructive",
       });
       return;
@@ -260,8 +261,8 @@ export default function SettingsWindow() {
 
     if (file.size > 200 * 1024) {
       useToastStore.getState().pushToast({
-        title: "文件大小超限",
-        description: "图片大小不能超过 200KB",
+        title: UI_TEXT.settings.errFileSizeLimit,
+        description: UI_TEXT.settings.errFileSizeLimitDesc,
         variant: "destructive",
       });
       return;
@@ -288,8 +289,8 @@ export default function SettingsWindow() {
         img.onload = () => {
           if (img.width > 512 || img.height > 512) {
             useToastStore.getState().pushToast({
-              title: "图片尺寸超限",
-              description: "PNG 分辨率不能超过 512x512 像素",
+              title: UI_TEXT.settings.errImageDimensionsLimit,
+              description: UI_TEXT.settings.errImageDimensionsLimitDesc,
               variant: "destructive",
             });
             return;
@@ -302,8 +303,8 @@ export default function SettingsWindow() {
         };
         img.onerror = () => {
           useToastStore.getState().pushToast({
-            title: "图片加载失败",
-            description: "请检查上传的文件是否损坏",
+            title: UI_TEXT.settings.errImageLoadFailed,
+            description: UI_TEXT.settings.errImageLoadFailedDesc,
             variant: "destructive",
           });
         };
@@ -316,8 +317,8 @@ export default function SettingsWindow() {
   const handleSaveIcon = () => {
     if (!formatsInput.trim()) {
       useToastStore.getState().pushToast({
-        title: "保存失败",
-        description: "请输入要关联的文件格式",
+        title: UI_TEXT.settings.errSaveFailed,
+        description: UI_TEXT.settings.errEnterFileFormat,
         variant: "destructive",
       });
       return;
@@ -325,8 +326,8 @@ export default function SettingsWindow() {
 
     if (!selectedIconData) {
       useToastStore.getState().pushToast({
-        title: "保存失败",
-        description: "请上传图标文件",
+        title: UI_TEXT.settings.errSaveFailed,
+        description: UI_TEXT.settings.errUploadIcon,
         variant: "destructive",
       });
       return;
@@ -339,8 +340,8 @@ export default function SettingsWindow() {
 
     if (formats.length === 0) {
       useToastStore.getState().pushToast({
-        title: "保存失败",
-        description: "请输入合法的文件格式",
+        title: UI_TEXT.settings.errSaveFailed,
+        description: UI_TEXT.settings.errEnterValidFileFormat,
         variant: "destructive",
       });
       return;
@@ -362,8 +363,8 @@ export default function SettingsWindow() {
     setAddIconOpen(false);
 
     useToastStore.getState().pushToast({
-      title: "保存成功",
-      description: "已添加新的文件图标映射",
+      title: UI_TEXT.settings.iconSaveSuccess,
+      description: UI_TEXT.settings.iconSaveSuccessDesc,
       variant: "success",
     });
   };
@@ -371,8 +372,8 @@ export default function SettingsWindow() {
   const handleDeleteIcon = (id: string) => {
     saveCustomFileIcons(customFileIcons.filter((item) => item.id !== id));
     useToastStore.getState().pushToast({
-      title: "删除成功",
-      description: "已移除该图标映射",
+      title: UI_TEXT.settings.iconDeleteSuccess,
+      description: UI_TEXT.settings.iconDeleteSuccessDesc,
       variant: "success",
     });
   };
@@ -699,14 +700,14 @@ export default function SettingsWindow() {
       URL.revokeObjectURL(url);
 
       useToastStore.getState().pushToast({
-        title: "导出成功",
-        description: `主题模板 "${themeToExport.name}" 已成功导出为 JSON 文件`,
+        title: UI_TEXT.settings.exportSuccess,
+        description: UI_TEXT.settings.exportSuccessDesc.replace("{themeName}", themeToExport.name),
         variant: "success",
       });
     } catch (error) {
       console.error(error);
       useToastStore.getState().pushToast({
-        title: "导出失败",
+        title: UI_TEXT.settings.exportFailed,
         description: error instanceof Error ? error.message : String(error),
         variant: "destructive",
       });
@@ -734,20 +735,20 @@ export default function SettingsWindow() {
             const content = event.target?.result as string;
             const parsed = JSON.parse(content) as CustomTheme;
             if (!parsed.id || !parsed.name || !parsed.styles) {
-              throw new Error("无效的主题模板文件：缺少核心属性 (id, name, styles)");
+              throw new Error(UI_TEXT.settings.errInvalidThemeTemplate);
             }
             importTheme(parsed);
           }
 
           useToastStore.getState().pushToast({
-            title: "导入成功",
-            description: `主题模板 "${file.name}" 已成功导入并可用`,
+            title: UI_TEXT.settings.importSuccess,
+            description: UI_TEXT.settings.importSuccessThemeDesc.replace("{fileName}", file.name),
             variant: "success",
           });
         } catch (error) {
           console.error(error);
           useToastStore.getState().pushToast({
-            title: "导入失败",
+            title: UI_TEXT.settings.importFailed,
             description: error instanceof Error ? error.message : String(error),
             variant: "destructive",
           });
@@ -814,7 +815,7 @@ export default function SettingsWindow() {
           style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
         >
           <ScrollArea className="flex-1" visibility="auto" scrollbar="overlay" viewportClassName="space-y-1">
-            {NAV_ITEMS.map((item) => {
+            {navItems.map((item) => {
               const active = item.id === activeSection;
               return (
                 <button
@@ -939,8 +940,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="浏览器扩展联动"
-                        description="允许 Chrome/Chromium 扩展通过 HTTP 监听向下载器发起新建任务。关闭后，扩展将不再接管浏览器下载。"
+                        title={UI_TEXT.settings.browserExtIntegration}
+                        description={UI_TEXT.settings.browserExtIntegrationDesc}
                         action={
                           <Switch
                             checked={draft.download.browser_extension_integration_enabled}
@@ -958,12 +959,12 @@ export default function SettingsWindow() {
                       />
                       {draft.download.browser_extension_integration_enabled && (
                         <SettingsListItem
-                          title="服务端口与安全令牌"
-                          description="应用与浏览器扩展进行 HTTP 通信的监听端口及身份凭证（修改端口需重启应用生效）。"
+                          title={UI_TEXT.settings.portAndToken}
+                          description={UI_TEXT.settings.portAndTokenDesc}
                         >
                           <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
                             <div className="flex items-center gap-2 shrink-0">
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">端口</span>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{UI_TEXT.settings.port}</span>
                               <SettingsInput
                                 type="number"
                                 min={1024}
@@ -984,7 +985,7 @@ export default function SettingsWindow() {
                               />
                             </div>
                             <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <span className="text-xs text-muted-foreground whitespace-nowrap">安全令牌</span>
+                              <span className="text-xs text-muted-foreground whitespace-nowrap">{UI_TEXT.settings.token}</span>
                               <SettingsInput
                                 value={draft.download.browser_extension_token || ""}
                                 onChange={(event) =>
@@ -996,7 +997,7 @@ export default function SettingsWindow() {
                                     },
                                   }))
                                 }
-                                placeholder="安全令牌"
+                                placeholder={UI_TEXT.settings.token}
                                 className="font-mono flex-1 min-w-0"
                               />
                               <Button
@@ -1036,12 +1037,12 @@ export default function SettingsWindow() {
                         </SettingsListItem>
                       )}
                       <SettingsListItem
-                        title="全局速度限制"
-                        description="设置全局下载和上传的最大速率限制。留空表示不限制速度。"
+                        title={UI_TEXT.settings.globalSpeedLimit}
+                        description={UI_TEXT.settings.globalSpeedLimitDesc}
                       >
                         <div className="flex flex-col sm:flex-row gap-4 w-full mt-2">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">下载</span>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">{UI_TEXT.settings.speedLimitDownloadLabel}</span>
                             <SettingsInput
                               value={downloadLimitInput}
                               onChange={(event) => setDownloadLimitInput(event.target.value)}
@@ -1051,7 +1052,7 @@ export default function SettingsWindow() {
                             <span className="text-xs text-muted-foreground shrink-0 w-10">KiB/s</span>
                           </div>
                           <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">上传</span>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap w-8">{UI_TEXT.settings.speedLimitUploadLabel}</span>
                             <SettingsInput
                               value={uploadLimitInput}
                               onChange={(event) => setUploadLimitInput(event.target.value)}
@@ -1084,7 +1085,7 @@ export default function SettingsWindow() {
                   <div className="mt-5">
                     {/* Group 1: 并发与队列 */}
                     <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      并发与队列
+                      {UI_TEXT.settings.groupConcurrency}
                     </div>
                     <SettingsList>
                       <SettingsListItem
@@ -1111,8 +1112,8 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
                       <SettingsListItem
-                        title="单任务最大连接数"
-                        description="每个 HTTP/HTTPS 任务的最大并行连接（分块）数，用于分段并行下载。"
+                        title={UI_TEXT.settings.maxConnectionsPerTask}
+                        description={UI_TEXT.settings.maxConnectionsPerTaskDesc}
                       >
                         <Slider
                           min={1}
@@ -1127,7 +1128,10 @@ export default function SettingsWindow() {
                               },
                             }))
                           }
-                          valueText={`每个任务最多 ${draft.transfer.task_thread_count} 条连接`}
+                          valueText={UI_TEXT.settings.maxConnectionsPerTaskValueText.replace(
+                            "{value}",
+                            String(draft.transfer.task_thread_count)
+                          )}
                         />
                       </SettingsListItem>
                       <SettingsListItem
@@ -1157,12 +1161,12 @@ export default function SettingsWindow() {
 
                     {/* Group 2: 网络与安全 */}
                     <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      网络与安全
+                      {UI_TEXT.settings.groupNetworkAndSecurity}
                     </div>
                     <SettingsList>
                       <SettingsListItem
-                        title="全局代理设置"
-                        description="配置全局 HTTP/HTTPS/SOCKS5 代理，例如 http://127.0.0.1:7890 或 socks5://127.0.0.1:7890；留空则不使用代理。"
+                        title={UI_TEXT.settings.globalProxy}
+                        description={UI_TEXT.settings.globalProxyDesc}
                         childrenSpan="full"
                       >
                         <SettingsInput
@@ -1182,8 +1186,8 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
                       <SettingsListItem
-                        title="忽略 SSL 证书错误"
-                        description="允许 gosh-dl 接受无效 HTTPS 证书；该开关会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。仅建议在可信内网、自签证书源或临时排障时开启。"
+                        title={UI_TEXT.settings.ignoreSslErrors}
+                        description={UI_TEXT.settings.ignoreSslErrorsDesc}
                         action={
                           <Switch
                             checked={draft.transfer.ignore_ssl_certificate}
@@ -1200,8 +1204,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="最大下载重试次数"
-                        description="传给 gosh-dl 的 HTTP max_retries，网络波动或服务端临时错误时使用；该值会随设置保存，重启应用后由 gosh-dl HTTP 客户端完整读取。"
+                        title={UI_TEXT.settings.maxDownloadRetries}
+                        description={UI_TEXT.settings.maxDownloadRetriesDesc}
                       >
                         <Slider
                           min={0}
@@ -1216,12 +1220,15 @@ export default function SettingsWindow() {
                               },
                             }))
                           }
-                          valueText={`最多重试 ${draft.transfer.max_download_retries} 次`}
+                          valueText={UI_TEXT.settings.maxDownloadRetriesValueText.replace(
+                            "{value}",
+                            String(draft.transfer.max_download_retries)
+                          )}
                         />
                       </SettingsListItem>
                       <SettingsListItem
-                        title="全局 User-Agent"
-                        description="作为 HTTP/HTTPS 新建任务的默认 User-Agent；单个任务高级设置里填写的值会覆盖它。"
+                        title={UI_TEXT.settings.globalUserAgent}
+                        description={UI_TEXT.settings.globalUserAgentDesc}
                         childrenSpan="full"
                       >
                         <SettingsInput
@@ -1243,7 +1250,7 @@ export default function SettingsWindow() {
 
                     {/* Group 3: 界面与显示 */}
                     <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      界面与显示
+                      {UI_TEXT.settings.groupInterfaceAndDisplay}
                     </div>
                     <SettingsList>
                       <SettingsListItem
@@ -1252,7 +1259,7 @@ export default function SettingsWindow() {
                       >
                         <OptionDropdown
                           value={draft.transfer.speed_display_unit}
-                          options={SPEED_DISPLAY_UNIT_OPTIONS}
+                          options={speedDisplayUnitOptions}
                           onValueChange={(nextUnit) =>
                             updateDraft((prev) => ({
                               ...prev,
@@ -1334,7 +1341,7 @@ export default function SettingsWindow() {
                       >
                         <OptionDropdown
                           value={draft.interface.float_display_mode}
-                          options={FLOAT_DISPLAY_MODE_OPTIONS}
+                          options={floatDisplayModeOptions}
                           onValueChange={(nextMode) =>
                             updateDraft((prev) => ({
                               ...prev,
@@ -1799,7 +1806,7 @@ export default function SettingsWindow() {
                                         <Trash2 className="size-4" />
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>删除主题</TooltipContent>
+                                    <TooltipContent>{UI_TEXT.settings.deleteTheme}</TooltipContent>
                                   </Tooltip>
                                 )}
                               </div>
@@ -1877,8 +1884,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="无边框透明穿透模式"
-                        description="隐藏顶部标题栏及背景图片/视频，将透明区域转化为可点击穿透的桌面视窗"
+                        title={UI_TEXT.settings.borderlessClickThrough}
+                        description={UI_TEXT.settings.borderlessClickThroughDesc}
                         action={
                           <Switch
                             checked={draft.interface.hide_border_and_bg ?? false}
@@ -1895,8 +1902,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="关闭窗口阴影"
-                        description="调用 Win32 API 隐藏窗口的系统投影（常在启用无边框透明穿透模式时开启，以防止屏幕上出现透明窗口的投影痕迹）"
+                        title={UI_TEXT.settings.disableWindowShadow}
+                        description={UI_TEXT.settings.disableWindowShadowDesc}
                         action={
                           <Switch
                             checked={draft.interface.disable_window_shadow ?? false}
@@ -1915,37 +1922,37 @@ export default function SettingsWindow() {
                     </SettingsList>
 
                     <div className="mb-3 mt-6 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      背景修改与管理
+                      {UI_TEXT.settings.groupBackgroundManagement}
                     </div>
                     <div className="space-y-6 rounded-xl border border-border/60 bg-secondary/15 p-4 shadow-inner">
                       {/* Control Panel: Add/Import Backgrounds */}
                       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                         <div className="flex-1">
                           <label className="block text-sm font-semibold leading-5 text-foreground mb-1.5">
-                            在线背景链接
+                            {UI_TEXT.settings.onlineBgUrl}
                           </label>
                           <div className="flex gap-2">
                             <SettingsInput
                               value={onlineUrl}
                               onChange={(e) => setOnlineUrl(e.target.value)}
-                              placeholder="粘贴在线图片或视频的 URL 链接..."
+                              placeholder={UI_TEXT.settings.onlineBgUrlPlaceholder}
                               className="flex-1 bg-card/60 border-border/80 focus:border-primary/50"
                               disabled={importingUrl}
                             />
                             <Button
                               onClick={handleImportUrl}
                               loading={importingUrl}
-                              loadingText="正在下载"
+                              loadingText={UI_TEXT.settings.bgDownloading}
                               disabled={!onlineUrl.trim() || importingUrl}
                             >
-                              导入
+                              {UI_TEXT.settings.import}
                             </Button>
                           </div>
                         </div>
 
                         <div className="flex flex-col justify-end">
                           <label className="block text-sm font-semibold leading-5 text-foreground mb-1.5 sm:text-transparent select-none pointer-events-none">
-                            本地导入
+                            {UI_TEXT.settings.localImport}
                           </label>
                           <Button
                             variant="outline"
@@ -1953,7 +1960,7 @@ export default function SettingsWindow() {
                             onClick={handlePickAndImportFile}
                             className="w-full sm:w-auto"
                           >
-                            导入本地文件
+                            {UI_TEXT.settings.importLocalFile}
                           </Button>
                         </div>
                       </div>
@@ -1961,7 +1968,7 @@ export default function SettingsWindow() {
                       {/* Background List Manager Grid (Paginated Row, 4 Columns) */}
                       <div className="space-y-3 border-t border-border/60 pt-5">
                         <span className="block text-sm font-semibold leading-5 text-foreground">
-                          已导入的背景
+                          {UI_TEXT.settings.importedBackgrounds}
                         </span>
                         
                         <div className="flex items-center gap-3">
@@ -2006,12 +2013,12 @@ export default function SettingsWindow() {
                                           }`}
                                         >
                                           <div className="flex h-full w-full flex-col items-center justify-center p-3 text-center">
-                                            <span className="text-sm font-bold text-foreground">无 / 默认背景</span>
-                                            <span className="mt-1 text-xs text-muted-foreground">使用主题自带特效</span>
+                                            <span className="text-sm font-bold text-foreground">{UI_TEXT.settings.noDefaultBg}</span>
+                                            <span className="mt-1 text-xs text-muted-foreground">{UI_TEXT.settings.useThemeBuiltinEffects}</span>
                                           </div>
                                           {draft.interface.background_id === null && (
                                             <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold text-primary">
-                                              使用中
+                                              {UI_TEXT.settings.inUse}
                                             </div>
                                           )}
                                         </button>
@@ -2070,13 +2077,13 @@ export default function SettingsWindow() {
                                         {/* Badges */}
                                         {active && (
                                           <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm z-10">
-                                            已应用
+                                            {UI_TEXT.settings.applied}
                                           </div>
                                         )}
 
                                         {bg.is_online && (
                                           <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm z-10">
-                                            在线
+                                            {UI_TEXT.settings.online}
                                           </div>
                                         )}
 
@@ -2087,7 +2094,7 @@ export default function SettingsWindow() {
                                             handleDeleteBackground(bg.id);
                                           }}
                                           className="absolute bottom-2 right-2 flex size-7 items-center justify-center rounded-lg border border-destructive/20 bg-destructive/10 text-destructive opacity-0 hover:bg-destructive hover:text-white transition-opacity group-hover:opacity-100 shadow-sm z-20 cursor-pointer"
-                                          title="删除背景记录"
+                                          title={UI_TEXT.settings.deleteBackgroundRecord}
                                         >
                                           <Trash2 className="size-4" />
                                         </button>
@@ -2127,8 +2134,8 @@ export default function SettingsWindow() {
                       {/* Config Options: Blur -> Opacity -> Mask Color -> Mask Opacity */}
                       <div className="space-y-6 border-t border-border/60 pt-5">
                         <Slider
-                          label="背景模糊"
-                          description="调整背景的模糊半径以提升前台文本可读性"
+                          label={UI_TEXT.settings.backgroundBlur}
+                          description={UI_TEXT.settings.backgroundBlurDesc}
                           value={draft.interface.background_blur ?? 0}
                           min={0}
                           max={40}
@@ -2146,8 +2153,8 @@ export default function SettingsWindow() {
                         />
 
                         <Slider
-                          label="整体背景不透明度"
-                          description="调整整体背景不透明度以穿透显示桌面（需要系统窗口透明支持）"
+                          label={UI_TEXT.settings.backgroundOpacity}
+                          description={UI_TEXT.settings.backgroundOpacityDesc}
                           value={draft.interface.background_opacity ?? 100}
                           min={0}
                           max={100}
@@ -2166,10 +2173,10 @@ export default function SettingsWindow() {
 
                         <div>
                           <span className="block text-sm font-semibold leading-5 text-foreground">
-                            遮罩颜色
+                            {UI_TEXT.settings.backgroundMaskColor}
                           </span>
                           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                            设置背景上的叠加遮罩颜色
+                            {UI_TEXT.settings.backgroundMaskColorDesc}
                           </p>
                           <div className="mt-3 flex items-center gap-3">
                             <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
@@ -2206,8 +2213,8 @@ export default function SettingsWindow() {
                         </div>
 
                         <Slider
-                          label="遮罩不透明度"
-                          description="调整背景遮罩的不透明度"
+                          label={UI_TEXT.settings.backgroundMaskOpacity}
+                          description={UI_TEXT.settings.backgroundMaskOpacityDesc}
                           value={draft.interface.background_mask_opacity ?? 0}
                           min={0}
                           max={100}
@@ -2301,8 +2308,8 @@ export default function SettingsWindow() {
                 <SettingsSectionCard className="mt-6">
                   <SettingsSectionHeader
                     icon={<FileCode className="size-5" />}
-                    title="文件格式和图标管理"
-                    description="为特定的文件格式配置个性化图标（支持 PNG 或 SVG），并可针对 SVG 调整显示颜色"
+                    title={UI_TEXT.settings.fileIconManagement}
+                    description={UI_TEXT.settings.fileIconManagementDesc}
                     action={
                       <Button
                         variant="outline"
@@ -2316,7 +2323,7 @@ export default function SettingsWindow() {
                         }}
                         className="h-8 font-normal"
                       >
-                        添加映射
+                        {UI_TEXT.settings.addMapping}
                       </Button>
                     }
                   />
@@ -2343,13 +2350,13 @@ export default function SettingsWindow() {
                     {/* Mappings List */}
                     <div className="space-y-3">
                       <span className="block text-sm font-semibold leading-5 text-foreground">
-                        已配置的格式图标 ({customFileIcons.length})
+                        {UI_TEXT.settings.configuredFormatIcons.replace("{count}", String(customFileIcons.length))}
                       </span>
                       
                       {customFileIcons.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 rounded-xl border border-dashed border-border/40 bg-secondary/5 text-muted-foreground">
                           <Sparkles className="size-7 mb-2 opacity-50 text-muted-foreground" />
-                          <span className="text-xs">暂无自定义图标映射，请点击右上角添加</span>
+                          <span className="text-xs">{UI_TEXT.settings.noCustomIconMapping}</span>
                         </div>
                       ) : (
                         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -2378,7 +2385,7 @@ export default function SettingsWindow() {
                               {/* Middle: File extensions */}
                               <div className="flex-1 min-w-0">
                                 <span className="block text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                  映射格式
+                                  {UI_TEXT.settings.mappingFormat}
                                 </span>
                                 <div className="flex flex-wrap gap-1 mt-1">
                                   {icon.extensions.map((ext) => (
@@ -2398,7 +2405,7 @@ export default function SettingsWindow() {
                                   <div
                                     className="relative size-6 shrink-0 rounded-full border border-border/80 overflow-hidden shadow-sm hover:scale-105 transition-transform"
                                     style={{ backgroundColor: icon.color || "#000000" }}
-                                    title="修改 SVG 颜色"
+                                    title={UI_TEXT.settings.modifySvgColor}
                                   >
                                     <input
                                       type="color"
@@ -2468,29 +2475,29 @@ export default function SettingsWindow() {
       <Dialog open={addIconOpen} onOpenChange={setAddIconOpen}>
         <DialogContent size="default" variant="modal">
           <DialogHeader>
-            <DialogTitle>添加文件图标映射</DialogTitle>
+            <DialogTitle>{UI_TEXT.settings.addFileIconMapping}</DialogTitle>
           </DialogHeader>
           <DialogBody className="space-y-4">
             {/* Associated file formats */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                关联文件格式
+                {UI_TEXT.settings.associatedFileFormats}
               </label>
               <SettingsInput
                 value={formatsInput}
                 onChange={(e) => setFormatsInput(e.target.value)}
-                placeholder="例如: mp4, mkv, avi (使用空格或逗号分隔)"
+                placeholder={UI_TEXT.settings.associatedFileFormatsPlaceholder}
                 className="w-full bg-card border-border/80 focus:border-primary/50"
               />
               <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-                输入需要映射的文件后缀名，多个格式用逗号或空格分开，如 `zip rar 7z`
+                {UI_TEXT.settings.associatedFileFormatsDesc}
               </p>
             </div>
 
             {/* Icon File Upload */}
             <div className="space-y-1.5">
               <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                图标文件 (.png / .svg)
+                {UI_TEXT.settings.iconFile}
               </label>
               <button
                 type="button"
@@ -2499,11 +2506,11 @@ export default function SettingsWindow() {
               >
                 <Upload className="size-4 shrink-0" />
                 <span className="truncate max-w-[280px]">
-                  {selectedIconData ? selectedIconData.fileName : "选择图标文件..."}
+                  {selectedIconData ? selectedIconData.fileName : UI_TEXT.settings.selectIconFile}
                 </span>
               </button>
               <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-                文件大小不能超过 200KB，PNG 分辨率不能大于 512x512 像素
+                {UI_TEXT.settings.iconFileRequirement}
               </p>
             </div>
 
@@ -2511,7 +2518,7 @@ export default function SettingsWindow() {
             {selectedIconData?.type === "svg" && (
               <div className="space-y-1.5">
                 <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  图标颜色
+                  {UI_TEXT.settings.iconColor}
                 </label>
                 <div className="flex items-center gap-2">
                   <div className="relative size-10 shrink-0 overflow-hidden rounded-lg border border-border shadow-sm">
@@ -2535,7 +2542,7 @@ export default function SettingsWindow() {
             {/* Icon Preview */}
             {selectedIconData && (
               <div className="flex items-center gap-3 p-3 rounded-lg border border-border/40 bg-secondary/15">
-                <span className="text-xs text-muted-foreground font-medium">预览:</span>
+                <span className="text-xs text-muted-foreground font-medium">{UI_TEXT.settings.preview}</span>
                 <div className="size-8 flex items-center justify-center rounded bg-card border border-border/30 overflow-hidden shrink-0">
                   {selectedIconData.type === "png" ? (
                     <img
@@ -2560,7 +2567,7 @@ export default function SettingsWindow() {
                   onClick={() => setSelectedIconData(null)}
                   className="h-7 text-xs font-normal"
                 >
-                  清除
+                  {UI_TEXT.settings.clear}
                 </Button>
               </div>
             )}
@@ -2574,7 +2581,7 @@ export default function SettingsWindow() {
                 setSelectedIconData(null);
               }}
             >
-              取消
+              {UI_TEXT.settings.cancel}
             </Button>
             <Button
               type="button"
@@ -2582,7 +2589,7 @@ export default function SettingsWindow() {
               disabled={!formatsInput.trim() || !selectedIconData}
               leftIcon={<Plus className="size-4" />}
             >
-              确认添加
+              {UI_TEXT.settings.confirmAdd}
             </Button>
           </DialogFooter>
         </DialogContent>

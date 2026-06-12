@@ -51,7 +51,7 @@ export function NewTaskLinkStep({
           className="h-12 px-4 flex gap-2 items-center shrink-0 border border-input bg-background/90"
         >
           <File className="size-5" />
-          <span>选择种子文件</span>
+          <span>{UI_TEXT.newTask.selectTorrent}</span>
         </Button>
       </div>
     </motion.div>

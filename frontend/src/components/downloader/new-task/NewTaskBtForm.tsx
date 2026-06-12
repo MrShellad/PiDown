@@ -10,6 +10,7 @@ import { formatBytes } from "./data"
 import { Checkbox } from "@/components/ui/checkbox"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { cn } from "@/lib/utils"
+import { UI_TEXT } from "@/core/locale"
 
 export interface TorrentFileInspection {
   path: string
@@ -417,7 +418,10 @@ export function NewTaskBtForm({
             {filename}
           </div>
           <div className="text-xs text-muted-foreground/80 mt-0.5">
-            已选 {selectedFiles.length}/{files?.length || 0} 个文件 · {formatBytes(selectedSize)}
+            {UI_TEXT.newTask.bt.selectedFilesText
+              .replace("{{count}}", String(selectedFiles.length))
+              .replace("{{total}}", String(files?.length || 0))
+              .replace("{{size}}", formatBytes(selectedSize))}
           </div>
         </div>
       </div>
@@ -433,10 +437,13 @@ export function NewTaskBtForm({
               id="select-all"
             />
             <label htmlFor="select-all" className="font-medium text-foreground cursor-pointer select-none">
-              全选
+              {UI_TEXT.newTask.bt.selectAll}
             </label>
             <span className="text-muted-foreground/60 ml-1">
-              已选 {selectedFiles.length}/{files?.length || 0} 个文件，共 {formatBytes(selectedSize)}
+              {UI_TEXT.newTask.bt.selectedFilesSummary
+                .replace("{{count}}", String(selectedFiles.length))
+                .replace("{{total}}", String(files?.length || 0))
+                .replace("{{size}}", formatBytes(selectedSize))}
             </span>
           </div>
 
@@ -447,7 +454,7 @@ export function NewTaskBtForm({
                 onCheckedChange={(checked) => handleSelectVideos(checked === true)}
               />
               <Film className="size-3.5 text-primary/70" />
-              <span>视频</span>
+              <span>{UI_TEXT.newTask.bt.video}</span>
             </label>
             <div className="h-4 w-px bg-border/80" />
             <List className="size-4 text-muted-foreground/60" />
@@ -463,7 +470,7 @@ export function NewTaskBtForm({
             </div>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-              无可用文件
+              {UI_TEXT.newTask.bt.noFiles}
             </div>
           )}
         </ScrollArea>
@@ -476,21 +483,21 @@ export function NewTaskBtForm({
             checked={sequential}
             onCheckedChange={(checked) => onSequentialChange(checked === true)}
           />
-          <span>启用列表顺序下载</span>
+          <span>{UI_TEXT.newTask.bt.sequential}</span>
         </label>
       </div>
 
       {/* Category Dropdown Selection */}
       <div className="space-y-2">
         <div className="flex items-center justify-between h-5">
-          <label className="block text-xs font-semibold text-foreground/80">分类到</label>
+          <label className="block text-xs font-semibold text-foreground/80">{UI_TEXT.newTask.categorizeTo}</label>
         </div>
         <CategoryDropdown
           categories={categories}
           value={categoryId}
           onValueChange={onCategoryChange}
           disabled={loading}
-          noCategoryLabel="不分类"
+          noCategoryLabel={UI_TEXT.newTask.noCategory}
           triggerClassName="h-12 bg-background/70 px-4 text-base w-full"
         />
       </div>
@@ -498,14 +505,14 @@ export function NewTaskBtForm({
       {/* Download Directory Selector */}
       <div className="space-y-2">
         <div className="flex items-center justify-between h-5">
-          <label className="block text-xs font-semibold text-foreground/80">下载到</label>
+          <label className="block text-xs font-semibold text-foreground/80">{UI_TEXT.newTask.downloadTo}</label>
           <span className={cn(
             "text-xs font-mono transition-colors duration-200",
             isDiskSpaceWarning
               ? "text-destructive font-semibold animate-pulse"
               : "text-muted-foreground/60"
           )}>
-            剩余: {freeSpaceText} {isDiskSpaceWarning && "(空间不足)"}
+            {UI_TEXT.newTask.freeSpace.replace("{{size}}", freeSpaceText)} {isDiskSpaceWarning && UI_TEXT.newTask.diskSpaceWarning}
           </span>
         </div>
         <div className="relative">
@@ -519,7 +526,7 @@ export function NewTaskBtForm({
             disabled={loading}
             leadingIcon={<HardDrive />}
             actionIcon={<FolderOpen />}
-            actionLabel="选择下载目录"
+            actionLabel={UI_TEXT.newTask.bt.selectSaveDir}
             onAction={onPickSaveDirectory}
             inputClassName="font-mono"
           />
@@ -549,10 +556,10 @@ export function NewTaskBtForm({
         {formConflict && formConflict.exists && (
           <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-1.5 text-left">
             <div className="flex items-center gap-1.5 font-semibold">
-              <span>⚠️ 目标目录下已存在同名文件或文件夹</span>
+              <span>{UI_TEXT.newTask.conflict.warning}</span>
             </div>
             <div className="font-mono break-all text-muted-foreground/80">
-              建议名称: <span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
+              {UI_TEXT.newTask.conflict.suggestedName}<span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
             </div>
             <div className="flex items-center gap-4 mt-1">
               {onFilenameChange && (
@@ -561,7 +568,7 @@ export function NewTaskBtForm({
                   className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors"
                   onClick={() => onFilenameChange(formConflict.suggested_filename)}
                 >
-                  使用建议名称
+                  {UI_TEXT.newTask.conflict.useSuggested}
                 </button>
               )}
               <label className="flex items-center gap-1.5 text-xs text-destructive cursor-pointer select-none font-semibold">
@@ -569,7 +576,7 @@ export function NewTaskBtForm({
                   checked={overwrite}
                   onCheckedChange={(checked) => onOverwriteChange(checked === true)}
                 />
-                <span>直接覆盖已存在文件</span>
+                <span>{UI_TEXT.newTask.conflict.overwriteCheckbox}</span>
               </label>
             </div>
           </div>

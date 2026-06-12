@@ -173,14 +173,14 @@ export function NewTaskBasicForm({
         {/* Category Dropdown Selection */}
         <div className="space-y-2">
           <div className="flex items-center justify-between h-5">
-            <label className="block text-xs font-semibold text-foreground/80">分类到</label>
+            <label className="block text-xs font-semibold text-foreground/80">{UI_TEXT.newTask.categorizeTo}</label>
           </div>
           <CategoryDropdown
             categories={categories}
             value={categoryId}
             onValueChange={onCategoryChange}
             disabled={loading}
-            noCategoryLabel="不分类"
+            noCategoryLabel={UI_TEXT.newTask.noCategory}
             triggerClassName="h-12 bg-background/70 px-4 text-base w-full"
           />
         </div>
@@ -188,14 +188,14 @@ export function NewTaskBasicForm({
         {/* Download Directory Selector */}
         <div className="space-y-2">
           <div className="flex items-center justify-between h-5">
-            <label className="block text-xs font-semibold text-foreground/80">下载到</label>
+            <label className="block text-xs font-semibold text-foreground/80">{UI_TEXT.newTask.downloadTo}</label>
             <span className={cn(
               "text-xs font-mono transition-colors duration-200",
               isDiskSpaceWarning
                 ? "text-destructive font-semibold animate-pulse"
                 : "text-muted-foreground/60"
             )}>
-              剩余: {freeSpaceText} {isDiskSpaceWarning && "(空间不足)"}
+              {UI_TEXT.newTask.freeSpace.replace("{{size}}", freeSpaceText)} {isDiskSpaceWarning && UI_TEXT.newTask.diskSpaceWarning}
             </span>
           </div>
           <div className="relative">
@@ -209,7 +209,7 @@ export function NewTaskBasicForm({
               disabled={loading}
               leadingIcon={<HardDrive />}
               actionIcon={<FolderOpen />}
-              actionLabel="选择下载目录"
+              actionLabel={UI_TEXT.newTask.bt.selectSaveDir}
               onAction={onPickSaveDirectory}
               inputClassName="font-mono"
             />
@@ -241,22 +241,22 @@ export function NewTaskBasicForm({
         {/* Filename Input with conflict check warning */}
         <div className="space-y-2">
           <div className="flex items-center justify-between h-5">
-            <label className="block text-xs font-semibold text-foreground/80">文件名</label>
+            <label className="block text-xs font-semibold text-foreground/80">{UI_TEXT.newTask.filename}</label>
           </div>
           <Input
             value={filename}
             onChange={(event) => onFilenameChange(event.target.value)}
             disabled={loading}
-            placeholder="文件名"
+            placeholder={UI_TEXT.newTask.filename}
             className="h-12 rounded-lg bg-background/70 px-4 text-base"
           />
           {formConflict && formConflict.exists && (
             <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-1.5">
               <div className="flex items-center gap-1.5 font-semibold">
-                <span>⚠️ 目录下已存在同名文件或文件夹</span>
+                <span>{UI_TEXT.newTask.conflict.warning}</span>
               </div>
               <div className="font-mono break-all text-muted-foreground/80">
-                建议名称: <span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
+                {UI_TEXT.newTask.conflict.suggestedName}<span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
               </div>
               <div className="flex items-center gap-4 mt-1">
                 <button
@@ -264,14 +264,14 @@ export function NewTaskBasicForm({
                   className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors"
                   onClick={() => onFilenameChange(formConflict.suggested_filename)}
                 >
-                  使用建议名称
+                  {UI_TEXT.newTask.conflict.useSuggested}
                 </button>
                 <label className="flex items-center gap-1.5 text-xs text-destructive cursor-pointer select-none font-semibold">
                   <Checkbox
                     checked={overwrite}
                     onCheckedChange={(checked) => onOverwriteChange(checked === true)}
                   />
-                  <span>直接覆盖已存在文件</span>
+                  <span>{UI_TEXT.newTask.conflict.overwriteCheckbox}</span>
                 </label>
               </div>
             </div>
@@ -290,11 +290,11 @@ export function NewTaskBasicForm({
         <div className="flex items-center justify-between gap-3 rounded-lg bg-secondary/20 px-3 py-2">
           <div className="flex min-w-0 items-center gap-2">
             <Grid2X2Plus className="size-4" />
-            <span className="text-xs">文件大小</span>
+            <span className="text-xs">{UI_TEXT.newTask.fileSize}</span>
           </div>
           <span className="flex shrink-0 items-center gap-1 font-mono text-sm text-foreground">
             {metadataLoading ? <LoaderCircle className="size-3.5 animate-spin" /> : null}
-            {metadataLoading ? "识别中" : formatBytes(totalSize)}
+            {metadataLoading ? UI_TEXT.newTask.identifying : formatBytes(totalSize)}
           </span>
         </div>
         <MetadataProbeCard

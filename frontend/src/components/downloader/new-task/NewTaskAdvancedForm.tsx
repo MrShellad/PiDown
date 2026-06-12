@@ -5,6 +5,7 @@ import { Cookie, Cpu, ExternalLink, Gauge, UserRound, Fingerprint, HardDrive } f
 import { SegmentedControl } from "@/components/common"
 import { Input, Textarea } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
+import { UI_TEXT } from "@/core/locale"
 import { MAX_TASK_THREAD_COUNT } from "./data"
 import type { NewTaskAdvancedDraft } from "./types"
 
@@ -58,7 +59,7 @@ export function NewTaskAdvancedForm({
       {/* Torrent Infohash Block */}
       {isTorrent && infoHash && (
         <div className="md:col-span-2">
-          <AdvancedField icon={<Fingerprint />} label="种子 Hash 值">
+          <AdvancedField icon={<Fingerprint />} label={UI_TEXT.newTask.advanced.infoHash}>
             <div className="flex h-11 items-center justify-between rounded-lg bg-secondary/25 border border-border/80 px-4 font-mono text-xs text-foreground/90 select-all">
               <span className="truncate">{infoHash}</span>
             </div>
@@ -67,7 +68,7 @@ export function NewTaskAdvancedForm({
       )}
 
       {/* Speed Limits / Thread count */}
-      <AdvancedField icon={<Gauge />} label="下载限速">
+      <AdvancedField icon={<Gauge />} label={UI_TEXT.newTask.advanced.downloadSpeedLimit}>
         <Input
           type="number"
           min={0}
@@ -76,13 +77,13 @@ export function NewTaskAdvancedForm({
           value={draft.maxDownloadSpeedInput}
           onChange={(event) => onDraftChange({ maxDownloadSpeedInput: event.target.value })}
           disabled={loading}
-          placeholder="KiB/s (留空不限速)"
+          placeholder={UI_TEXT.newTask.advanced.speedLimitPlaceholder}
           className="h-12 rounded-lg bg-background/70 px-4 text-base"
         />
       </AdvancedField>
 
       {isTorrent ? (
-        <AdvancedField icon={<Gauge />} label="上传限速">
+        <AdvancedField icon={<Gauge />} label={UI_TEXT.newTask.advanced.uploadSpeedLimit}>
           <Input
             type="number"
             min={0}
@@ -91,12 +92,12 @@ export function NewTaskAdvancedForm({
             value={draft.maxUploadSpeedInput}
             onChange={(event) => onDraftChange({ maxUploadSpeedInput: event.target.value })}
             disabled={loading}
-            placeholder="KiB/s (留空不限速)"
+            placeholder={UI_TEXT.newTask.advanced.speedLimitPlaceholder}
             className="h-12 rounded-lg bg-background/70 px-4 text-base"
           />
         </AdvancedField>
       ) : (
-        <AdvancedField icon={<Cpu />} label="任务线程数">
+        <AdvancedField icon={<Cpu />} label={UI_TEXT.newTask.advanced.threadCount}>
           <Input
             type="number"
             min={1}
@@ -113,15 +114,15 @@ export function NewTaskAdvancedForm({
       )}
 
       <div className="md:col-span-2">
-        <AdvancedField icon={<HardDrive />} label="磁盘预分配">
+        <AdvancedField icon={<HardDrive />} label={UI_TEXT.newTask.advanced.diskAllocation}>
           <div className="flex items-center justify-center h-12">
             <SegmentedControl
               value={draft.fileAllocation}
               options={[
-                { value: "default", label: "继承全局" },
-                { value: "none", label: "不分配" },
-                { value: "sparse", label: "稀疏分配" },
-                { value: "full", label: "完全分配" },
+                { value: "default", label: UI_TEXT.newTask.advanced.allocDefault },
+                { value: "none", label: UI_TEXT.newTask.advanced.allocNone },
+                { value: "sparse", label: UI_TEXT.newTask.advanced.allocSparse },
+                { value: "full", label: UI_TEXT.newTask.advanced.allocFull },
               ]}
               onValueChange={(val) => onDraftChange({ fileAllocation: val })}
               size="lg"
@@ -138,8 +139,8 @@ export function NewTaskAdvancedForm({
               checked={draft.autoVerify}
               onCheckedChange={(checked) => onDraftChange({ autoVerify: checked })}
               disabled={loading}
-              label="下载完毕自动校验"
-              description="下载完成后对文件完整性进行哈希检验"
+              label={UI_TEXT.newTask.advanced.autoVerify}
+              description={UI_TEXT.newTask.advanced.autoVerifyDesc}
             />
           </div>
           <div className="flex items-center">
@@ -147,11 +148,11 @@ export function NewTaskAdvancedForm({
               checked={draft.disableDhtPexLpd || isPrivate === true}
               onCheckedChange={(checked) => onDraftChange({ disableDhtPexLpd: checked })}
               disabled={loading || isPrivate === true}
-              label="禁用 DHT / PEX / LPD"
+              label={UI_TEXT.newTask.advanced.disableDht}
               description={
                 isPrivate === true
-                  ? "检测为私有种子，强制禁用以保护隐私"
-                  : "私有种子建议开启此项以保护隐私"
+                  ? UI_TEXT.newTask.advanced.privateTorrentForce
+                  : UI_TEXT.newTask.advanced.privateTorrentTip
               }
             />
           </div>
@@ -159,24 +160,26 @@ export function NewTaskAdvancedForm({
       )}
 
       {!isTorrent && (
-        <AdvancedField icon={<UserRound />} label="User-Agent">
+        <AdvancedField icon={<UserRound />} label={UI_TEXT.newTask.advanced.userAgent}>
           <div className="space-y-2">
             <Input
               value={draft.userAgentInput}
               onChange={(event) => onDraftChange({ userAgentInput: event.target.value })}
               disabled={loading}
-              placeholder={globalUserAgent || "留空继承全局 UA"}
+              placeholder={globalUserAgent || UI_TEXT.newTask.advanced.uaPlaceholder}
               className="h-12 rounded-lg bg-background/70 px-4 font-mono text-base"
             />
             <p className="text-xs leading-5 text-muted-foreground">
-              {globalUserAgent ? `留空时继承全局 UA: ${globalUserAgent}` : "留空时使用下载引擎默认 UA"}
+              {globalUserAgent
+                ? UI_TEXT.newTask.advanced.uaDescWithGlobal.replace("{{ua}}", globalUserAgent)
+                : UI_TEXT.newTask.advanced.uaDescFallback}
             </p>
           </div>
         </AdvancedField>
       )}
 
       {!isTorrent && (
-        <AdvancedField icon={<ExternalLink />} label="Referer">
+        <AdvancedField icon={<ExternalLink />} label={UI_TEXT.newTask.advanced.referer}>
           <Input
             value={draft.refererInput}
             onChange={(event) => onDraftChange({ refererInput: event.target.value })}
@@ -189,7 +192,7 @@ export function NewTaskAdvancedForm({
 
       {!isTorrent && (
         <div className="md:col-span-2">
-          <AdvancedField icon={<Cookie />} label="Cookies">
+          <AdvancedField icon={<Cookie />} label={UI_TEXT.newTask.advanced.cookies}>
             <Textarea
               value={draft.cookiesInput}
               onChange={(event) => onDraftChange({ cookiesInput: event.target.value })}
