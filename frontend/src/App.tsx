@@ -16,6 +16,7 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
+import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 
 
 function resolveActiveFilter(
@@ -105,6 +106,7 @@ export default function App() {
               </div>
             </DialogContent>
           </Dialog>
+          <ThemeEditorDialog />
         </div>
       </TooltipProvider>
     </ThemeProvider>

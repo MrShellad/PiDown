@@ -13,6 +13,80 @@ import { saveThemeFont } from "../bridge/tauri-commands";
 import themeCssTemplate from "@/themes/skins/modern-fluid/variables.css?raw";
 import { useAppSettingsStore } from "./useAppSettingsStore";
 
+const DEFAULT_HEX_DARK = {
+  "--background": "#0c0f1d",
+  "--foreground": "#f5f6f9",
+  "--card": "#13182b",
+  "--primary": "#8b5cf6",
+  "--muted": "#1f293d",
+  "--muted-foreground": "#9ca3af",
+  "--border": "#374151",
+  "--accent": "#8b5cf626",
+};
+
+const DEFAULT_HEX_LIGHT = {
+  "--background": "#fafafb",
+  "--foreground": "#1e293b",
+  "--card": "#ffffff",
+  "--primary": "#6366f1",
+  "--muted": "#f1f5f9",
+  "--muted-foreground": "#64748b",
+  "--border": "#e2e8f0",
+  "--accent": "#6366f126",
+};
+
+function colorToHex6(colorStr: string, fallback: string = "#ffffff"): string {
+  if (!colorStr) return fallback;
+  const trimmed = colorStr.trim();
+  if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed;
+  if (/^#[0-9a-fA-F]{8}$/.test(trimmed)) return trimmed.slice(0, 7);
+  
+  try {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = colorStr;
+      const resolved = ctx.fillStyle;
+      if (resolved.startsWith("#")) return resolved;
+      const match = resolved.match(/\d+/g);
+      if (match && match.length >= 3) {
+        const r = parseInt(match[0]).toString(16).padStart(2, "0");
+        const g = parseInt(match[1]).toString(16).padStart(2, "0");
+        const b = parseInt(match[2]).toString(16).padStart(2, "0");
+        return `#${r}${g}${b}`;
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+  return fallback;
+}
+
+const mapMinorVariables = (vars: Record<string, string>, mode: "dark" | "light") => {
+  const fg = vars["--foreground"] || (mode === "dark" ? "#f5f6f9" : "#1e293b");
+  const card = vars["--card"] || (mode === "dark" ? "#13182b" : "#ffffff");
+  const primary = vars["--primary"] || (mode === "dark" ? "#8b5cf6" : "#6366f1");
+  const muted = vars["--muted"] || (mode === "dark" ? "#1f293d" : "#f1f5f9");
+  const mutedFg = vars["--muted-foreground"] || (mode === "dark" ? "#9ca3af" : "#64748b");
+  const border = vars["--border"] || (mode === "dark" ? "#374151" : "#e2e8f0");
+  
+  return {
+    ...vars,
+    "--card-foreground": fg,
+    "--popover": card,
+    "--popover-foreground": fg,
+    "--secondary": muted,
+    "--secondary-foreground": mutedFg,
+    "--accent-foreground": primary,
+    "--destructive": mode === "dark" ? "oklch(0.6 0.21 20)" : "oklch(0.58 0.21 25)",
+    "--destructive-foreground": mode === "dark" ? "oklch(0.98 0.01 20)" : "oklch(0.99 0.01 25)",
+    "--input": border,
+    "--ring": primary,
+  };
+};
+
 export type ThemeType = string;
 export type ThemeColorMode = "dark" | "light";
 
@@ -74,6 +148,14 @@ interface ThemeState {
   soundEnabled: boolean;
   customThemes: CustomTheme[];
   
+  // Theme Editor State
+  themeEditorOpen: boolean;
+  editingTheme: CustomTheme | null;
+  editingColorMode: ThemeColorMode;
+  initialThemeState: CustomTheme[];
+  initialActiveThemeId: string;
+  dragOffset: { x: number; y: number };
+
   // Actions
   setTheme: (theme: ThemeType) => void;
   setColorMode: (colorMode: ThemeColorMode) => void;
@@ -82,6 +164,17 @@ interface ThemeState {
   setSoundEnabled: (enabled: boolean) => void;
   importTheme: (theme: CustomTheme) => void;
   deleteTheme: (themeId: string) => void;
+
+  // Theme Editor Actions
+  openCreateTheme: () => void;
+  openEditTheme: (theme: CustomTheme) => void;
+  openDuplicateTheme: (theme: CustomTheme) => void;
+  updateEditingTheme: (updates: Partial<CustomTheme>) => void;
+  updateEditingStyle: (key: string, val: string) => void;
+  setEditingColorMode: (mode: ThemeColorMode) => void;
+  setDragOffset: (offset: { x: number; y: number }) => void;
+  cancelThemeEdit: () => void;
+  saveThemeEdit: () => void;
 }
 
 type PersistedThemeState = Partial<
@@ -389,7 +482,7 @@ export function applyThemeToDocument({
   theme,
   colorMode,
   fontId,
-  customThemes = [],
+  customThemes,
 }: {
   theme: string;
   colorMode: ThemeColorMode;
@@ -398,7 +491,8 @@ export function applyThemeToDocument({
 }) {
   const root = window.document.documentElement;
   
-  const customTheme = customThemes.find((t) => t.id === theme);
+  const resolvedThemes = customThemes || (typeof useThemeStore !== "undefined" ? useThemeStore.getState().customThemes : []) || [];
+  const customTheme = resolvedThemes.find((t) => t.id === theme);
   
   if (customTheme) {
     root.setAttribute("data-theme", customTheme.id);
@@ -471,13 +565,21 @@ export function applyPersistedThemeToDocument() {
 
 export const useThemeStore = create<ThemeState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       theme: "modern",
       colorMode: "dark",
       fontId: DEFAULT_THEME_FONT_ID,
       effectsEnabled: true,
       soundEnabled: true,
       customThemes: [],
+
+      // Theme Editor State Initializers
+      themeEditorOpen: false,
+      editingTheme: null,
+      editingColorMode: "dark",
+      initialThemeState: [],
+      initialActiveThemeId: "",
+      dragOffset: { x: 0, y: 0 },
 
       setTheme: (theme) => {
         set({ theme });
@@ -519,6 +621,221 @@ export const useThemeStore = create<ThemeState>()(
           return { customThemes: nextCustomThemes, theme: nextTheme };
         });
         window.queueMicrotask(broadcastThemeSync);
+      },
+
+      // Theme Editor Actions Implementation
+      openCreateTheme: () => {
+        const { customThemes, theme, colorMode, fontId } = get();
+        const newId = `custom-theme-${Date.now()}`;
+        const newTheme: CustomTheme = {
+          id: newId,
+          name: "",
+          description: "",
+          author: "",
+          version: "1.0.0",
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          hasCanvasBg: false,
+          hasSpecialSound: false,
+          accent: "",
+          previewClassName: "",
+          styles: {
+            dark: { ...DEFAULT_HEX_DARK },
+            light: { ...DEFAULT_HEX_LIGHT },
+          },
+        };
+
+        newTheme.styles.dark = mapMinorVariables(newTheme.styles.dark!, "dark");
+        newTheme.styles.light = mapMinorVariables(newTheme.styles.light!, "light");
+
+        set({
+          initialThemeState: JSON.parse(JSON.stringify(customThemes)),
+          initialActiveThemeId: theme,
+          editingTheme: newTheme,
+          editingColorMode: colorMode,
+          dragOffset: { x: 0, y: 0 },
+          themeEditorOpen: true,
+        });
+
+        applyThemeToDocument({
+          theme: newTheme.id,
+          colorMode,
+          fontId,
+          customThemes: [newTheme],
+        });
+      },
+
+      openEditTheme: (item) => {
+        const { customThemes, theme, colorMode, fontId } = get();
+        const themeCopy = JSON.parse(JSON.stringify(item)) as CustomTheme;
+        if (!themeCopy.styles) themeCopy.styles = {};
+        if (!themeCopy.styles.dark) themeCopy.styles.dark = { ...DEFAULT_HEX_DARK };
+        if (!themeCopy.styles.light) themeCopy.styles.light = { ...DEFAULT_HEX_LIGHT };
+
+        const darkStyles: Record<string, string> = {};
+        const lightStyles: Record<string, string> = {};
+        const coreKeys = ["--background", "--foreground", "--card", "--primary", "--border", "--muted", "--muted-foreground", "--accent"];
+
+        coreKeys.forEach((key) => {
+          const darkVal = themeCopy.styles.dark?.[key];
+          darkStyles[key] = darkVal ? colorToHex6(darkVal, DEFAULT_HEX_DARK[key as keyof typeof DEFAULT_HEX_DARK]) : DEFAULT_HEX_DARK[key as keyof typeof DEFAULT_HEX_DARK];
+
+          const lightVal = themeCopy.styles.light?.[key];
+          lightStyles[key] = lightVal ? colorToHex6(lightVal, DEFAULT_HEX_LIGHT[key as keyof typeof DEFAULT_HEX_LIGHT]) : DEFAULT_HEX_LIGHT[key as keyof typeof DEFAULT_HEX_LIGHT];
+        });
+
+        themeCopy.styles.dark = mapMinorVariables(darkStyles, "dark");
+        themeCopy.styles.light = mapMinorVariables(lightStyles, "light");
+
+        set({
+          initialThemeState: JSON.parse(JSON.stringify(customThemes)),
+          initialActiveThemeId: theme,
+          editingTheme: themeCopy,
+          editingColorMode: colorMode,
+          dragOffset: { x: 0, y: 0 },
+          themeEditorOpen: true,
+        });
+
+        applyThemeToDocument({
+          theme: themeCopy.id,
+          colorMode,
+          fontId,
+          customThemes: [themeCopy],
+        });
+      },
+
+      openDuplicateTheme: (item) => {
+        const { customThemes, theme, colorMode, fontId } = get();
+        const themeCopy = JSON.parse(JSON.stringify(item)) as CustomTheme;
+        themeCopy.id = `custom-theme-${Date.now()}`;
+        themeCopy.name = `${themeCopy.name} (Copy)`;
+        themeCopy.created_at = new Date().toISOString();
+        themeCopy.updated_at = new Date().toISOString();
+
+        const darkStyles: Record<string, string> = {};
+        const lightStyles: Record<string, string> = {};
+        const coreKeys = ["--background", "--foreground", "--card", "--primary", "--border", "--muted", "--muted-foreground", "--accent"];
+
+        coreKeys.forEach((key) => {
+          const darkVal = themeCopy.styles.dark?.[key];
+          darkStyles[key] = darkVal ? colorToHex6(darkVal, DEFAULT_HEX_DARK[key as keyof typeof DEFAULT_HEX_DARK]) : DEFAULT_HEX_DARK[key as keyof typeof DEFAULT_HEX_DARK];
+
+          const lightVal = themeCopy.styles.light?.[key];
+          lightStyles[key] = lightVal ? colorToHex6(lightVal, DEFAULT_HEX_LIGHT[key as keyof typeof DEFAULT_HEX_LIGHT]) : DEFAULT_HEX_LIGHT[key as keyof typeof DEFAULT_HEX_LIGHT];
+        });
+
+        themeCopy.styles.dark = mapMinorVariables(darkStyles, "dark");
+        themeCopy.styles.light = mapMinorVariables(lightStyles, "light");
+
+        set({
+          initialThemeState: JSON.parse(JSON.stringify(customThemes)),
+          initialActiveThemeId: theme,
+          editingTheme: themeCopy,
+          editingColorMode: colorMode,
+          dragOffset: { x: 0, y: 0 },
+          themeEditorOpen: true,
+        });
+
+        applyThemeToDocument({
+          theme: themeCopy.id,
+          colorMode,
+          fontId,
+          customThemes: [themeCopy],
+        });
+      },
+
+      updateEditingTheme: (updates) => {
+        const { editingTheme, colorMode, fontId } = get();
+        if (!editingTheme) return;
+        const updated = {
+          ...editingTheme,
+          ...updates,
+          updated_at: new Date().toISOString(),
+        };
+        set({ editingTheme: updated });
+
+        applyThemeToDocument({
+          theme: updated.id,
+          colorMode,
+          fontId,
+          customThemes: [updated],
+        });
+      },
+
+      updateEditingStyle: (key, val) => {
+        const { editingTheme, editingColorMode, colorMode, fontId } = get();
+        if (!editingTheme) return;
+
+        const mode = editingColorMode;
+        const currentStyles = { ...(editingTheme.styles[mode] || {}) };
+        if (key === "--accent") {
+          currentStyles[key] = val.startsWith("#") ? `${val}26` : val;
+        } else {
+          currentStyles[key] = val;
+        }
+        const mappedStyles = mapMinorVariables(currentStyles, mode);
+
+        const updated = {
+          ...editingTheme,
+          styles: {
+            ...editingTheme.styles,
+            [mode]: mappedStyles,
+          },
+          updated_at: new Date().toISOString(),
+        };
+        set({ editingTheme: updated });
+
+        applyThemeToDocument({
+          theme: updated.id,
+          colorMode,
+          fontId,
+          customThemes: [updated],
+        });
+      },
+
+      setEditingColorMode: (editingColorMode) => {
+        set({ editingColorMode });
+      },
+
+      setDragOffset: (dragOffset) => {
+        set({ dragOffset });
+      },
+
+      cancelThemeEdit: () => {
+        const { initialThemeState, initialActiveThemeId, colorMode, fontId } = get();
+
+        set({
+          customThemes: initialThemeState,
+          theme: initialActiveThemeId,
+          themeEditorOpen: false,
+          editingTheme: null,
+        });
+
+        applyThemeToDocument({
+          theme: initialActiveThemeId,
+          colorMode,
+          fontId,
+          customThemes: initialThemeState,
+        });
+
+        window.queueMicrotask(broadcastThemeSync);
+      },
+
+      saveThemeEdit: () => {
+        const { editingTheme, importTheme, setTheme } = get();
+        if (!editingTheme) return;
+        const finalTheme = {
+          ...editingTheme,
+          name: editingTheme.name.trim() || `Custom Theme ${new Date().toLocaleDateString()}`,
+        };
+
+        set({
+          themeEditorOpen: false,
+          editingTheme: null,
+        });
+
+        importTheme(finalTheme);
+        setTheme(finalTheme.id);
       },
     }),
     {

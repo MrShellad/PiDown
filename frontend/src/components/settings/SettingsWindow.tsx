@@ -16,6 +16,8 @@ import {
   Upload,
   FileCode,
   Sparkles,
+  Pencil,
+  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { OptionDropdown, SegmentedControl, useCustomFileIcons, saveCustomFileIcons, preprocessSvg } from "@/components/common";
@@ -74,6 +76,8 @@ import {
 } from "./SettingsPrimitives";
 import DownloadRulesManager from "./DownloadRulesManager";
 import { playSoundEffect } from "@/core/audio";
+
+
 
 interface SettingsNavItem {
   id: SettingsSectionId;
@@ -188,12 +192,17 @@ export default function SettingsWindow() {
   const customThemes = useThemeStore((state) => state.customThemes);
   const importTheme = useThemeStore((state) => state.importTheme);
   const deleteTheme = useThemeStore((state) => state.deleteTheme);
+  const openCreateTheme = useThemeStore((state) => state.openCreateTheme);
+  const openEditTheme = useThemeStore((state) => state.openEditTheme);
+  const openDuplicateTheme = useThemeStore((state) => state.openDuplicateTheme);
   const fetchCategories = useDownloadStore((state) => state.fetchCategories);
   const fetchTags = useDownloadStore((state) => state.fetchTags);
 
   const [draft, setDraft] = useState<AppSettings | null>(null);
   const [downloadLimitInput, setDownloadLimitInput] = useState("");
   const [uploadLimitInput, setUploadLimitInput] = useState("");
+  const [proxyType, setProxyType] = useState<"none" | "http" | "https" | "socks5">("none");
+  const [proxyAddress, setProxyAddress] = useState("");
   const [feedback, setFeedback] = useState<string | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -201,6 +210,8 @@ export default function SettingsWindow() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
+
+
 
   // File Format and Icon Manager States & Handlers
   const customFileIcons = useCustomFileIcons();
@@ -233,6 +244,13 @@ export default function SettingsWindow() {
     { value: "always", label: UI_TEXT.settings.floatWindowAlways },
     { value: "only_downloading", label: UI_TEXT.settings.floatWindowOnlyDownloading },
     { value: "hidden", label: UI_TEXT.settings.floatWindowHidden },
+  ], [draft?.interface?.language]);
+
+  const proxyTypeOptions = useMemo(() => [
+    { value: "none", label: UI_TEXT.settings.proxyTypeNone },
+    { value: "http", label: UI_TEXT.settings.proxyTypeHttp },
+    { value: "https", label: UI_TEXT.settings.proxyTypeHttps },
+    { value: "socks5", label: UI_TEXT.settings.proxyTypeSocks5 },
   ], [draft?.interface?.language]);
 
   const handlePickIconFile = () => {
@@ -517,6 +535,27 @@ export default function SettingsWindow() {
           ? ""
           : String(settings.transfer.upload_speed_limit_kib)
       );
+
+      const proxyUrl = settings.transfer.proxy_url || "";
+      if (!proxyUrl) {
+        setProxyType("none");
+        setProxyAddress("");
+      } else {
+        const protocols = ["http://", "https://", "socks5://"];
+        let matched = false;
+        for (const proto of protocols) {
+          if (proxyUrl.startsWith(proto)) {
+            setProxyType(proto.replace("://", "") as any);
+            setProxyAddress(proxyUrl.substring(proto.length));
+            matched = true;
+            break;
+          }
+        }
+        if (!matched) {
+          setProxyType("http");
+          setProxyAddress(proxyUrl);
+        }
+      }
     });
 
     return () => {
@@ -526,15 +565,20 @@ export default function SettingsWindow() {
 
   const normalizedDraft = useMemo<AppSettings | null>(() => {
     if (!draft) return null;
+    let computedProxyUrl: string | null = null;
+    if (proxyType !== "none" && proxyAddress.trim()) {
+      computedProxyUrl = `${proxyType}://${proxyAddress.trim()}`;
+    }
     return {
       ...draft,
       transfer: {
         ...draft.transfer,
         download_speed_limit_kib: parseNullableSpeedLimit(downloadLimitInput),
         upload_speed_limit_kib: parseNullableSpeedLimit(uploadLimitInput),
+        proxy_url: computedProxyUrl,
       },
     };
-  }, [draft, downloadLimitInput, uploadLimitInput]);
+  }, [draft, downloadLimitInput, uploadLimitInput, proxyType, proxyAddress]);
 
   const updateDraft = (updater: (prev: AppSettings) => AppSettings) => {
     setDraft((prev) => (prev ? updater(prev) : prev));
@@ -564,6 +608,8 @@ export default function SettingsWindow() {
       setDraft(defaults);
       setDownloadLimitInput("");
       setUploadLimitInput("");
+      setProxyType("none");
+      setProxyAddress("");
       setFeedback(null);
       setResetOpen(false);
     } catch (error) {
@@ -763,6 +809,8 @@ export default function SettingsWindow() {
     };
     input.click();
   };
+
+
 
   useEffect(() => {
     if (!normalizedDraft || !settings) return;
@@ -1106,7 +1154,7 @@ export default function SettingsWindow() {
                             }))
                           }
                           valueText={UI_TEXT.settings.concurrentDownloadsLabel.replace(
-                            "{value}",
+                            "{{value}}",
                             String(draft.transfer.max_concurrent_downloads)
                           )}
                         />
@@ -1169,21 +1217,25 @@ export default function SettingsWindow() {
                         description={UI_TEXT.settings.globalProxyDesc}
                         childrenSpan="full"
                       >
-                        <SettingsInput
-                          value={draft.transfer.proxy_url || ""}
-                          onChange={(event) => {
-                            const val = event.target.value;
-                            updateDraft((prev) => ({
-                              ...prev,
-                              transfer: {
-                                ...prev.transfer,
-                                proxy_url: val.trim() || null,
-                              },
-                            }))
-                          }}
-                          placeholder="http://127.0.0.1:7890"
-                          className="font-mono"
-                        />
+                        <div className="flex flex-col sm:flex-row gap-3 mt-2 w-full">
+                          <div className="w-32 shrink-0">
+                            <OptionDropdown
+                              value={proxyType}
+                              options={proxyTypeOptions}
+                              onValueChange={(val) => setProxyType(val as any)}
+                              ariaLabel="Proxy Type"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <SettingsInput
+                              value={proxyType === "none" ? "" : proxyAddress}
+                              onChange={(event) => setProxyAddress(event.target.value)}
+                              disabled={proxyType === "none"}
+                              placeholder={UI_TEXT.settings.proxyAddressPlaceholder}
+                              className="font-mono w-full"
+                            />
+                          </div>
+                        </div>
                       </SettingsListItem>
                       <SettingsListItem
                         title={UI_TEXT.settings.ignoreSslErrors}
@@ -1696,15 +1748,29 @@ export default function SettingsWindow() {
                   <div className="mt-5">
                     <div className="mb-3 mt-5 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                       <span>{UI_TEXT.settings.groupTheme}</span>
-                      <Button
-                        variant="outline"
-                        size="xs"
-                        leftIcon={<Plus className="size-3" />}
-                        onClick={triggerImportTheme}
-                        className="normal-case tracking-normal h-7 font-normal"
-                      >
-                        {UI_TEXT.settings.importTheme}
-                      </Button>
+                      <div className="flex gap-2">
+                        {/* Temporarily hide theme editor entry points */}
+                        {false && (
+                          <Button
+                            variant="outline"
+                            size="xs"
+                            leftIcon={<Plus className="size-3" />}
+                            onClick={openCreateTheme}
+                            className="normal-case tracking-normal h-7 font-normal"
+                          >
+                            {UI_TEXT.settings.createTheme}
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="xs"
+                          leftIcon={<Upload className="size-3" />}
+                          onClick={triggerImportTheme}
+                          className="normal-case tracking-normal h-7 font-normal"
+                        >
+                          {UI_TEXT.settings.importTheme}
+                        </Button>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-4">
                       {allThemes.map((item) => {
@@ -1780,6 +1846,37 @@ export default function SettingsWindow() {
                                   {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
                                 </Button>
                                 
+                                {/* Temporarily hide theme editor edit/duplicate entry points */}
+                                {false && (isCustom ? (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                        onClick={() => openEditTheme(item)}
+                                      >
+                                        <Pencil className="size-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{UI_TEXT.settings.editTheme}</TooltipContent>
+                                  </Tooltip>
+                                ) : (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="outline"
+                                        size="icon"
+                                        className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                        onClick={() => openDuplicateTheme(item)}
+                                      >
+                                        <Copy className="size-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{UI_TEXT.settings.createTheme}</TooltipContent>
+                                  </Tooltip>
+                                ))}
+
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <Button
@@ -2594,6 +2691,8 @@ export default function SettingsWindow() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
     </motion.div>
   );
 }

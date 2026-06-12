@@ -284,15 +284,15 @@
     --task-progress-active: color-mix(in oklab, var(--primary) 22%, transparent);
     --task-progress-paused: color-mix(in oklab, var(--status-warning) 24%, transparent);
     --task-progress-failed: color-mix(in oklab, var(--status-danger) 22%, transparent);
-    --task-selection-overlay: color-mix(in oklch, var(--primary), transparent 88%);
-    --task-selection-ring: color-mix(in oklch, var(--primary), var(--foreground) 22%);
-    --task-selection-indicator: color-mix(in oklch, var(--primary), var(--foreground) 12%);
-    --task-selection-control-halo: color-mix(in oklch, var(--primary), transparent 84%);
-    --float-disc-background: color-mix(in oklch, var(--card), transparent 10%);
+    --task-selection-overlay: color-mix(in srgb, var(--primary), transparent 88%);
+    --task-selection-ring: color-mix(in srgb, var(--primary), var(--foreground) 22%);
+    --task-selection-indicator: color-mix(in srgb, var(--primary), var(--foreground) 12%);
+    --task-selection-control-halo: color-mix(in srgb, var(--primary), transparent 84%);
+    --float-disc-background: color-mix(in srgb, var(--card), transparent 10%);
     --float-disc-bg-start: var(--card);
-    --float-disc-bg-end: color-mix(in oklch, var(--card), black 15%);
+    --float-disc-bg-end: color-mix(in srgb, var(--card), black 15%);
     --float-disc-backdrop: blur(12px);
-    --float-disc-border: 1px solid color-mix(in oklch, var(--primary), transparent 70%);
+    --float-disc-border: 1px solid color-mix(in srgb, var(--primary), transparent 70%);
     --float-disc-shadow: var(--surface-shadow-strong);
     --float-disc-color: var(--foreground);
     --float-disc-drag-border: 1px solid var(--primary);
@@ -345,10 +345,10 @@
     --sidebar-ring: oklch(0.556 0 0);
     --status-success: oklch(0.68 0.16 145);
     --status-warning: oklch(0.76 0.14 75);
-    --task-selection-overlay: color-mix(in oklch, var(--primary), transparent 86%);
-    --task-selection-ring: color-mix(in oklch, var(--primary), var(--foreground) 18%);
-    --task-selection-indicator: color-mix(in oklch, var(--primary), var(--foreground) 10%);
-    --task-selection-control-halo: color-mix(in oklch, var(--primary), transparent 82%);
+    --task-selection-overlay: color-mix(in srgb, var(--primary), transparent 86%);
+    --task-selection-ring: color-mix(in srgb, var(--primary), var(--foreground) 18%);
+    --task-selection-indicator: color-mix(in srgb, var(--primary), var(--foreground) 10%);
+    --task-selection-control-halo: color-mix(in srgb, var(--primary), transparent 82%);
 }
 
 @layer base {
