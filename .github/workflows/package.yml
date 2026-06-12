@@ -49,7 +49,8 @@ jobs:
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
       - name: Install Frontend Dependencies
-        run: npm ci --prefix frontend
+        run: npm ci
+        working-directory: frontend
 
       - name: Build and Package Tauri App
         uses: tauri-apps/tauri-action@v0
@@ -61,5 +62,5 @@ jobs:
           releaseBody: 'See the assets to download this version and install.'
           releaseDraft: true
           prerelease: false
-          tauriScript: npm run tauri --prefix frontend
+          tauriScript: node frontend/node_modules/@tauri-apps/cli/tauri.js
           args: ${{ matrix.args }}
