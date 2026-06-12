@@ -189,4 +189,117 @@ function Textarea({
   )
 }
 
-export { ActionInput, Field, Input, Textarea, actionInputVariants, inputVariants }
+const compoundInputVariants = cva(
+  "group flex w-full items-center overflow-hidden border border-input bg-background/90 text-foreground shadow-sm transition-all focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/30 data-[disabled=true]:opacity-50 data-[disabled=true]:cursor-not-allowed",
+  {
+    variants: {
+      size: {
+        sm: "h-8 text-xs rounded-md",
+        default: "h-10 text-sm rounded-lg",
+        lg: "h-11 text-base rounded-lg",
+      },
+    },
+    defaultVariants: {
+      size: "default",
+    },
+  }
+)
+
+interface CompoundInputProps extends Omit<React.ComponentProps<"input">, "size">, VariantProps<typeof compoundInputVariants> {
+  prefixActions?: React.ReactNode
+  suffixActions?: React.ReactNode
+  inputClassName?: string
+}
+
+function CompoundInput({
+  className,
+  inputClassName,
+  size = "default",
+  disabled,
+  prefixActions,
+  suffixActions,
+  ...props
+}: CompoundInputProps) {
+  return (
+    <div
+      data-slot="compound-input"
+      data-disabled={disabled ? "true" : undefined}
+      className={cn(compoundInputVariants({ size, className }))}
+    >
+      {prefixActions ? (
+        <div className="flex h-full shrink-0 items-center">
+          {prefixActions}
+        </div>
+      ) : null}
+      <input
+        disabled={disabled}
+        className={cn(
+          "h-full min-w-0 flex-1 bg-transparent px-3 outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed",
+          inputClassName
+        )}
+        {...props}
+      />
+      {suffixActions ? (
+        <div className="flex h-full shrink-0 items-center">
+          {suffixActions}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+const compoundInputButtonVariants = cva(
+  "flex h-full items-center justify-center shrink-0 text-muted-foreground hover:text-foreground hover:bg-muted/40 active:bg-muted/60 transition-colors focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 cursor-pointer",
+  {
+    variants: {
+      size: {
+        sm: "px-2.5 [&_svg]:size-3.5",
+        default: "px-3.5 [&_svg]:size-4",
+        lg: "px-4 [&_svg]:size-4.5",
+      },
+      divider: {
+        none: "",
+        left: "border-l border-border/60",
+        right: "border-r border-border/60",
+        both: "border-x border-border/60",
+      },
+    },
+    defaultVariants: {
+      size: "default",
+      divider: "none",
+    },
+  }
+)
+
+interface CompoundInputButtonProps extends React.ComponentProps<"button">, VariantProps<typeof compoundInputButtonVariants> {
+  iconOnly?: boolean
+}
+
+function CompoundInputButton({
+  className,
+  size = "default",
+  divider = "none",
+  type = "button",
+  ...props
+}: CompoundInputButtonProps) {
+  return (
+    <button
+      type={type}
+      className={cn(compoundInputButtonVariants({ size, divider, className }))}
+      {...props}
+    />
+  )
+}
+
+export {
+  ActionInput,
+  Field,
+  Input,
+  Textarea,
+  CompoundInput,
+  CompoundInputButton,
+  actionInputVariants,
+  inputVariants,
+  compoundInputVariants,
+  compoundInputButtonVariants,
+}

@@ -18,8 +18,11 @@ import {
   Sparkles,
   Pencil,
   Copy,
+  Check,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { CompoundInput, CompoundInputButton } from "@/components/ui/input";
 import { OptionDropdown, SegmentedControl, useCustomFileIcons, saveCustomFileIcons, preprocessSvg } from "@/components/common";
 import type { CustomFileIcon } from "@/components/common";
 import {
@@ -47,6 +50,7 @@ import {
   deleteBackground,
   type DbBackground,
   updateTrackersFromSubscription,
+  pickDownloadDirectory,
 } from "@/core/bridge/tauri-commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
@@ -210,6 +214,7 @@ export default function SettingsWindow() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
+  const [tokenCopied, setTokenCopied] = useState(false);
 
 
 
@@ -585,6 +590,24 @@ export default function SettingsWindow() {
     setFeedback(null);
   };
 
+  const handlePickDir = async () => {
+    if (!draft) return;
+    try {
+      const selected = await pickDownloadDirectory(draft.download.default_save_dir || undefined);
+      if (selected) {
+        updateDraft((prev) => ({
+          ...prev,
+          download: {
+            ...prev.download,
+            default_save_dir: selected,
+          },
+        }));
+      }
+    } catch (err) {
+      console.warn("Failed to pick download directory:", err);
+    }
+  };
+
   const ensureSystemFontsLoaded = () => {
     if (fontsLoaded || fontsLoading) return;
 
@@ -931,7 +954,7 @@ export default function SettingsWindow() {
                         title={UI_TEXT.settings.defaultSaveDir}
                         description={UI_TEXT.settings.downloadStorageDesc}
                       >
-                        <SettingsInput
+                        <CompoundInput
                           value={draft.download.default_save_dir}
                           onChange={(event) =>
                             updateDraft((prev) => ({
@@ -943,6 +966,17 @@ export default function SettingsWindow() {
                             }))
                           }
                           placeholder={"H:\\Downloads\\PiDownloader"}
+                          suffixActions={
+                            <CompoundInputButton
+                              type="button"
+                              divider="left"
+                              onClick={handlePickDir}
+                              className="px-4"
+                            >
+                              <FolderOpen className="size-4 mr-1.5" />
+                              {UI_TEXT.settings.browse}
+                            </CompoundInputButton>
+                          }
                         />
                       </SettingsListItem>
                     </SettingsList>
@@ -1034,7 +1068,7 @@ export default function SettingsWindow() {
                             </div>
                             <div className="flex items-center gap-2 flex-1 min-w-0">
                               <span className="text-xs text-muted-foreground whitespace-nowrap">{UI_TEXT.settings.token}</span>
-                              <SettingsInput
+                              <CompoundInput
                                 value={draft.download.browser_extension_token || ""}
                                 onChange={(event) =>
                                   updateDraft((prev) => ({
@@ -1047,39 +1081,51 @@ export default function SettingsWindow() {
                                 }
                                 placeholder={UI_TEXT.settings.token}
                                 className="font-mono flex-1 min-w-0"
+                                suffixActions={
+                                  <>
+                                    <CompoundInputButton
+                                      type="button"
+                                      divider="left"
+                                      onClick={() => {
+                                        const newToken = crypto.randomUUID();
+                                        updateDraft((prev) => ({
+                                          ...prev,
+                                          download: {
+                                            ...prev.download,
+                                            browser_extension_token: newToken,
+                                          },
+                                        }));
+                                      }}
+                                      className="px-3"
+                                      title={UI_TEXT.settings.tokenRandom}
+                                    >
+                                      <RefreshCw className="size-4" />
+                                    </CompoundInputButton>
+                                    <CompoundInputButton
+                                      type="button"
+                                      divider="left"
+                                      onClick={() => {
+                                        navigator.clipboard.writeText(draft.download.browser_extension_token || "");
+                                        setTokenCopied(true);
+                                        setTimeout(() => setTokenCopied(false), 2000);
+                                        useToastStore.getState().pushToast({
+                                          title: UI_TEXT.settings.copied,
+                                          description: UI_TEXT.settings.tokenCopiedDesc,
+                                          variant: "success",
+                                        });
+                                      }}
+                                      className="px-3"
+                                      title={UI_TEXT.settings.tokenCopy}
+                                    >
+                                      {tokenCopied ? (
+                                        <Check className="size-4 text-green-500" />
+                                      ) : (
+                                        <Copy className="size-4" />
+                                      )}
+                                    </CompoundInputButton>
+                                  </>
+                                }
                               />
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  const newToken = crypto.randomUUID();
-                                  updateDraft((prev) => ({
-                                    ...prev,
-                                    download: {
-                                      ...prev.download,
-                                      browser_extension_token: newToken,
-                                    },
-                                  }));
-                                }}
-                                className="shrink-0"
-                              >
-                                {UI_TEXT.settings.tokenRandom}
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(draft.download.browser_extension_token || "");
-                                  useToastStore.getState().pushToast({
-                                    title: UI_TEXT.settings.copied,
-                                    description: UI_TEXT.settings.tokenCopiedDesc,
-                                    variant: "success",
-                                  });
-                                }}
-                                className="shrink-0"
-                              >
-                                {UI_TEXT.settings.tokenCopy}
-                              </Button>
                             </div>
                           </div>
                         </SettingsListItem>

@@ -100,6 +100,7 @@
     "downloadStorageTitle": "下载位置",
     "downloadStorageDesc": "设置新建任务默认保存目录，建议使用独立下载目录便于归档管理。",
     "defaultSaveDir": "默认下载目录",
+    "browse": "浏览...",
     "autoStart": "自动开始下载",
     "autoStartDesc": "新建任务后立即启动；关闭后任务创建完成会先进入暂停状态。",
     "autoCategory": "自动分类任务",

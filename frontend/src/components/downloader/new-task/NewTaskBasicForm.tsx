@@ -4,7 +4,7 @@ import { Clipboard, FolderOpen, Grid2X2Plus, Link2, LoaderCircle, Radar, HardDri
 
 import { CategoryDropdown } from "@/components/common/CategoryDropdown"
 import { IconPreview } from "@/components/ui/icon-picker"
-import { ActionInput, Input } from "@/components/ui/input"
+import { ActionInput, Input, CompoundInput, CompoundInputButton } from "@/components/ui/input"
 import { Checkbox } from "@/components/ui/checkbox"
 import { UI_TEXT } from "@/core/locale"
 import type { Category, Tag } from "@/core/store/useDownloadStore"
@@ -199,19 +199,37 @@ export function NewTaskBasicForm({
             </span>
           </div>
           <div className="relative">
-            <ActionInput
+            <CompoundInput
               type="text"
+              size="lg"
               value={savePath}
               onChange={(event) => onSavePathChange(event.target.value)}
               onFocus={() => setShowHistory(true)}
               onClick={() => setShowHistory(true)}
               onBlur={() => setTimeout(() => setShowHistory(false), 200)}
               disabled={loading}
-              leadingIcon={<HardDrive />}
-              actionIcon={<FolderOpen />}
-              actionLabel={UI_TEXT.newTask.bt.selectSaveDir}
-              onAction={onPickSaveDirectory}
               inputClassName="font-mono"
+              prefixActions={
+                <div
+                  className="grid w-12 h-full place-items-center border-r border-border/70 text-muted-foreground transition-colors group-focus-within:text-primary [&_svg]:size-5"
+                  aria-hidden="true"
+                >
+                  <HardDrive />
+                </div>
+              }
+              suffixActions={
+                <CompoundInputButton
+                  type="button"
+                  size="lg"
+                  divider="left"
+                  onClick={onPickSaveDirectory}
+                  disabled={loading}
+                  aria-label={UI_TEXT.newTask.bt.selectSaveDir}
+                >
+                  <FolderOpen className="mr-1.5" />
+                  {UI_TEXT.settings.browse}
+                </CompoundInputButton>
+              }
             />
             {showHistory && savePathHistory && savePathHistory.length > 0 && (
               <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">

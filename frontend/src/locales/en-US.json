@@ -100,6 +100,7 @@
     "downloadStorageTitle": "Download Location",
     "downloadStorageDesc": "Set default save directory for new tasks. It is recommended to use a separate download folder.",
     "defaultSaveDir": "Default Save Folder",
+    "browse": "Browse...",
     "autoStart": "Auto-Start Downloads",
     "autoStartDesc": "Start downloading immediately after creating a task; if turned off, the task stays paused initially.",
     "autoCategory": "Auto-Classify Tasks",

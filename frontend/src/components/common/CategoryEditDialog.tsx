@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { Input, Field } from "@/components/ui/input"
+import { Input, Field, CompoundInput, CompoundInputButton } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { IconPicker } from "@/components/ui/icon-picker"
 import { pickDownloadDirectory, type CategoryInput, type MatchRules } from "@/core/bridge/tauri-commands"
@@ -150,17 +150,21 @@ export function CategoryEditDialog({
 
           {/* Save Path Row */}
           <Field label="存储路径（选填）">
-            <div className="flex gap-2">
-              <Input
-                value={draft.save_path || ""}
-                onChange={(e) => setDraft((prev) => ({ ...prev, save_path: e.target.value || null }))}
-                placeholder="默认使用全局下载目录"
-                className="flex-1"
-              />
-              <Button type="button" variant="outline" onClick={handleBrowseFolder}>
-                浏览...
-              </Button>
-            </div>
+            <CompoundInput
+              value={draft.save_path || ""}
+              onChange={(e) => setDraft((prev) => ({ ...prev, save_path: e.target.value || null }))}
+              placeholder="默认使用全局下载目录"
+              suffixActions={
+                <CompoundInputButton
+                  type="button"
+                  divider="left"
+                  onClick={handleBrowseFolder}
+                  className="px-4 text-xs"
+                >
+                  浏览...
+                </CompoundInputButton>
+              }
+            />
           </Field>
 
           <div className="border-t border-border/50 my-2" />
