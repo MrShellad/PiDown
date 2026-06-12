@@ -103,9 +103,9 @@ export default function FloatDisc() {
         const dy = cursorY - centerY;
         const distance = Math.sqrt(dx * dx + dy * dy);
 
-        // Float disc radius is 68 / 2 = 34 CSS pixels. Convert to physical pixels with devicePixelRatio.
+        // Float disc radius is 80 / 2 = 40 CSS pixels. Convert to physical pixels with devicePixelRatio.
         const dpr = window.devicePixelRatio || 1;
-        const threshold = (34 + 6) * dpr; // 34px radius + 6px buffer
+        const threshold = (40 + 6) * dpr; // 40px radius + 6px buffer
 
         const shouldIgnore = distance > threshold;
 
@@ -341,7 +341,7 @@ export default function FloatDisc() {
                   onMouseDown={handleMouseDown}
                   onMouseMove={handleMouseMove}
                   onMouseUp={handleMouseUp}
-                  className="w-[68px] h-[68px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer group"
+                  className="w-[80px] h-[80px] flex flex-col items-center justify-center relative transition-all duration-300 cursor-pointer group"
                 >
 
                   {/* SVG Rounded Rectangle Background and Wave */}
@@ -357,14 +357,23 @@ export default function FloatDisc() {
 
                       {/* Background linear gradient */}
                       <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="var(--primary)" />
-                        <stop offset="100%" stopColor="color-mix(in oklch, var(--primary), black 20%)" />
+                        <stop offset="0%" style={{ stopColor: "var(--float-disc-bg-start)" }} />
+                        <stop offset="100%" style={{ stopColor: "var(--float-disc-bg-end)" }} />
                       </linearGradient>
 
                       {/* Wave progress gradient */}
                       <linearGradient id="waveGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="color-mix(in oklch, var(--primary), white 20%)" stopOpacity="0.55" />
-                        <stop offset="100%" stopColor="color-mix(in oklch, var(--primary), black 10%)" stopOpacity="0.75" />
+                        <stop offset="0%" style={{ stopColor: "var(--float-disc-wave-accent, var(--primary))" }} stopOpacity="0.4" />
+                        <stop offset="100%" style={{ stopColor: "color-mix(in oklch, var(--float-disc-wave-accent, var(--primary)), black 20%)" }} stopOpacity="0.6" />
+                      </linearGradient>
+
+                      {/* Top highlight gradient */}
+                      <linearGradient id="topHighlightGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" style={{ stopColor: "var(--float-disc-highlight-color, white)" }} stopOpacity="0" />
+                        <stop offset="15%" style={{ stopColor: "var(--float-disc-highlight-color, white)" }} stopOpacity="0" />
+                        <stop offset="50%" style={{ stopColor: "var(--float-disc-highlight-color, white)" }} stopOpacity="0.65" />
+                        <stop offset="85%" style={{ stopColor: "var(--float-disc-highlight-color, white)" }} stopOpacity="0" />
+                        <stop offset="100%" style={{ stopColor: "var(--float-disc-highlight-color, white)" }} stopOpacity="0" />
                       </linearGradient>
                     </defs>
 
@@ -402,8 +411,16 @@ export default function FloatDisc() {
                       height="70"
                       rx="13"
                       fill="none"
-                      stroke="rgba(255, 255, 255, 0.3)"
+                      stroke="color-mix(in oklch, var(--float-disc-color, currentColor), transparent 75%)"
                       strokeWidth="1.2"
+                    />
+
+                    {/* Top highlight reflection */}
+                    <path
+                      d="M 5 20 A 13 13 0 0 1 18 5 L 62 5 A 13 13 0 0 1 75 20"
+                      fill="none"
+                      stroke="url(#topHighlightGrad)"
+                      strokeWidth="1.4"
                     />
 
                     {/* Download SVG Arrow (Idle state only) */}
@@ -412,14 +429,14 @@ export default function FloatDisc() {
                         {/* Arrow Line */}
                         <path
                           d="M 40 20 L 40 46"
-                          stroke="white"
+                          stroke="var(--float-disc-color, currentColor)"
                           strokeWidth="4"
                           strokeLinecap="round"
                         />
                         {/* Arrow Head */}
                         <path
                           d="M 31 37 L 40 46 L 49 37"
-                          stroke="white"
+                          stroke="var(--float-disc-color, currentColor)"
                           strokeWidth="4"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -428,7 +445,7 @@ export default function FloatDisc() {
                         {/* Bracket/Tray */}
                         <path
                           d="M 26 50 L 26 54 A 2 2 0 0 0 28 56 L 52 56 A 2 2 0 0 0 54 54 L 54 50"
-                          stroke="white"
+                          stroke="var(--float-disc-color, currentColor)"
                           strokeWidth="4"
                           strokeLinecap="round"
                           strokeLinejoin="round"
@@ -439,20 +456,23 @@ export default function FloatDisc() {
                   </svg>
 
                   {/* Overlay Info Text (Active state or Drag state) */}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white z-10 pointer-events-none p-2 font-sans select-none">
+                  <div 
+                    className="absolute inset-0 flex flex-col items-center justify-center text-center z-10 pointer-events-none p-2.5 font-sans select-none"
+                    style={{ color: "var(--float-disc-color, currentColor)" }}
+                  >
                     {dragActive ? (
                       <div className="flex flex-col items-center justify-center animate-bounce">
-                        <Download className="w-6 h-6 text-white" />
+                        <Download className="w-7 h-7 text-current" />
                       </div>
                     ) : activeTasks.length > 0 ? (
-                      <div className="flex flex-col items-center justify-center">
-                        <span className="text-[10px] text-white/70 font-medium tracking-wide leading-none uppercase mb-0.5">
+                      <div className="flex flex-col items-center justify-center gap-0.5">
+                        <span className="text-[10px] opacity-80 font-semibold tracking-wider leading-none uppercase">
                           SPEED
                         </span>
-                        <span className="text-[11px] font-extrabold tracking-tight leading-none my-0.5 max-w-[56px] truncate">
+                        <span className="text-[13px] font-black tracking-tight leading-none max-w-[64px] truncate drop-shadow-xs">
                           {globalSpeed}
                         </span>
-                        <span className="text-[10px] text-primary-foreground/90 font-bold leading-none mt-0.5">
+                        <span className="text-[11px] font-extrabold leading-none opacity-95">
                           {Math.round(averageProgress)}%
                         </span>
                       </div>
@@ -466,52 +486,55 @@ export default function FloatDisc() {
         </ContextMenuTrigger>
 
 
-          <ContextMenuContent>
-          <ContextMenuItem onSelect={handleNewTask}>
+          <ContextMenuContent className="min-w-44 p-1">
+          <ContextMenuItem onSelect={handleNewTask} className="h-8 gap-2 px-2.5 text-[13px]">
             <Plus className="size-4 text-muted-foreground" />
             {cm.newTask}
           </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleStartAll} disabled={!hasResumableTasks}>
+          <ContextMenuSeparator className="my-0.5" />
+          <ContextMenuItem onSelect={handleStartAll} disabled={!hasResumableTasks} className="h-8 gap-2 px-2.5 text-[13px]">
             <Play className="size-4 text-muted-foreground" />
             {cm.startAll}
           </ContextMenuItem>
-          <ContextMenuItem onSelect={handlePauseAll} disabled={!hasPausableTasks}>
+          <ContextMenuItem onSelect={handlePauseAll} disabled={!hasPausableTasks} className="h-8 gap-2 px-2.5 text-[13px]">
             <Pause className="size-4 text-muted-foreground" />
             {cm.pauseAll}
           </ContextMenuItem>
-          <ContextMenuSeparator />
+          <ContextMenuSeparator className="my-0.5" />
           <ContextMenuSub>
-            <ContextMenuSubTrigger>
+            <ContextMenuSubTrigger className="h-8 gap-2 px-2.5 text-[13px]">
               <Settings2 className="size-4 text-muted-foreground" />
               {cm.floatSettings}
             </ContextMenuSubTrigger>
-            <ContextMenuSubContent>
+            <ContextMenuSubContent className="min-w-44 p-1">
               <ContextMenuRadioGroup
                 value={displayMode}
                 onValueChange={(v) => changeDisplayMode(v as FloatDisplayMode)}
               >
-                <ContextMenuRadioItem value="always">{cm.alwaysShow}</ContextMenuRadioItem>
-                <ContextMenuRadioItem value="only_downloading">
+                <ContextMenuRadioItem value="always" className="h-8 pr-2.5 pl-8 text-[13px]">
+                  {cm.alwaysShow}
+                </ContextMenuRadioItem>
+                <ContextMenuRadioItem value="only_downloading" className="h-8 pr-2.5 pl-8 text-[13px]">
                   {cm.onlyWhenDownloading}
                 </ContextMenuRadioItem>
               </ContextMenuRadioGroup>
-              <ContextMenuSeparator />
-              <ContextMenuItem onSelect={() => changeDisplayMode("hidden")}>
+              <ContextMenuSeparator className="my-0.5" />
+              <ContextMenuItem onSelect={() => changeDisplayMode("hidden")} className="h-8 gap-2 px-2.5 text-[13px]">
                 <EyeOff className="size-4 text-muted-foreground" />
                 {cm.closeFloat}
               </ContextMenuItem>
             </ContextMenuSubContent>
           </ContextMenuSub>
-          <ContextMenuSeparator />
+          <ContextMenuSeparator className="my-0.5" />
           <ContextMenuCheckboxItem
             checked={alwaysOnTop}
             onCheckedChange={handleToggleAlwaysOnTop}
+            className="h-8 pr-2.5 pl-8 text-[13px]"
           >
             {cm.alwaysOnTop}
           </ContextMenuCheckboxItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onSelect={handleExitApp} variant="destructive">
+          <ContextMenuSeparator className="my-0.5" />
+          <ContextMenuItem onSelect={handleExitApp} variant="destructive" className="h-8 gap-2 px-2.5 text-[13px]">
             <LogOut className="size-4 text-muted-foreground" />
             {cm.exitApp}
           </ContextMenuItem>

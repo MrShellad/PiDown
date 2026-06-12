@@ -289,6 +289,8 @@
     --task-selection-indicator: color-mix(in oklch, var(--primary), var(--foreground) 12%);
     --task-selection-control-halo: color-mix(in oklch, var(--primary), transparent 84%);
     --float-disc-background: color-mix(in oklch, var(--card), transparent 10%);
+    --float-disc-bg-start: var(--card);
+    --float-disc-bg-end: color-mix(in oklch, var(--card), black 15%);
     --float-disc-backdrop: blur(12px);
     --float-disc-border: 1px solid color-mix(in oklch, var(--primary), transparent 70%);
     --float-disc-shadow: var(--surface-shadow-strong);
@@ -500,36 +502,14 @@
   }
 }
 
-.theme-transitioning {
-  transition: --background 400ms ease,
-              --foreground 400ms ease,
-              --card 400ms ease,
-              --card-foreground 400ms ease,
-              --popover 400ms ease,
-              --popover-foreground 400ms ease,
-              --primary 400ms ease,
-              --primary-foreground 400ms ease,
-              --secondary 400ms ease,
-              --secondary-foreground 400ms ease,
-              --muted 400ms ease,
-              --muted-foreground 400ms ease,
-              --accent 400ms ease,
-              --accent-foreground 400ms ease,
-              --destructive 400ms ease,
-              --border 400ms ease,
-              --input 400ms ease,
-              --ring 400ms ease,
-              --sidebar 400ms ease,
-              --sidebar-foreground 400ms ease,
-              --sidebar-primary 400ms ease,
-              --sidebar-primary-foreground 400ms ease,
-              --sidebar-accent 400ms ease,
-              --sidebar-accent-foreground 400ms ease,
-              --sidebar-border 400ms ease,
-              --sidebar-ring 400ms ease,
-              --task-progress-active 400ms ease,
-              --task-progress-paused 400ms ease,
-              --task-progress-failed 400ms ease;
+.theme-transitioning,
+.theme-transitioning * {
+  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              fill 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              stroke 300ms cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .window-frame {

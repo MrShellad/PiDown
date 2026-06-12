@@ -11,6 +11,7 @@ import {
 } from "@/themes/fonts";
 import { saveThemeFont } from "../bridge/tauri-commands";
 import themeCssTemplate from "@/themes/skins/modern-fluid/variables.css?raw";
+import { useAppSettingsStore } from "./useAppSettingsStore";
 
 export type ThemeType = string;
 export type ThemeColorMode = "dark" | "light";
@@ -472,14 +473,17 @@ export const useThemeStore = create<ThemeState>()(
       setTheme: (theme) => {
         set({ theme });
         window.queueMicrotask(broadcastThemeSync);
+        saveThemeSettingsToBackend({ theme });
       },
       setColorMode: (colorMode) => {
         set({ colorMode });
         window.queueMicrotask(broadcastThemeSync);
+        saveThemeSettingsToBackend({ colorMode });
       },
       setFontId: (fontId) => {
         set({ fontId });
         window.queueMicrotask(broadcastThemeSync);
+        saveThemeSettingsToBackend({ fontId });
       },
       setEffectsEnabled: (effectsEnabled) => {
         set({ effectsEnabled });
@@ -535,6 +539,25 @@ export const useThemeStore = create<ThemeState>()(
     }
   )
 );
+
+function saveThemeSettingsToBackend(updates: { theme?: string; colorMode?: string; fontId?: string }) {
+  const store = useAppSettingsStore.getState();
+  if (!store.settings) return;
+
+  const nextSettings = {
+    ...store.settings,
+    interface: {
+      ...store.settings.interface,
+      theme: updates.theme ?? store.settings.interface.theme ?? "modern",
+      color_mode: updates.colorMode ?? store.settings.interface.color_mode ?? "dark",
+      font_id: updates.fontId ?? store.settings.interface.font_id ?? "builtin:geist",
+    },
+  };
+
+  store.save(nextSettings).catch((err) => {
+    console.error("Failed to save theme settings to backend settings.json:", err);
+  });
+}
 
 if (typeof window !== "undefined") {
   const syncFromStorage = () => {

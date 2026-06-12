@@ -72,7 +72,6 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
   return (
     <>
       <motion.div
-        key={colorMode}
         initial={effectsEnabled ? { opacity: 0.95 } : false}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.35, ease: "easeInOut" }}

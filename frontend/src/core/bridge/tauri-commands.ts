@@ -139,6 +139,8 @@ export interface AppSettings {
     browser_extension_integration_enabled: boolean;
     browser_extension_port: number;
     browser_extension_token: string;
+    play_sound_on_complete: boolean;
+    sound_effect_id: string;
   };
   transfer: {
     max_concurrent_downloads: number;
@@ -161,6 +163,11 @@ export interface AppSettings {
     background_opacity: number;
     hide_border_and_bg: boolean;
     disable_window_shadow: boolean;
+    theme: string;
+    color_mode: string;
+    font_id: string;
+    enable_notifications: boolean;
+    language: string;
   };
   bt: {
     enable_dht: boolean;
@@ -393,6 +400,8 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       browser_extension_integration_enabled: true,
       browser_extension_port: 18388,
       browser_extension_token: "",
+      play_sound_on_complete: true,
+      sound_effect_id: "success",
     },
     transfer: {
       max_concurrent_downloads: 3,
@@ -415,6 +424,11 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       background_opacity: 100,
       hide_border_and_bg: false,
       disable_window_shadow: false,
+      theme: "modern",
+      color_mode: "dark",
+      font_id: "builtin:geist",
+      enable_notifications: true,
+      language: "auto",
     },
     bt: {
       enable_dht: true,

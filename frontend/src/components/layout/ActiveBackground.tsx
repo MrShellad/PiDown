@@ -27,7 +27,7 @@ export default function ActiveBackground() {
   const renderContent = () => {
     if (!activeBg) {
       if (!effectsEnabled) {
-        return <div className="absolute inset-0 bg-[var(--theme-static-background)]" />;
+        return <div className="absolute inset-0" style={{ background: "var(--theme-static-background)" }} />;
       }
       void theme;
       return <AuroraBg />;

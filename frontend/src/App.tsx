@@ -1,3 +1,4 @@
+import "./core/i18n"; // Initialize i18next before any UI_TEXT access
 import { useState } from "react";
 import { Settings as SettingsIcon, X } from "lucide-react";
 import ThemeProvider from "./components/layout/ThemeProvider";

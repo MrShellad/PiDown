@@ -5,6 +5,8 @@ import {
   updateAppSettings,
   type AppSettings,
 } from "../bridge/tauri-commands";
+import { useThemeStore, applyThemeToDocument } from "./useThemeStore";
+import { applyLanguage } from "../i18n";
 
 export type SettingsSectionId =
   | "download"
@@ -47,6 +49,31 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
     try {
       const settings = await getAppSettings();
       set({ settings, loading: false });
+
+      if (settings?.interface) {
+        const { theme, color_mode: colorMode, font_id: fontId } = settings.interface;
+        const themeStore = useThemeStore.getState();
+        const updates: any = {};
+
+        if (theme && theme !== themeStore.theme) updates.theme = theme;
+        if (colorMode && colorMode !== themeStore.colorMode) updates.colorMode = colorMode;
+        if (fontId && fontId !== themeStore.fontId) updates.fontId = fontId;
+
+        if (Object.keys(updates).length > 0) {
+          useThemeStore.setState(updates);
+          applyThemeToDocument({
+            theme: updates.theme ?? themeStore.theme,
+            colorMode: updates.colorMode ?? themeStore.colorMode,
+            fontId: updates.fontId ?? themeStore.fontId,
+            customThemes: themeStore.customThemes,
+          });
+        }
+
+        // Apply language from settings
+        if (settings.interface.language) {
+          applyLanguage(settings.interface.language);
+        }
+      }
     } catch (error) {
       set({
         loading: false,
@@ -61,6 +88,11 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
       const next = await updateAppSettings(settings);
       set({ settings: next, saving: false, lastSavedAt: Date.now() });
       broadcastSettingsSync();
+
+      // Apply language immediately on save
+      if (next?.interface?.language) {
+        applyLanguage(next.interface.language);
+      }
     } catch (error) {
       set({
         saving: false,

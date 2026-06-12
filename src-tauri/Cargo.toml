@@ -24,6 +24,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.11.2", features = ["protocol-asset", "tray-icon"] }
 tauri-plugin-log = "2"
+tauri-plugin-notification = "2"
 gosh-dl = "0.4.0"
 serde_bencode = "0.2"
 tokio = { version = "1", features = ["full"] }

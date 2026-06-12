@@ -63,6 +63,8 @@ pub struct DownloadSettings {
     pub browser_extension_integration_enabled: bool,
     pub browser_extension_port: u16,
     pub browser_extension_token: String,
+    pub play_sound_on_complete: bool,
+    pub sound_effect_id: String,
 }
 
 impl Default for DownloadSettings {
@@ -75,6 +77,8 @@ impl Default for DownloadSettings {
             browser_extension_integration_enabled: true,
             browser_extension_port: 18388,
             browser_extension_token: uuid::Uuid::new_v4().to_string(),
+            play_sound_on_complete: true,
+            sound_effect_id: "success".to_string(),
         }
     }
 }
@@ -143,6 +147,11 @@ pub struct InterfaceSettings {
     pub background_opacity: u32,
     pub hide_border_and_bg: bool,
     pub disable_window_shadow: bool,
+    pub theme: String,
+    pub color_mode: String,
+    pub font_id: String,
+    pub enable_notifications: bool,
+    pub language: String,
 }
 
 impl Default for InterfaceSettings {
@@ -158,6 +167,11 @@ impl Default for InterfaceSettings {
             background_opacity: 100,
             hide_border_and_bg: false,
             disable_window_shadow: false,
+            theme: "modern".to_string(),
+            color_mode: "dark".to_string(),
+            font_id: "builtin:geist".to_string(),
+            enable_notifications: true,
+            language: "auto".to_string(),
         }
     }
 }

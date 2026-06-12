@@ -45,6 +45,7 @@ import {
 import { convertFileSrc } from "@tauri-apps/api/core";
 
 import { UI_TEXT } from "@/core/locale";
+import { SUPPORTED_LANGUAGES } from "@/core/i18n";
 import { useAppSettingsStore, type SettingsSectionId } from "@/core/store/useAppSettingsStore";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import {
@@ -68,6 +69,7 @@ import {
   SettingsTextarea,
 } from "./SettingsPrimitives";
 import DownloadRulesManager from "./DownloadRulesManager";
+import { playSoundEffect } from "@/core/audio";
 
 interface SettingsNavItem {
   id: SettingsSectionId;
@@ -78,7 +80,7 @@ interface SettingsNavItem {
 const NAV_ITEMS: SettingsNavItem[] = [
   { id: "download", label: UI_TEXT.settings.navDownload, icon: <Download className="size-4" /> },
   { id: "transfer", label: UI_TEXT.settings.navTransfer, icon: <Gauge className="size-4" /> },
-  { id: "magnet", label: "磁力设置", icon: <Magnet className="size-4" /> },
+  { id: "magnet", label: UI_TEXT.settings.navMagnet, icon: <Magnet className="size-4" /> },
   { id: "integration", label: UI_TEXT.settings.navIntegration, icon: <MonitorCog className="size-4" /> },
   { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
 ];
@@ -215,8 +217,15 @@ export default function SettingsWindow() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
-  const fontOptions = useMemo(() => createFontOptions(systemFonts), [systemFonts]);
-  const selectedFont = getThemeFontOption(fontId, fontOptions);
+  const fontOptions = useMemo(() => {
+    const opts = createFontOptions(systemFonts);
+    const selected = getThemeFontOption(fontId, opts);
+    if (!opts.some((o) => o.id === selected.id)) {
+      opts.push(selected);
+    }
+    return opts;
+  }, [systemFonts, fontId]);
+  const selectedFont = useMemo(() => getThemeFontOption(fontId, fontOptions), [fontId, fontOptions]);
 
   const [backgrounds, setBackgrounds] = useState<DbBackground[]>([]);
   const [onlineUrl, setOnlineUrl] = useState("");
@@ -239,20 +248,20 @@ export default function SettingsWindow() {
     setUpdatingTrackers(true);
     try {
       useToastStore.getState().pushToast({
-        title: "正在更新",
-        description: "正在从订阅链接获取 Tracker 列表...",
+        title: UI_TEXT.settings.updating,
+        description: UI_TEXT.settings.updatingDesc,
       });
       const result = await updateTrackersFromSubscription();
       // Reload settings to get the updated tracker list
       await load();
       useToastStore.getState().pushToast({
-        title: "更新成功",
+        title: UI_TEXT.settings.updateSuccess,
         description: result,
         variant: "success",
       });
     } catch (err) {
       useToastStore.getState().pushToast({
-        title: "更新失败",
+        title: UI_TEXT.settings.updateFailed,
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -409,8 +418,8 @@ export default function SettingsWindow() {
       if (!selected) return;
 
       useToastStore.getState().pushToast({
-        title: "正在导入",
-        description: "正在复制并缓存背景文件...",
+        title: UI_TEXT.settings.bgImporting,
+        description: UI_TEXT.settings.bgImportingDesc,
       });
 
       const bg = await importBackgroundFile(selected);
@@ -425,13 +434,13 @@ export default function SettingsWindow() {
       }));
 
       useToastStore.getState().pushToast({
-        title: "导入成功",
-        description: "已成功导入背景并应用",
+        title: UI_TEXT.settings.bgImportSuccess,
+        description: UI_TEXT.settings.bgImportSuccessDesc,
         variant: "success",
       });
     } catch (err) {
       useToastStore.getState().pushToast({
-        title: "导入失败",
+        title: UI_TEXT.settings.bgImportFailed,
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -443,8 +452,8 @@ export default function SettingsWindow() {
     setImportingUrl(true);
     try {
       useToastStore.getState().pushToast({
-        title: "正在下载",
-        description: "正在从链接下载背景文件并缓存...",
+        title: UI_TEXT.settings.bgDownloading,
+        description: UI_TEXT.settings.bgDownloadingDesc,
       });
 
       const bg = await importBackgroundUrl(onlineUrl.trim());
@@ -460,13 +469,13 @@ export default function SettingsWindow() {
       }));
 
       useToastStore.getState().pushToast({
-        title: "导入成功",
-        description: "已成功下载背景并应用",
+        title: UI_TEXT.settings.bgImportSuccess,
+        description: UI_TEXT.settings.bgDownloadSuccessDesc,
         variant: "success",
       });
     } catch (err) {
       useToastStore.getState().pushToast({
-        title: "下载失败",
+        title: UI_TEXT.settings.bgDownloadFailed,
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -491,13 +500,13 @@ export default function SettingsWindow() {
 
       loadBackgrounds();
       useToastStore.getState().pushToast({
-        title: "删除成功",
-        description: "已从数据库移除该背景",
+        title: UI_TEXT.settings.bgDeleteSuccess,
+        description: UI_TEXT.settings.bgDeleteSuccessDesc,
         variant: "success",
       });
     } catch (err) {
       useToastStore.getState().pushToast({
-        title: "删除失败",
+        title: UI_TEXT.settings.bgDeleteFailed,
         description: err instanceof Error ? err.message : String(err),
         variant: "destructive",
       });
@@ -835,7 +844,7 @@ export default function SettingsWindow() {
                                 }}
                                 className="shrink-0"
                               >
-                                随机
+                                {UI_TEXT.settings.tokenRandom}
                               </Button>
                               <Button
                                 variant="outline"
@@ -843,14 +852,14 @@ export default function SettingsWindow() {
                                 onClick={() => {
                                   navigator.clipboard.writeText(draft.download.browser_extension_token || "");
                                   useToastStore.getState().pushToast({
-                                    title: "已复制",
-                                    description: "安全令牌已复制到剪贴板",
+                                    title: UI_TEXT.settings.copied,
+                                    description: UI_TEXT.settings.tokenCopiedDesc,
                                     variant: "success",
                                   });
                                 }}
                                 className="shrink-0"
                               >
-                                复制
+                                {UI_TEXT.settings.tokenCopy}
                               </Button>
                             </div>
                           </div>
@@ -932,8 +941,8 @@ export default function SettingsWindow() {
                         />
                       </SettingsListItem>
                       <SettingsListItem
-                        title="单任务线程数"
-                        description="新建 HTTP/HTTPS 任务时传给 gosh-dl 的 max_connections，用于分段并行下载。"
+                        title="单任务最大连接数"
+                        description="每个 HTTP/HTTPS 任务的最大并行连接（分块）数，用于分段并行下载。"
                       >
                         <Slider
                           min={1}
@@ -1163,6 +1172,52 @@ export default function SettingsWindow() {
                           />
                         }
                       />
+                      <SettingsListItem
+                        title={UI_TEXT.settings.enableNotifications}
+                        description={UI_TEXT.settings.enableNotificationsDesc}
+                        action={
+                          <Switch
+                            checked={draft.interface.enable_notifications ?? true}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                interface: {
+                                  ...prev.interface,
+                                  enable_notifications: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                    </SettingsList>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      {UI_TEXT.settings.groupLanguage}
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.languageSetting}
+                        description={UI_TEXT.settings.languageSettingDesc}
+                      >
+                        <OptionDropdown
+                          value={draft.interface.language ?? "auto"}
+                          options={SUPPORTED_LANGUAGES.map((lang) => ({
+                            value: lang.code,
+                            label: lang.code === "auto" ? UI_TEXT.settings.languageAuto : lang.label,
+                          }))}
+                          onValueChange={(nextLang) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                language: nextLang,
+                              },
+                            }))
+                          }
+                          ariaLabel={UI_TEXT.settings.languageSetting}
+                        />
+                      </SettingsListItem>
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -1182,19 +1237,19 @@ export default function SettingsWindow() {
                 <SettingsSectionCard>
                   <SettingsSectionHeader
                     icon={<Magnet className="size-5" />}
-                    title="磁力与 BT 设置"
-                    description="配置 BitTorrent 协议、端口监听、Peer 连接及网络发现策略。"
+                    title={UI_TEXT.settings.magnetTitle}
+                    description={UI_TEXT.settings.magnetDesc}
                     action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
                   />
 
                   <div className="mt-5">
                     <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      连接与发现
+                      {UI_TEXT.settings.magnetGroupConnection}
                     </div>
                     <SettingsList>
                       <SettingsListItem
-                        title="启用 DHT 网络"
-                        description="允许在不依赖 Tracker 服务器的情况下，通过无中心节点的分布式哈希表查找更多 Peer。"
+                        title={UI_TEXT.settings.enableDht}
+                        description={UI_TEXT.settings.enableDhtDesc}
                         action={
                           <Switch
                             checked={draft.bt.enable_dht}
@@ -1211,8 +1266,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="启用 PEX (用户交换)"
-                        description="允许 Peer 之间相互交换已知的用户列表，提高网络发现速度。"
+                        title={UI_TEXT.settings.enablePex}
+                        description={UI_TEXT.settings.enablePexDesc}
                         action={
                           <Switch
                             checked={draft.bt.enable_pex}
@@ -1229,8 +1284,8 @@ export default function SettingsWindow() {
                         }
                       />
                       <SettingsListItem
-                        title="启用 LPD (本地用户发现)"
-                        description="在局域网内多播查找下载相同种子的用户，适合多机内网环境。"
+                        title={UI_TEXT.settings.enableLpd}
+                        description={UI_TEXT.settings.enableLpdDesc}
                         action={
                           <Switch
                             checked={draft.bt.enable_lpd}
@@ -1249,12 +1304,12 @@ export default function SettingsWindow() {
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      网络配置
+                      {UI_TEXT.settings.magnetGroupNetwork}
                     </div>
                     <SettingsList>
                       <SettingsListItem
-                        title="传入连接端口"
-                        description="BitTorrent 协议本地监听的 TCP/UDP 端口范围。"
+                        title={UI_TEXT.settings.listenPort}
+                        description={UI_TEXT.settings.listenPortDesc}
                       >
                         <div className="flex items-center gap-2 mt-1">
                           <SettingsInput
@@ -1272,7 +1327,7 @@ export default function SettingsWindow() {
                             }}
                             className="w-24 text-center font-mono"
                           />
-                          <span className="text-muted-foreground">至</span>
+                          <span className="text-muted-foreground">{UI_TEXT.settings.portTo}</span>
                           <SettingsInput
                             type="number"
                             value={draft.bt.listen_port_end}
@@ -1292,16 +1347,16 @@ export default function SettingsWindow() {
                       </SettingsListItem>
 
                       <SettingsListItem
-                        title="协议加密选项"
-                        description="对 Peer 传出与传入连接的协议头加密级别要求。"
+                        title={UI_TEXT.settings.encryptionPolicy}
+                        description={UI_TEXT.settings.encryptionPolicyDesc}
                       >
                         <OptionDropdown
                           value={draft.bt.encryption_policy}
                           options={[
-                            { value: "preferred", label: "优先加密 (Preferred)" },
-                            { value: "allowed", label: "允许加密 (Allowed)" },
-                            { value: "required", label: "强制加密 (Required)" },
-                            { value: "disabled", label: "禁用加密 (Disabled)" },
+                            { value: "preferred", label: UI_TEXT.settings.encryptPreferred },
+                            { value: "allowed", label: UI_TEXT.settings.encryptAllowed },
+                            { value: "required", label: UI_TEXT.settings.encryptRequired },
+                            { value: "disabled", label: UI_TEXT.settings.encryptDisabled },
                           ]}
                           onValueChange={(nextPolicy) =>
                             updateDraft((prev) => ({
@@ -1312,20 +1367,20 @@ export default function SettingsWindow() {
                               },
                             }))
                           }
-                          ariaLabel="协议加密选项"
+                          ariaLabel={UI_TEXT.settings.encryptionPolicy}
                         />
                       </SettingsListItem>
 
                       <SettingsListItem
-                        title="磁盘预分配模式"
-                        description="新建 BT 任务时如何预先分配磁盘空间，避免文件碎片。"
+                        title={UI_TEXT.settings.diskAllocation}
+                        description={UI_TEXT.settings.diskAllocationDesc}
                       >
                         <OptionDropdown
                           value={draft.bt.allocation_mode}
                           options={[
-                            { value: "none", label: "不分配 (None)" },
-                            { value: "sparse", label: "稀疏分配 (Sparse)" },
-                            { value: "full", label: "完全预分配 (Full)" },
+                            { value: "none", label: UI_TEXT.settings.allocNone },
+                            { value: "sparse", label: UI_TEXT.settings.allocSparse },
+                            { value: "full", label: UI_TEXT.settings.allocFull },
                           ]}
                           onValueChange={(nextMode) =>
                             updateDraft((prev) => ({
@@ -1336,13 +1391,13 @@ export default function SettingsWindow() {
                               },
                             }))
                           }
-                          ariaLabel="磁盘预分配模式"
+                          ariaLabel={UI_TEXT.settings.diskAllocation}
                         />
                       </SettingsListItem>
 
                       <SettingsListItem
-                        title="做种比率阈值"
-                        description="达到该分享率（上传字节数 / 下载字节数）后，任务将自动停止做种。"
+                        title={UI_TEXT.settings.seedRatioThreshold}
+                        description={UI_TEXT.settings.seedRatioThresholdDesc}
                       >
                         <div className="flex items-center gap-2 mt-1">
                           <SettingsInput
@@ -1362,13 +1417,13 @@ export default function SettingsWindow() {
                             }}
                             className="w-24 text-center font-mono"
                           />
-                          <span className="text-muted-foreground text-sm">倍 (0.0 表示不限制，持续做种)</span>
+                          <span className="text-muted-foreground text-sm">{UI_TEXT.settings.seedRatioUnit}</span>
                         </div>
                       </SettingsListItem>
 
                       <SettingsListItem
-                        title="Peer 循环间隔 (tick_interval_ms)"
-                        description="BitTorrent 引擎与 Peer 进行网络循环、交换消息的时间间隔（越小越灵敏，但 CPU 开销越高）。"
+                        title={UI_TEXT.settings.peerLoopInterval}
+                        description={UI_TEXT.settings.peerLoopIntervalDesc}
                       >
                         <div className="flex items-center gap-2 mt-1">
                           <SettingsInput
@@ -1388,18 +1443,18 @@ export default function SettingsWindow() {
                             }}
                             className="w-24 text-center font-mono"
                           />
-                          <span className="text-muted-foreground text-sm">ms (默认 100ms)</span>
+                          <span className="text-muted-foreground text-sm">{UI_TEXT.settings.msUnit}</span>
                         </div>
                       </SettingsListItem>
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-                      Tracker 配置
+                      {UI_TEXT.settings.magnetGroupTracker}
                     </div>
                     <SettingsList>
                       <SettingsListItem
-                        title="Tracker 订阅"
-                        description="自动订阅的 Tracker 服务器列表文件 URL（例如 trackerslist.com）。支持通过右侧按钮手动更新拉取。"
+                        title={UI_TEXT.settings.trackerSubscribe}
+                        description={UI_TEXT.settings.trackerSubscribeDesc}
                       >
                         <div className="flex gap-2 mt-1">
                           <SettingsInput
@@ -1421,14 +1476,14 @@ export default function SettingsWindow() {
                             loading={updatingTrackers}
                             disabled={!draft.bt.tracker_subscribe_url.trim() || updatingTrackers}
                           >
-                            立即更新
+                            {UI_TEXT.settings.updateNow}
                           </Button>
                         </div>
                       </SettingsListItem>
 
                       <SettingsListItem
-                        title="Tracker 列表"
-                        description="添加新磁力链接或种子任务时将自动追加的 Tracker 服务器列表，每行一个。"
+                        title={UI_TEXT.settings.trackerList}
+                        description={UI_TEXT.settings.trackerListDesc}
                         childrenSpan="full"
                       >
                         <SettingsTextarea
@@ -1470,7 +1525,7 @@ export default function SettingsWindow() {
                         onClick={triggerImportTheme}
                         className="normal-case tracking-normal h-7 font-normal"
                       >
-                        导入主题
+                        {UI_TEXT.settings.importTheme}
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-4">
@@ -1502,7 +1557,7 @@ export default function SettingsWindow() {
                               <div className="absolute bottom-6 left-7 h-2 w-16 rounded-full bg-primary/70" />
                               <div className="absolute bottom-6 right-7 h-2 w-8 rounded-full bg-accent/70" />
                               <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
-                                {item.accent || "自定义"}
+                                {item.accent || UI_TEXT.settings.customTheme}
                               </div>
                             </div>
 
@@ -1525,14 +1580,14 @@ export default function SettingsWindow() {
 
                               <div className="flex flex-wrap gap-2">
                                 <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                  {item.hasCanvasBg ? "动态背景" : "静态背景"}
+                                  {item.hasCanvasBg ? UI_TEXT.settings.dynamicBg : UI_TEXT.settings.staticBg}
                                 </span>
                                 <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                  {item.hasSpecialSound ? "主题音效" : "默认音效"}
+                                  {item.hasSpecialSound ? UI_TEXT.settings.themeSound : UI_TEXT.settings.defaultSound}
                                 </span>
                                 {item.font && (
                                   <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                    字体: {item.font.name}
+                                    {UI_TEXT.settings.fontPrefix}{item.font.name}
                                   </span>
                                 )}
                               </div>
@@ -1558,7 +1613,7 @@ export default function SettingsWindow() {
                                       <Download className="size-4" />
                                     </Button>
                                   </TooltipTrigger>
-                                  <TooltipContent>导出主题模板</TooltipContent>
+                                  <TooltipContent>{UI_TEXT.settings.exportTheme}</TooltipContent>
                                 </Tooltip>
 
                                 {isCustom && (
@@ -1647,16 +1702,6 @@ export default function SettingsWindow() {
                           <Switch
                             checked={effectsEnabled}
                             onCheckedChange={setEffectsEnabled}
-                          />
-                        }
-                      />
-                      <SettingsListItem
-                        title={UI_TEXT.settings.soundToggle}
-                        description={UI_TEXT.settings.soundToggleDesc}
-                        action={
-                          <Switch
-                            checked={soundEnabled}
-                            onCheckedChange={setSoundEnabled}
                           />
                         }
                       />
@@ -2009,6 +2054,76 @@ export default function SettingsWindow() {
                         />
                       </div>
                     </div>
+
+                    <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
+                      {UI_TEXT.settings.soundChimeTitle}
+                    </div>
+                    <SettingsList>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.soundToggle}
+                        description={UI_TEXT.settings.soundToggleDesc}
+                        action={
+                          <Switch
+                            checked={soundEnabled}
+                            onCheckedChange={setSoundEnabled}
+                          />
+                        }
+                      />
+                      <SettingsListItem
+                        title={UI_TEXT.settings.soundPlayComplete}
+                        description={UI_TEXT.settings.soundPlayCompleteDesc}
+                        action={
+                          <Switch
+                            checked={draft.download.play_sound_on_complete ?? true}
+                            onCheckedChange={(checked) =>
+                              updateDraft((prev) => ({
+                                ...prev,
+                                download: {
+                                  ...prev.download,
+                                  play_sound_on_complete: checked,
+                                },
+                              }))
+                            }
+                          />
+                        }
+                      />
+                      {(draft.download.play_sound_on_complete ?? true) && (
+                        <SettingsListItem
+                          title={UI_TEXT.settings.soundSelect}
+                          description={UI_TEXT.settings.soundSelectDesc}
+                        >
+                          <div className="flex items-center gap-3 mt-2">
+                            <div className="w-48 shrink-0">
+                              <OptionDropdown
+                                value={draft.download.sound_effect_id ?? "success"}
+                                options={[
+                                  { value: "success", label: UI_TEXT.settings.soundSuccess },
+                                  { value: "bell", label: UI_TEXT.settings.soundBell },
+                                  { value: "digital", label: UI_TEXT.settings.soundDigital },
+                                  { value: "glass", label: UI_TEXT.settings.soundGlass },
+                                ]}
+                                onValueChange={(value) =>
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    download: {
+                                      ...prev.download,
+                                      sound_effect_id: value,
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => playSoundEffect(draft.download.sound_effect_id ?? "success")}
+                            >
+                              {UI_TEXT.settings.soundAudition}
+                            </Button>
+                          </div>
+                        </SettingsListItem>
+                      )}
+                    </SettingsList>
                   </div>
                 </SettingsSectionCard>
 
@@ -2026,26 +2141,26 @@ export default function SettingsWindow() {
             <div className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
               <AlertTriangle className="size-5" />
             </div>
-            <DialogTitle>恢复默认设置</DialogTitle>
+            <DialogTitle>{UI_TEXT.settings.resetTitle}</DialogTitle>
           </DialogHeader>
           <DialogBody className="text-center">
             <DialogDescription>
-              这会把当前设置恢复为默认值，并使用系统默认下载目录。确认后会自动保存。
+              {UI_TEXT.settings.resetDesc}
             </DialogDescription>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>
-              取消
+              {UI_TEXT.settings.cancel}
             </Button>
             <Button
               variant="destructive"
               loading={resetting}
-              loadingText="正在恢复"
+              loadingText={UI_TEXT.settings.resettingText}
               onClick={() => {
                 resetToDefaults().catch(console.error);
               }}
             >
-              确认恢复
+              {UI_TEXT.settings.resetConfirm}
             </Button>
           </DialogFooter>
         </DialogContent>

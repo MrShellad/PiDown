@@ -2,7 +2,7 @@
 
 export default function AuroraBg() {
   return (
-    <div className="absolute inset-0 overflow-hidden -z-50 bg-[var(--theme-static-background)]">
+    <div className="absolute inset-0 overflow-hidden -z-50" style={{ background: "var(--theme-static-background)" }}>
       {/* Aurora blur blobs */}
       <div 
         className="absolute w-[80vw] h-[80vw] rounded-full blur-[120px] opacity-30 animate-pulse pointer-events-none"
