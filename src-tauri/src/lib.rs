@@ -34,6 +34,8 @@ pub fn run() {
                 tauri::async_runtime::block_on(AppState::new(&app_data_dir, &default_save_dir))
                     .map_err(std::io::Error::other)?;
 
+            *state.app_handle.lock().unwrap() = Some(app_handle.clone());
+
             app.manage(state.clone());
             if let Err(error) = start_native_bridge_server(app_data_dir.clone(), app_handle.clone())
             {

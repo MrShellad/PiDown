@@ -6,6 +6,8 @@ use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol, Htt
 use chrono::Utc;
 use gosh_dl::{DownloadId, DownloadState, DownloadStatus};
 use std::path::Path;
+use std::sync::Arc;
+use tauri::Emitter;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Default)]
@@ -57,6 +59,7 @@ impl super::AppState {
             } else if db_task.status == "Downloading" || db_task.status == "Pending" {
                 if let Some(task) = self.task_cache.write().unwrap().get_mut(&db_task.id) {
                     task.status = "Paused".to_string();
+                    task.dirty = true;
                 }
             }
         }
@@ -192,6 +195,7 @@ impl super::AppState {
             if let Some(task) = self.task_cache.write().unwrap().get_mut(&gid) {
                 task.completed_size = completed_size;
                 task.total_size = total_size;
+                task.dirty = true;
             }
         }
         gid
@@ -243,6 +247,7 @@ impl super::AppState {
             if error_msg.is_some() {
                 task.error_message = error_msg.clone();
             }
+            task.dirty = true;
         }
 
         let _ = self.db.update_task_status(gid, mapped_status, final_completed_at);
@@ -260,7 +265,7 @@ impl super::AppState {
     }
 
     pub async fn add_task(
-        &self,
+        self: &Arc<Self>,
         url: &str,
         path: Option<&str>,
         filename: Option<&str>,
@@ -311,6 +316,15 @@ impl super::AppState {
         let protocol = detect_protocol(url);
         let settings = self.settings.read().unwrap().clone();
 
+        let is_hls = {
+            let url_lower = url.to_lowercase();
+            if let Some(path_part) = url_lower.split('?').next() {
+                path_part.ends_with(".m3u8")
+            } else {
+                false
+            }
+        };
+
         let inferred_name = url
             .split('/')
             .last()
@@ -318,12 +332,20 @@ impl super::AppState {
             .split('?')
             .next()
             .unwrap_or("download");
-        let name = filename
+        let mut name = filename
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .map(sanitize_filename)
             .filter(|value| !value.is_empty())
             .unwrap_or_else(|| sanitize_filename(inferred_name));
+
+        if is_hls {
+            if name.ends_with(".m3u8") {
+                name = name.strip_suffix(".m3u8").unwrap().to_string() + ".ts";
+            } else if !name.ends_with(".ts") {
+                name.push_str(".ts");
+            }
+        }
 
         let preview = self.preview_task_classification(
             url,
@@ -340,121 +362,132 @@ impl super::AppState {
 
         std::fs::create_dir_all(&save_dir).map_err(|e| e.to_string())?;
 
-        let id = match protocol {
-            DownloadProtocol::Http | DownloadProtocol::Https => {
-                let max_connections = task_options
-                    .max_connections
-                    .unwrap_or(settings.transfer.task_thread_count)
-                    .clamp(1, crate::core::settings::MAX_TASK_THREAD_COUNT)
-                    as usize;
+        let (gid, engine_id, initial_status, db_protocol) = if is_hls {
+            let hls_gid = uuid::Uuid::new_v4().to_string();
+            let initial_status = if settings.download.auto_start_downloads {
+                "Downloading"
+            } else {
+                "Paused"
+            };
+            (hls_gid, None, initial_status, "hls".to_string())
+        } else {
+            let id = match protocol {
+                DownloadProtocol::Http | DownloadProtocol::Https => {
+                    let max_connections = task_options
+                        .max_connections
+                        .unwrap_or(settings.transfer.task_thread_count)
+                        .clamp(1, crate::core::settings::MAX_TASK_THREAD_COUNT)
+                        as usize;
 
-                self.engine
-                    .add_http(
-                        url,
-                        Path::new(&save_dir),
-                        Some(name.clone()),
-                        HttpTaskOptions {
-                            max_connections,
-                            max_download_speed: speed_limit_kib_to_bps(
-                                task_options.max_download_speed_kib,
-                            ),
-                            user_agent: resolve_user_agent(
-                                task_options.user_agent,
-                                &settings.download.global_user_agent,
-                            ),
-                            referer: normalize_optional_header_value(task_options.referer),
-                            cookies: normalize_cookies(task_options.cookies),
-                        },
-                    )
-                    .await?
-            }
-            DownloadProtocol::Magnet => {
-                let mut magnet_url = url.to_string();
-                let trackers: Vec<String> = settings.bt.tracker_list
-                    .lines()
-                    .map(|line| line.trim().to_string())
-                    .filter(|line| !line.is_empty())
-                    .collect();
-
-                for tracker in trackers {
-                    let encoded_tracker = urlencoding::encode(&tracker);
-                    magnet_url.push_str(&format!("&tr={}", encoded_tracker));
+                    self.engine
+                        .add_http(
+                            url,
+                            Path::new(&save_dir),
+                            Some(name.clone()),
+                            HttpTaskOptions {
+                                max_connections,
+                                max_download_speed: speed_limit_kib_to_bps(
+                                    task_options.max_download_speed_kib,
+                                ),
+                                user_agent: resolve_user_agent(
+                                    task_options.user_agent.clone(),
+                                    &settings.download.global_user_agent,
+                                ),
+                                referer: normalize_optional_header_value(task_options.referer.clone()),
+                                cookies: normalize_cookies(task_options.cookies.clone()),
+                            },
+                        )
+                        .await?
                 }
+                DownloadProtocol::Magnet => {
+                    let mut magnet_url = url.to_string();
+                    let trackers: Vec<String> = settings.bt.tracker_list
+                        .lines()
+                        .map(|line| line.trim().to_string())
+                        .filter(|line| !line.is_empty())
+                        .collect();
 
-                self.engine
-                    .add_magnet(
-                        &magnet_url,
-                        Path::new(&save_dir),
-                        task_options.selected_files,
-                        task_options.sequential,
-                        speed_limit_kib_to_bps(task_options.max_download_speed_kib),
-                        speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
-                    )
-                    .await?
-            }
-            DownloadProtocol::Torrent => {
-                let ignore_ssl = settings.transfer.ignore_ssl_certificate;
-                let ua = resolve_user_agent(task_options.user_agent.clone(), &settings.download.global_user_agent);
-                let cookies_norm = normalize_cookies(task_options.cookies.clone());
-                let referer_norm = normalize_optional_header_value(task_options.referer.clone());
-                let max_retries = settings.transfer.max_download_retries as usize;
+                    for tracker in trackers {
+                        let encoded_tracker = urlencoding::encode(&tracker);
+                        magnet_url.push_str(&format!("&tr={}", encoded_tracker));
+                    }
 
-                let mut bytes = crate::download::bt::fetch_torrent_bytes(
-                    url,
-                    ignore_ssl,
-                    ua,
-                    referer_norm,
-                    cookies_norm,
-                    max_retries,
-                ).await?;
+                    self.engine
+                        .add_magnet(
+                            &magnet_url,
+                            Path::new(&save_dir),
+                            task_options.selected_files.clone(),
+                            task_options.sequential,
+                            speed_limit_kib_to_bps(task_options.max_download_speed_kib),
+                            speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
+                        )
+                        .await?
+                }
+                DownloadProtocol::Torrent => {
+                    let ignore_ssl = settings.transfer.ignore_ssl_certificate;
+                    let ua = resolve_user_agent(task_options.user_agent.clone(), &settings.download.global_user_agent);
+                    let cookies_norm = normalize_cookies(task_options.cookies.clone());
+                    let referer_norm = normalize_optional_header_value(task_options.referer.clone());
+                    let max_retries = settings.transfer.max_download_retries as usize;
 
-                let trackers: Vec<String> = settings.bt.tracker_list
-                    .lines()
-                    .map(|line| line.trim().to_string())
-                    .filter(|line| !line.is_empty())
-                    .collect();
+                    let mut bytes = crate::download::bt::fetch_torrent_bytes(
+                        url,
+                        ignore_ssl,
+                        ua,
+                        referer_norm,
+                        cookies_norm,
+                        max_retries,
+                    ).await?;
 
-                if !trackers.is_empty() {
-                    match crate::download::bt::append_trackers_to_torrent(&bytes, &trackers) {
-                        Ok(modified_bytes) => {
-                            bytes = modified_bytes;
-                        }
-                        Err(e) => {
-                            log::warn!("Failed to append default trackers to torrent: {}", e);
+                    let trackers: Vec<String> = settings.bt.tracker_list
+                        .lines()
+                        .map(|line| line.trim().to_string())
+                        .filter(|line| !line.is_empty())
+                        .collect();
+
+                    if !trackers.is_empty() {
+                        match crate::download::bt::append_trackers_to_torrent(&bytes, &trackers) {
+                            Ok(modified_bytes) => {
+                                bytes = modified_bytes;
+                            }
+                            Err(e) => {
+                                log::warn!("Failed to append default trackers to torrent: {}", e);
+                            }
                         }
                     }
+
+                    self.engine
+                        .add_torrent(
+                            &bytes,
+                            Path::new(&save_dir),
+                            task_options.selected_files.clone(),
+                            task_options.sequential,
+                            speed_limit_kib_to_bps(task_options.max_download_speed_kib),
+                            speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
+                        )
+                        .await?
                 }
+                _ => return Err("Unsupported or invalid protocol".to_string()),
+            };
 
-                self.engine
-                    .add_torrent(
-                        &bytes,
-                        Path::new(&save_dir),
-                        task_options.selected_files,
-                        task_options.sequential,
-                        speed_limit_kib_to_bps(task_options.max_download_speed_kib),
-                        speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
-                    )
-                    .await?
-            }
-            _ => return Err("Unsupported or invalid protocol".to_string()),
+            let initial_status = if settings.download.auto_start_downloads {
+                "Downloading"
+            } else {
+                self.engine.pause(id).await?;
+                "Paused"
+            };
+
+            (id.to_gid(), Some(id.as_uuid().to_string()), initial_status, protocol.as_str().to_string())
         };
 
-        let gid = id.to_gid();
         let category_id = preview.category.as_ref().map(|category| category.id);
-
-        let initial_status = if settings.download.auto_start_downloads {
-            "Downloading"
-        } else {
-            self.engine.pause(id).await?;
-            "Paused"
-        };
 
         let db_task = DbTask {
             id: gid.clone(),
-            engine_id: Some(id.as_uuid().to_string()),
+            engine_id,
             name,
             url: url.to_string(),
-            protocol: protocol.as_str().to_string(),
+            protocol: db_protocol,
             save_path: save_dir,
             total_size: total_size.unwrap_or(0),
             completed_size: 0,
@@ -470,6 +503,7 @@ impl super::AppState {
             error_message: None,
             max_download_speed_kib: task_options.max_download_speed_kib,
             max_upload_speed_kib: task_options.max_upload_speed_kib,
+            dirty: true,
         };
 
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
@@ -477,8 +511,39 @@ impl super::AppState {
         for tag in preview.tags {
             let _ = self.db.add_task_tag(&gid, tag.id);
         }
-        if let Some(engine_status) = self.engine.status(id) {
-            self.sync_task_from_engine_status(&gid, &engine_status, None);
+
+        if is_hls && initial_status == "Downloading" {
+            let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+            self.hls_cancel_tokens.lock().unwrap().insert(gid.clone(), cancel_tx);
+
+            let state_clone = Arc::clone(self);
+            let gid_clone = gid.clone();
+            let url_clone = url.to_string();
+            let save_path_clone = db_task.save_path.clone();
+            let name_clone = db_task.name.clone();
+            let user_agent_clone = task_options.user_agent.clone();
+            let referer_clone = task_options.referer.clone();
+            let cookies_clone = task_options.cookies.clone();
+
+            tauri::async_runtime::spawn(async move {
+                crate::download::hls::download_hls_task(
+                    state_clone,
+                    gid_clone,
+                    url_clone,
+                    save_path_clone,
+                    name_clone,
+                    user_agent_clone,
+                    referer_clone,
+                    cookies_clone,
+                    cancel_rx,
+                ).await;
+            });
+        } else if !is_hls {
+            if let Some(id_parsed) = db_task.engine_id.as_deref().and_then(Self::parse_engine_id) {
+                if let Some(engine_status) = self.engine.status(id_parsed) {
+                    self.sync_task_from_engine_status(&gid, &engine_status, None);
+                }
+            }
         }
 
         Ok(gid)
@@ -580,17 +645,87 @@ impl super::AppState {
         }
     }
 
-    pub async fn pause_task(&self, gid: &str) -> Result<(), String> {
+    pub async fn pause_task(self: &Arc<Self>, gid: &str) -> Result<(), String> {
+        let is_hls = {
+            let cache = self.task_cache.read().unwrap();
+            cache.get(gid).map(|t| t.protocol == "hls").unwrap_or(false)
+        };
+
+        if is_hls {
+            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
+                let _ = cancel_tx.send(true);
+            }
+            if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+                task.status = "Paused".to_string();
+                task.dirty = true;
+            }
+            let _ = self.db.update_task_status(gid, "Paused", None);
+            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
+                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+            }
+            return Ok(());
+        }
+
         let id = self.resolve_download_id(gid)?;
         self.engine.pause(id).await?;
         if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
             task.status = "Paused".to_string();
+            task.dirty = true;
         }
         let _ = self.db.update_task_status(gid, "Paused", None);
         Ok(())
     }
 
-    pub async fn resume_task(&self, gid: &str) -> Result<(), String> {
+    pub async fn resume_task(self: &Arc<Self>, gid: &str) -> Result<(), String> {
+        let (is_hls, task_opt) = {
+            let cache = self.task_cache.read().unwrap();
+            let task = cache.get(gid).cloned();
+            (task.as_ref().map(|t| t.protocol == "hls").unwrap_or(false), task)
+        };
+
+        if is_hls {
+            if let Some(task) = task_opt {
+                let mut tokens = self.hls_cancel_tokens.lock().unwrap();
+                if !tokens.contains_key(gid) {
+                    let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
+                    tokens.insert(gid.to_string(), cancel_tx);
+
+                    if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
+                        t.status = "Downloading".to_string();
+                        if t.started_at.is_none() {
+                            t.started_at = Some(Utc::now().timestamp());
+                        }
+                        t.dirty = true;
+                    }
+                    let _ = self.db.update_task_status(gid, "Downloading", None);
+
+                    let state_clone = Arc::clone(self);
+                    let gid_clone = gid.to_string();
+                    let url_clone = task.url.clone();
+                    let save_path_clone = task.save_path.clone();
+                    let name_clone = task.name.clone();
+
+                    tauri::async_runtime::spawn(async move {
+                        crate::download::hls::download_hls_task(
+                            state_clone,
+                            gid_clone,
+                            url_clone,
+                            save_path_clone,
+                            name_clone,
+                            None,
+                            None,
+                            Vec::new(),
+                            cancel_rx,
+                        ).await;
+                    });
+                }
+            }
+            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
+                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+            }
+            return Ok(());
+        }
+
         let id = self.resolve_download_id(gid)?;
         self.engine.resume(id).await?;
         if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
@@ -598,12 +733,39 @@ impl super::AppState {
             if task.started_at.is_none() {
                 task.started_at = Some(Utc::now().timestamp());
             }
+            task.dirty = true;
         }
         let _ = self.db.update_task_status(gid, "Downloading", None);
         Ok(())
     }
 
-    pub async fn cancel_task(&self, gid: &str, delete_files: bool) -> Result<(), String> {
+    pub async fn cancel_task(self: &Arc<Self>, gid: &str, delete_files: bool) -> Result<(), String> {
+        let is_hls = {
+            let cache = self.task_cache.read().unwrap();
+            cache.get(gid).map(|t| t.protocol == "hls").unwrap_or(false)
+        };
+
+        if is_hls {
+            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
+                let _ = cancel_tx.send(true);
+            }
+            self.hls_speeds.lock().unwrap().remove(gid);
+            self.progress_throttle.lock().unwrap().remove(gid);
+
+            self.task_cache.write().unwrap().remove(gid);
+            let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
+            if let Some(task) = task {
+                if delete_files {
+                    cleanup_task_files(&task);
+                }
+            }
+            self.db.delete_task(gid).map_err(|e| e.to_string())?;
+            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
+                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+            }
+            return Ok(());
+        }
+
         self.task_cache.write().unwrap().remove(gid);
         let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
 
@@ -655,14 +817,21 @@ impl super::AppState {
             }))
     }
 
-    pub async fn restart_task(&self, gid: &str) -> Result<String, String> {
+    pub async fn restart_task(self: &Arc<Self>, gid: &str) -> Result<String, String> {
         let task = self
             .db
             .get_task(gid)
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Task not found".to_string())?;
 
-        if let Ok(id) = self.resolve_download_id(gid) {
+        let is_hls = task.protocol == "hls";
+        if is_hls {
+            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
+                let _ = cancel_tx.send(true);
+            }
+            self.hls_speeds.lock().unwrap().remove(gid);
+            self.progress_throttle.lock().unwrap().remove(gid);
+        } else if let Ok(id) = self.resolve_download_id(gid) {
             let _ = self.engine.cancel(id, true).await;
         }
 
@@ -686,6 +855,36 @@ impl super::AppState {
         self.db.delete_task(gid).map_err(|e| e.to_string())?;
 
         Ok(new_gid)
+    }
+
+    pub fn sync_hls_progress(&self, gid: &str, completed_size: u64, total_size: u64) {
+        let should_update = {
+            let mut throttle = self.progress_throttle.lock().unwrap();
+            if let Some((last_size, last_time)) = throttle.get(gid).copied() {
+                let now = std::time::Instant::now();
+                let size_delta = completed_size.saturating_sub(last_size);
+                let time_delta = now.duration_since(last_time);
+                let is_completed = completed_size >= total_size;
+
+                if size_delta >= 1024 * 1024 || time_delta >= std::time::Duration::from_secs(1) || is_completed {
+                    throttle.insert(gid.to_string(), (completed_size, now));
+                    true
+                } else {
+                    false
+                }
+            } else {
+                throttle.insert(gid.to_string(), (completed_size, std::time::Instant::now()));
+                true
+            }
+        };
+
+        if should_update {
+            if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+                task.completed_size = completed_size;
+                task.total_size = total_size;
+                task.dirty = true;
+            }
+        }
     }
 
     pub fn validate_completed_task_file(&self, gid: &str) -> Result<(), String> {
@@ -719,6 +918,7 @@ impl super::AppState {
                 t.status = "Failed".to_string();
                 t.completed_at = Some(Utc::now().timestamp());
                 t.error_message = Some(err_msg.clone());
+                t.dirty = true;
             }
             let _ = self
                 .db
@@ -733,6 +933,7 @@ impl super::AppState {
         if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
             t.completed_size = task.total_size;
             t.total_size = task.total_size;
+            t.dirty = true;
         }
         let _ = self
             .db

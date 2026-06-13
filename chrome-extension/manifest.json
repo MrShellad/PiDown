@@ -9,16 +9,35 @@
     "cookies",
     "downloads",
     "notifications",
-    "storage"
+    "storage",
+    "webRequest",
+    "scripting",
+    "declarativeNetRequest"
   ],
   "host_permissions": [
-    "http://127.0.0.1/*",
-    "http://localhost/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "src/background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://x.com/*",
+        "https://twitter.com/*",
+        "https://*.tiktok.com/*"
+      ],
+      "js": [
+        "assets/hls.min.js",
+        "src/content-styles.js",
+        "src/content-utils.js",
+        "src/content.js"
+      ],
+      "run_at": "document_end",
+      "all_frames": true
+    }
+  ],
   "action": {
     "default_title": "PiDownloader",
     "default_popup": "src/popup.html",

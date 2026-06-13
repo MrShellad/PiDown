@@ -2632,7 +2632,7 @@ export default function SettingsWindow() {
                 placeholder={UI_TEXT.settings.associatedFileFormatsPlaceholder}
                 className="w-full bg-card border-border/80 focus:border-primary/50"
               />
-              <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+              <p className="text-xs text-muted-foreground/80 leading-relaxed">
                 {UI_TEXT.settings.associatedFileFormatsDesc}
               </p>
             </div>
@@ -2652,7 +2652,7 @@ export default function SettingsWindow() {
                   {selectedIconData ? selectedIconData.fileName : UI_TEXT.settings.selectIconFile}
                 </span>
               </button>
-              <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+              <p className="text-xs text-muted-foreground/80 leading-relaxed">
                 {UI_TEXT.settings.iconFileRequirement}
               </p>
             </div>

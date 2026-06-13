@@ -49,7 +49,14 @@ impl super::AppState {
     pub fn update_task_category(&self, gid: &str, category_id: Option<i64>) -> Result<(), String> {
         self.db
             .update_task_category(gid, category_id)
-            .map_err(|e| e.to_string())
+            .map_err(|e| e.to_string())?;
+
+        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+            task.category_id = category_id;
+            task.dirty = true;
+        }
+
+        Ok(())
     }
 
     pub fn add_task_tag(&self, gid: &str, tag_id: i64) -> Result<(), String> {

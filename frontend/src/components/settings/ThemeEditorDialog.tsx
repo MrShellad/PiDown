@@ -127,7 +127,7 @@ const ColorPickerRow = ({
     <div className="flex items-center justify-between border-b border-border/40 py-2.5">
       <div className="space-y-0.5">
         <span className="text-sm font-medium text-foreground">{label}</span>
-        <code className="block text-[11px] text-muted-foreground">{varName}</code>
+        <code className="block text-xs text-muted-foreground">{varName}</code>
       </div>
       <div className="flex items-center gap-2">
         <input

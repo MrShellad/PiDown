@@ -512,7 +512,7 @@ export function NewTaskBtForm({
               ? "text-destructive font-semibold animate-pulse"
               : "text-muted-foreground/60"
           )}>
-            {UI_TEXT.newTask.freeSpace.replace("{{size}}", freeSpaceText)} {isDiskSpaceWarning && UI_TEXT.newTask.diskSpaceWarning}
+            {UI_TEXT.newTask.freeSpace.replace("{{size}}", freeSpaceText || "")} {isDiskSpaceWarning && UI_TEXT.newTask.diskSpaceWarning}
           </span>
         </div>
         <div className="relative">

@@ -1,13 +1,14 @@
 const DEFAULT_OPTIONS = {
-  enabled: false,
+  enabled: true,
   fallbackToBrowserDownload: true,
-  pauseDuringHandoff: false,
+  pauseDuringHandoff: true,
   eraseCancelledDownload: true,
   showNotifications: true,
   captureIncognito: false,
   minBytes: 0,
-  allowExtensions: "",
-  blockExtensions: "",
+  allowExtensions: "zip, rar, 7z, mp4, mkv, mp3, exe, msi, pdf, dmg, iso, img, apk",
+  blockExtensions: "crdownload, tmp",
+  bypassDomains: "drive.google.com, docs.google.com, googleusercontent.com",
   serverPort: 18388,
   serverToken: "",
   contextMenuEnabled: true,
@@ -27,6 +28,7 @@ const form = document.querySelector("#options-form");
 const statusEl = document.querySelector("#status");
 const resetButton = document.querySelector("#reset");
 const testButton = document.querySelector("#test-connection");
+const pairButton = document.querySelector("#pair-client");
 const themeBtn = document.querySelector("#themeToggle");
 const connectionStatus = document.querySelector("#connection-status");
 const largeFileToggle = document.querySelector("#largeFileToggle");
@@ -53,7 +55,7 @@ async function init() {
   // Initialize options
   const options = await chrome.storage.sync.get(DEFAULT_OPTIONS);
   writeForm(options);
-  
+
   // Initialize theme
   initTheme();
 
@@ -88,7 +90,7 @@ testButton.addEventListener("click", async () => {
   testButton.disabled = true;
   connectionStatus.textContent = "● 正在测试...";
   connectionStatus.className = "badge";
-  
+
   // Save first to ensure the port/token are tested correctly
   const options = readForm();
   await chrome.storage.sync.set(options);
@@ -122,6 +124,39 @@ testButton.addEventListener("click", async () => {
     }
   } finally {
     testButton.disabled = false;
+  }
+});
+
+pairButton.addEventListener("click", async () => {
+  pairButton.disabled = true;
+  const originalText = pairButton.textContent;
+  pairButton.textContent = "配对中...";
+
+  // Save the current form settings first (e.g. port) so background script can communicate using the updated port.
+  const options = readForm();
+  await chrome.storage.sync.set(options);
+
+  try {
+    const response = await chrome.runtime.sendMessage({
+      type: "pidownloader:request-pairing",
+    });
+
+    if (response?.ok && response?.token) {
+      serverTokenInput.value = response.token;
+      // Save settings again to persist the new token
+      const nextOptions = readForm();
+      await chrome.storage.sync.set(nextOptions);
+      showStatus("配对成功，已自动保存 Token", "success");
+      updateConnectionStatus();
+    } else {
+      const errorMsg = response?.error || "配对失败";
+      showStatus(`配对失败：${errorMsg}`, "error");
+    }
+  } catch (error) {
+    showStatus(`通信异常：${error instanceof Error ? error.message : String(error)}`, "error");
+  } finally {
+    pairButton.disabled = false;
+    pairButton.textContent = originalText;
   }
 });
 
@@ -169,8 +204,8 @@ function writeForm(options) {
     }
   }
 
-  // Extensions
-  for (const field of ["allowExtensions", "blockExtensions"]) {
+  // Extensions & Bypassed Domains
+  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       input.value = options[field] || "";
@@ -196,7 +231,7 @@ function writeForm(options) {
 
 function readForm() {
   const options = {};
-  
+
   // Simple checkboxes
   for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled"]) {
     const input = document.querySelector(`#${field}`);
@@ -205,8 +240,8 @@ function readForm() {
     }
   }
 
-  // Extensions
-  for (const field of ["allowExtensions", "blockExtensions"]) {
+  // Extensions & Bypassed Domains
+  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       options[field] = input.value;
@@ -274,7 +309,7 @@ function appendPresetValues(fieldId, values) {
 
 function parseCsv(value) {
   return String(value || "")
-    .split(",")
+    .split(/[,，]/)
     .map((item) => normalizeExtension(item))
     .filter(Boolean);
 }
@@ -287,7 +322,7 @@ function showStatus(message, kind) {
   statusEl.textContent = message;
   statusEl.dataset.kind = kind;
   statusEl.style.color = kind === "success" ? "var(--success)" : "var(--danger)";
-  
+
   window.setTimeout(() => {
     statusEl.textContent = "";
     delete statusEl.dataset.kind;
@@ -298,7 +333,7 @@ function showStatus(message, kind) {
 function initTheme() {
   const root = document.documentElement;
   const storedTheme = localStorage.getItem("options_theme") || "auto";
-  
+
   if (storedTheme === "auto") {
     applySystemTheme();
   } else {

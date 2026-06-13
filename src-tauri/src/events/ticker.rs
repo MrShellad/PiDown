@@ -58,7 +58,7 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
             }
 
             let active_downloads = state.engine.active();
-            let active_count = active_downloads.len();
+            let mut active_count = active_downloads.len();
             let speed_display_unit = state.get_settings().transfer.speed_display_unit;
 
             let mut tasks = Vec::new();
@@ -147,6 +147,61 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                     },
                 });
             }
+
+            // Fetch active HLS tasks from task cache
+            let hls_tasks: Vec<crate::core::models::DbTask> = state
+                .task_cache
+                .read()
+                .unwrap()
+                .values()
+                .filter(|t| t.protocol == "hls" && t.status == "Downloading")
+                .cloned()
+                .collect();
+
+            active_count += hls_tasks.len();
+
+            for task in hls_tasks {
+                let gid = task.id.clone();
+                active_gids.insert(gid.clone());
+
+                let completed_size = task.completed_size;
+                let total_size = task.total_size;
+                let hls_speed = state
+                    .hls_speeds
+                    .lock()
+                    .unwrap()
+                    .get(&gid)
+                    .copied()
+                    .unwrap_or(0);
+
+                total_download_speed += hls_speed;
+                let eta_seconds = if hls_speed > 0 && total_size > completed_size {
+                    Some((total_size - completed_size) / hls_speed)
+                } else {
+                    None
+                };
+
+                let progress = if total_size > 0 {
+                    (completed_size as f64 / total_size as f64) * 100.0
+                } else {
+                    0.0
+                };
+
+                tasks.push(TaskProgressPayload {
+                    gid,
+                    speed: format_speed(hls_speed, &speed_display_unit),
+                    progress,
+                    eta: format_eta(eta_seconds),
+                    downloaded_bytes: completed_size,
+                    total_bytes: total_size,
+                    connections: 5, // Concurrent connections count limit
+                    speed_bps: hls_speed,
+                    eta_seconds,
+                    upload_speed: "0 B/s".to_string(),
+                    status: "Downloading".to_string(),
+                });
+            }
+
             speed_samples.retain(|gid, _| active_gids.contains(gid));
 
             let payload = DownloadSpeedPayload {

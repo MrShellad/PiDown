@@ -28,6 +28,9 @@ pub struct AppState {
     pub(crate) progress_throttle: Mutex<HashMap<String, (u64, Instant)>>,
     pub(crate) task_cache: RwLock<HashMap<String, DbTask>>,
     pub(crate) config_mutex: tokio::sync::Mutex<()>,
+    pub(crate) hls_cancel_tokens: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
+    pub(crate) hls_speeds: Mutex<HashMap<String, u64>>,
+    pub(crate) app_handle: Mutex<Option<tauri::AppHandle>>,
 }
 
 impl AppState {
@@ -71,6 +74,9 @@ impl AppState {
             progress_throttle: Mutex::new(HashMap::new()),
             task_cache: RwLock::new(cache),
             config_mutex: tokio::sync::Mutex::new(()),
+            hls_cancel_tokens: Mutex::new(HashMap::new()),
+            hls_speeds: Mutex::new(HashMap::new()),
+            app_handle: Mutex::new(None),
         });
 
         state.persist_settings()?;
@@ -85,22 +91,29 @@ impl AppState {
             let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
             loop {
                 interval.tick().await;
-                let tasks: Vec<DbTask> = state_clone
-                    .task_cache
-                    .read()
-                    .unwrap()
-                    .values()
-                    .cloned()
-                    .collect();
-                let state_inner = Arc::clone(&state_clone);
-                let res = tokio::task::spawn_blocking(move || {
-                    state_inner.db.save_tasks_checkpoint(&tasks)
-                })
-                .await;
-                if let Err(e) = res {
-                    log::error!("Database checkpoint task panicked: {:?}", e);
-                } else if let Ok(Err(e)) = res {
-                    log::error!("Database checkpoint failed: {:?}", e);
+                let tasks: Vec<DbTask> = {
+                    let mut cache = state_clone.task_cache.write().unwrap();
+                    let mut dirty_tasks = Vec::new();
+                    for task in cache.values_mut() {
+                        if task.dirty {
+                            task.dirty = false;
+                            dirty_tasks.push(task.clone());
+                        }
+                    }
+                    dirty_tasks
+                };
+
+                if !tasks.is_empty() {
+                    let state_inner = Arc::clone(&state_clone);
+                    let res = tokio::task::spawn_blocking(move || {
+                        state_inner.db.save_tasks_checkpoint(&tasks)
+                    })
+                    .await;
+                    if let Err(e) = res {
+                        log::error!("Database checkpoint task panicked: {:?}", e);
+                    } else if let Ok(Err(e)) = res {
+                        log::error!("Database checkpoint failed: {:?}", e);
+                    }
                 }
             }
         });

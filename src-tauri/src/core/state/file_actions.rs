@@ -19,6 +19,11 @@ pub fn cleanup_task_files(task: &DbTask) {
     let file_path = task_file_path(task);
     let _ = std::fs::remove_file(&file_path);
     let _ = std::fs::remove_file(partial_path_for(&file_path));
+
+    let hls_tmp_path = std::path::PathBuf::from(format!("{}.pidown_tmp", file_path.to_string_lossy()));
+    if hls_tmp_path.exists() {
+        let _ = std::fs::remove_dir_all(&hls_tmp_path);
+    }
 }
 
 fn open_path(path: &Path) -> Result<(), String> {

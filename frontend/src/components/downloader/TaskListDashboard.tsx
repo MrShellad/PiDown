@@ -642,14 +642,18 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                   x: isExiting ? 16 : 0,
                                   scale: isExiting ? 0.985 : 1,
                                 }}
-                                exit={{
-                                  opacity: 0,
-                                  height: 0,
-                                  marginTop: 0,
-                                  marginBottom: 0,
-                                  scale: 0.985,
-                                  x: 16,
-                                }}
+                                exit={
+                                  isExiting
+                                    ? {
+                                        opacity: 0,
+                                        height: 0,
+                                        marginTop: 0,
+                                        marginBottom: 0,
+                                        scale: 0.985,
+                                        x: 16,
+                                      }
+                                    : undefined
+                                }
                                 transition={{
                                   opacity: { duration: 0.16, ease: "easeOut" },
                                   x: { duration: 0.18, ease: "easeOut" },

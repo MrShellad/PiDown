@@ -38,6 +38,7 @@
 
           <div class="button-group">
             <button class="btn btn-primary" type="button" id="test-connection">测试连接</button>
+            <button class="btn btn-secondary" type="button" id="pair-client">一键配对</button>
             <button class="btn btn-secondary" type="button" id="reset">恢复默认</button>
           </div>
         </div>
@@ -155,6 +156,11 @@
               <div class="preset-chips" data-preset-container="blockExtensions"></div>
             </div>
           </div>
+
+          <div class="field">
+            <label>排除这些域名/主机 (不进行接管)</label>
+            <input id="bypassDomains" type="text" placeholder="例如: drive.google.com, googleusercontent.com" />
+          </div>
         </div>
 
         <!-- Card 4: 关于与保存 -->
@@ -172,23 +178,23 @@
             </label>
           </div>
 
-          <div class="version" style="margin-top: 14px;">
+          <div class="version version-first">
             Extension Version: <span id="ext-version">0.1.0</span>
           </div>
 
-          <div class="version" style="margin-top: 6px;">
+          <div class="version version-next">
             Client Version: <span id="client-version">0.1.0</span>
           </div>
 
-          <div class="button-group" style="margin-top: 22px;">
+          <div class="button-group control-group">
             <button class="btn btn-secondary" type="button" id="open-client">打开客户端</button>
             <button class="btn btn-secondary" type="button" id="official-site">官方网站</button>
-            <button class="btn btn-primary" type="submit" style="margin-left: auto;">保存设置</button>
+            <button class="btn btn-primary btn-save" type="submit">保存设置</button>
           </div>
         </div>
       </form>
 
-      <p id="status" class="status" role="status" style="text-align: center; margin-top: 18px; min-height: 24px; font-weight: 600;"></p>
+      <p id="status" class="status" role="status"></p>
     </div>
 
     <script type="module" src="./options.js"></script>

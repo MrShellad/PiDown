@@ -179,6 +179,7 @@ pub async fn update_task_trackers(
         let mut cache = state.task_cache.write().unwrap();
         if let Some(t) = cache.get_mut(&gid) {
             t.url = new_url.clone();
+            t.dirty = true;
         }
     }
 
@@ -219,6 +220,7 @@ pub async fn update_task_trackers(
                 let mut cache = state.task_cache.write().unwrap();
                 if let Some(t) = cache.get_mut(&gid) {
                     t.engine_id = Some(new_engine_id);
+                    t.dirty = true;
                 }
             }
 

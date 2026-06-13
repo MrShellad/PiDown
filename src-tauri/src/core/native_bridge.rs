@@ -12,7 +12,7 @@ const HEADER_LIMIT_BYTES: usize = 16 * 1024;
 
 #[derive(Debug, Deserialize)]
 struct BridgeHttpRequest {
-    token: String,
+    token: Option<String>,
     #[serde(flatten)]
     message: NativeRequest,
 }
@@ -24,6 +24,11 @@ enum NativeRequest {
     Ping {},
     #[serde(rename = "create_task")]
     CreateTask { download: NativeDownload },
+    #[serde(rename = "request_pairing")]
+    RequestPairing {
+        #[serde(rename = "deviceName")]
+        device_name: Option<String>,
+    },
 }
 
 #[derive(Debug, Deserialize)]
@@ -45,6 +50,8 @@ struct NativeResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     gid: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<String>,
 }
 
@@ -53,6 +60,7 @@ impl NativeResponse {
         Self {
             ok: true,
             gid: None,
+            token: None,
             error: None,
         }
     }
@@ -61,6 +69,7 @@ impl NativeResponse {
         Self {
             ok: false,
             gid: None,
+            token: None,
             error: Some(error.into()),
         }
     }
@@ -96,7 +105,12 @@ pub fn start_native_bridge_server(
         .spawn(move || {
             for stream in listener.incoming() {
                 match stream {
-                    Ok(stream) => handle_bridge_stream(stream, app_handle.clone()),
+                    Ok(stream) => {
+                        let app_handle_clone = app_handle.clone();
+                        tauri::async_runtime::spawn_blocking(move || {
+                            handle_bridge_stream(stream, app_handle_clone);
+                        });
+                    }
                     Err(error) => log::warn!("Native bridge connection failed: {error}"),
                 }
             }
@@ -141,10 +155,14 @@ fn handle_bridge_body(
         return NativeResponse::error("PiDownloader state is unavailable");
     };
 
-    let expected_token = state.get_settings().download.browser_extension_token.clone();
+    let is_pairing_request = matches!(request.message, NativeRequest::RequestPairing { .. });
 
-    if request.token != expected_token {
-        return NativeResponse::error("Native bridge token mismatch");
+    if !is_pairing_request {
+        let expected_token = state.get_settings().download.browser_extension_token.clone();
+        let request_token = request.token.unwrap_or_default();
+        if request_token != expected_token {
+            return NativeResponse::error("Native bridge token mismatch");
+        }
     }
 
     handle_native_request(app_handle, request.message)
@@ -190,6 +208,42 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
                     log::error!("Failed to emit external-download-request: {}", error);
                     NativeResponse::error(format!("Failed to emit download request event: {error}"))
                 }
+            }
+        }
+        NativeRequest::RequestPairing { device_name } => {
+            let Some(state) = app_handle.try_state::<Arc<AppState>>() else {
+                return NativeResponse::error("PiDownloader state is unavailable");
+            };
+
+            if !state.get_settings().download.browser_extension_integration_enabled {
+                return NativeResponse::error("Browser extension integration is disabled");
+            }
+
+            let device = device_name.unwrap_or_else(|| "浏览器扩展".to_string());
+            let title = "PiDownloader 浏览器扩展配对";
+            let description = format!(
+                "检测到本地设备正在尝试连接桌面客户端：\n设备名称：{}\n\n是否允许该设备获取连接 Token 并管理下载任务？",
+                device
+            );
+
+            // Pop up OS native confirmation dialog
+            let result = rfd::MessageDialog::new()
+                .set_title(title)
+                .set_description(description)
+                .set_buttons(rfd::MessageButtons::YesNo)
+                .set_level(rfd::MessageLevel::Info)
+                .show();
+
+            if result == rfd::MessageDialogResult::Yes {
+                let token = state.get_settings().download.browser_extension_token.clone();
+                NativeResponse {
+                    ok: true,
+                    gid: None,
+                    token: Some(token),
+                    error: None,
+                }
+            } else {
+                NativeResponse::error("用户拒绝了配对请求")
             }
         }
     }

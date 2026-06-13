@@ -1,5 +1,4 @@
 import type { ReactNode } from "react"
-import { motion } from "motion/react"
 import { Cookie, Cpu, ExternalLink, Gauge, UserRound, Fingerprint, HardDrive } from "lucide-react"
 
 import { SegmentedControl } from "@/components/common"

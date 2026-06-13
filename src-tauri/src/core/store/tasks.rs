@@ -142,6 +142,7 @@ impl super::DbStore {
                 error_message: row.get(13)?,
                 max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
                 max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
+                dirty: false,
             }))
         } else {
             Ok(None)
@@ -178,6 +179,7 @@ impl super::DbStore {
                 error_message: row.get(13)?,
                 max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
                 max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
+                dirty: false,
             }))
         } else {
             Ok(None)
@@ -209,6 +211,7 @@ impl super::DbStore {
                 error_message: row.get(13)?,
                 max_download_speed_kib: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
                 max_upload_speed_kib: row.get::<_, Option<i64>>(15)?.map(|v| v as u64),
+                dirty: false,
             })
         })?;
 
@@ -275,6 +278,19 @@ impl super::DbStore {
         conn.execute(
             "UPDATE tasks SET url = ?1 WHERE id = ?2",
             params![url, id],
+        )?;
+        Ok(())
+    }
+
+    pub fn update_task_name(
+        &self,
+        id: &str,
+        name: &str,
+    ) -> Result<(), rusqlite::Error> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "UPDATE tasks SET name = ?1 WHERE id = ?2",
+            params![name, id],
         )?;
         Ok(())
     }
