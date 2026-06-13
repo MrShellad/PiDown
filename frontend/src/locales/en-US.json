@@ -93,6 +93,8 @@
     "languageSetting": "Interface Language",
     "languageSettingDesc": "Choose the display language for the app. When set to \"Auto\", it follows the system language preference.",
     "languageAuto": "Auto (System)",
+    "datetimeFormatSetting": "Date Time Format",
+    "datetimeFormatSettingDesc": "Choose the date and time format for the list. The year will only be displayed when crossing years.",
     "groupTheme": "Themes",
     "groupColorMode": "Color Mode",
     "groupTypography": "Fonts",

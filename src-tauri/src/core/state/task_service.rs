@@ -313,11 +313,25 @@ impl super::AppState {
             original_mode,
         };
 
-        let protocol = detect_protocol(url);
+        let mut final_url = url.to_string();
+        let mut final_cookies = normalize_cookies(task_options.cookies.clone());
         let settings = self.settings.read().unwrap().clone();
+        let user_agent = resolve_user_agent(
+            task_options.user_agent.clone(),
+            &settings.download.global_user_agent,
+        );
+
+        if parse_google_drive_file_id(&final_url).is_some() {
+            if let Ok((resolved_url, resolved_cookies)) = resolve_google_drive_link(&final_url, user_agent.as_deref(), &final_cookies).await {
+                final_url = resolved_url;
+                final_cookies = resolved_cookies;
+            }
+        }
+
+        let protocol = detect_protocol(&final_url);
 
         let is_hls = {
-            let url_lower = url.to_lowercase();
+            let url_lower = final_url.to_lowercase();
             if let Some(path_part) = url_lower.split('?').next() {
                 path_part.ends_with(".m3u8")
             } else {
@@ -325,7 +339,7 @@ impl super::AppState {
             }
         };
 
-        let inferred_name = url
+        let inferred_name = final_url
             .split('/')
             .last()
             .unwrap_or("download")
@@ -348,7 +362,7 @@ impl super::AppState {
         }
 
         let preview = self.preview_task_classification(
-            url,
+            &final_url,
             &name,
             total_size,
             category_id_override,
@@ -381,7 +395,7 @@ impl super::AppState {
 
                     self.engine
                         .add_http(
-                            url,
+                            &final_url,
                             Path::new(&save_dir),
                             Some(name.clone()),
                             HttpTaskOptions {
@@ -389,12 +403,9 @@ impl super::AppState {
                                 max_download_speed: speed_limit_kib_to_bps(
                                     task_options.max_download_speed_kib,
                                 ),
-                                user_agent: resolve_user_agent(
-                                    task_options.user_agent.clone(),
-                                    &settings.download.global_user_agent,
-                                ),
+                                user_agent,
                                 referer: normalize_optional_header_value(task_options.referer.clone()),
-                                cookies: normalize_cookies(task_options.cookies.clone()),
+                                cookies: final_cookies.clone(),
                             },
                         )
                         .await?
@@ -1030,5 +1041,194 @@ impl super::AppState {
         tasks.sort_by(|a, b| b.created_at.cmp(&a.created_at));
 
         Ok(tasks)
+    }
+}
+
+fn parse_google_drive_file_id(url: &str) -> Option<String> {
+    if !url.contains("drive.google.com") {
+        return None;
+    }
+    // Handle /file/d/FILE_ID/...
+    if let Some(pos) = url.find("/file/d/") {
+        let start = pos + 8;
+        let sub = &url[start..];
+        let end = sub.find('/').unwrap_or(sub.find('?').unwrap_or(sub.len()));
+        let id = &sub[..end];
+        if !id.is_empty() {
+            return Some(id.to_string());
+        }
+    }
+    // Handle id=FILE_ID
+    if let Some(pos) = url.find("id=") {
+        let start = pos + 3;
+        let sub = &url[start..];
+        let end = sub.find('&').unwrap_or(sub.len());
+        let id = &sub[..end];
+        if !id.is_empty() {
+            return Some(id.to_string());
+        }
+    }
+    None
+}
+
+fn extract_confirm_token_from_cookies(cookies: &[String]) -> Option<String> {
+    for cookie in cookies {
+        if cookie.contains("download_warning") {
+            if let Some(pos) = cookie.find('=') {
+                let token = cookie[pos + 1..].trim();
+                if !token.is_empty() {
+                    return Some(token.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn extract_confirm_token_from_html(html: &str) -> Option<String> {
+    if let Some(pos) = html.find("confirm=") {
+        let sub = &html[pos + 8..];
+        let end = sub.chars().position(|c| c == '&' || c == '"' || c == '\'' || c.is_whitespace()).unwrap_or(sub.len());
+        let token = &sub[..end];
+        if !token.is_empty() {
+            return Some(token.to_string());
+        }
+    }
+    None
+}
+
+async fn resolve_google_drive_link(
+    url: &str,
+    user_agent: Option<&str>,
+    initial_cookies: &[String],
+) -> Result<(String, Vec<String>), String> {
+    let Some(file_id) = parse_google_drive_file_id(url) else {
+        return Ok((url.to_string(), initial_cookies.to_vec()));
+    };
+
+    let client = reqwest::Client::builder()
+        .user_agent(user_agent.unwrap_or("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"))
+        .build()
+        .map_err(|e| format!("Failed to build reqwest client: {}", e))?;
+
+    let mut cookies = initial_cookies.to_vec();
+    let initial_url = format!("https://drive.google.com/uc?export=download&id={}", file_id);
+
+    // Request 1: Try to get the page or the direct file download
+    let mut req1 = client.get(&initial_url);
+    if !cookies.is_empty() {
+        req1 = req1.header(reqwest::header::COOKIE, cookies.join("; "));
+    }
+    let res1 = req1.send().await.map_err(|e| format!("Request 1 failed: {}", e))?;
+
+    // Capture cookies set by Google Drive
+    for set_cookie in res1.headers().get_all(reqwest::header::SET_COOKIE) {
+        if let Ok(cookie_str) = set_cookie.to_str() {
+            if let Some(pos) = cookie_str.find(';') {
+                cookies.push(cookie_str[..pos].to_string());
+            } else {
+                cookies.push(cookie_str.to_string());
+            }
+        }
+    }
+
+    let final_url = res1.url().as_str().to_string();
+
+    // If we've been redirected to a direct link on googleusercontent.com, we are done!
+    if final_url.contains("googleusercontent.com") {
+        return Ok((final_url, cookies));
+    }
+
+    // Otherwise, check if we received the warning page HTML
+    let html = res1.text().await.map_err(|e| format!("Failed to read response 1 body: {}", e))?;
+
+    // Try to extract confirm token
+    let confirm_token = if let Some(token) = extract_confirm_token_from_cookies(&cookies) {
+        Some(token)
+    } else {
+        extract_confirm_token_from_html(&html)
+    };
+
+    let Some(token) = confirm_token else {
+        // If we can't find a token, we fallback to the original URL or final_url
+        return Ok((final_url, cookies));
+    };
+
+    // Request 2: Follow the confirm link to get the final redirected direct URL
+    let confirm_url = format!(
+        "https://drive.google.com/uc?export=download&confirm={}&id={}",
+        token, file_id
+    );
+
+    let mut req2 = client.get(&confirm_url);
+    if !cookies.is_empty() {
+        req2 = req2.header(reqwest::header::COOKIE, cookies.join("; "));
+    }
+    let res2 = req2.send().await.map_err(|e| format!("Request 2 failed: {}", e))?;
+
+    // Capture cookies set by Request 2
+    for set_cookie in res2.headers().get_all(reqwest::header::SET_COOKIE) {
+        if let Ok(cookie_str) = set_cookie.to_str() {
+            if let Some(pos) = cookie_str.find(';') {
+                cookies.push(cookie_str[..pos].to_string());
+            } else {
+                cookies.push(cookie_str.to_string());
+            }
+        }
+    }
+
+    let direct_url = res2.url().as_str().to_string();
+    Ok((direct_url, cookies))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_google_drive_file_id() {
+        assert_eq!(
+            parse_google_drive_file_id("https://drive.google.com/file/d/1aBcDeFgHiJk/view?usp=sharing"),
+            Some("1aBcDeFgHiJk".to_string())
+        );
+        assert_eq!(
+            parse_google_drive_file_id("https://drive.google.com/uc?export=download&id=2xYz-123_abc"),
+            Some("2xYz-123_abc".to_string())
+        );
+        assert_eq!(
+            parse_google_drive_file_id("http://drive.google.com/open?id=test_id"),
+            Some("test_id".to_string())
+        );
+        assert_eq!(
+            parse_google_drive_file_id("https://example.com/file.zip"),
+            None
+        );
+    }
+
+    #[test]
+    fn test_extract_confirm_token_from_cookies() {
+        let cookies = vec![
+            "session=abc".to_string(),
+            "download_warning_123=TOKEN_VAL".to_string(),
+        ];
+        assert_eq!(
+            extract_confirm_token_from_cookies(&cookies),
+            Some("TOKEN_VAL".to_string())
+        );
+
+        let no_warn = vec!["session=abc".to_string()];
+        assert_eq!(extract_confirm_token_from_cookies(&no_warn), None);
+    }
+
+    #[test]
+    fn test_extract_confirm_token_from_html() {
+        let html = r#"<a href="/uc?export=download&amp;confirm=TOKEN_FROM_HTML&amp;id=123">Download anyway</a>"#;
+        assert_eq!(
+            extract_confirm_token_from_html(html),
+            Some("TOKEN_FROM_HTML".to_string())
+        );
+
+        let no_token = "<html><body>No token here</body></html>";
+        assert_eq!(extract_confirm_token_from_html(no_token), None);
     }
 }

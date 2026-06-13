@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { AnimatePresence, motion } from "motion/react"
 import {
   Copy,
@@ -22,11 +22,14 @@ import {
   type BtTaskDetails,
 } from "@/core/bridge/tauri-commands"
 import { UI_TEXT } from "@/core/locale"
+import { formatDateTime } from "@/core/datetime"
+import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
 import type { Category, Task } from "@/core/store/useDownloadStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
 import { useToastStore } from "@/core/store/useToastStore"
 import { cn } from "@/lib/utils"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import TaskRestartConfirmDialog from "./TaskRestartConfirmDialog"
 
 interface TaskDetailsDrawerProps {
   open: boolean
@@ -37,25 +40,16 @@ interface TaskDetailsDrawerProps {
   onDeleteClick?: (gid: string) => void
 }
 
-function formatCreatedAt(timestamp?: number) {
-  if (!timestamp) return "--"
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  }).format(new Date(timestamp * 1000))
+function formatCreatedAt(timestamp?: number, formatPattern?: string) {
+  return formatDateTime(timestamp, formatPattern || "YYYY-MM-DD HH:mm:ss")
 }
 
-function formatUpdatedAt(task: Task) {
+function formatUpdatedAt(task: Task, formatPattern?: string) {
   if (task.status === "Downloading") {
-    return formatCreatedAt(Math.floor(Date.now() / 1000));
+    return formatCreatedAt(Math.floor(Date.now() / 1000), formatPattern);
   }
   const ts = task.completedAt || task.startedAt || task.createdAt;
-  return formatCreatedAt(ts ?? undefined);
+  return formatCreatedAt(ts ?? undefined, formatPattern);
 }
 
 function formatBytes(bytes: number | null | undefined) {
@@ -113,6 +107,32 @@ export default function TaskDetailsDrawer({
   onDeleteClick,
 }: TaskDetailsDrawerProps) {
   const [activeTab, setActiveTab] = useState(0)
+  const datetimeFormat = useAppSettingsStore((state) => state.settings?.interface?.datetime_format)
+  const drawerRef = useRef<HTMLElement | null>(null)
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleOutsideClick = (event: MouseEvent) => {
+      if (!drawerRef.current) return
+      if (drawerRef.current.contains(event.target as Node)) return
+
+      const target = event.target as HTMLElement
+      if (
+        target.closest('[data-slot="task-table-row"]') ||
+        target.closest('[data-slot="task-list-header-cell"]')
+      ) {
+        return
+      }
+
+      onOpenChange(false)
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick)
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick)
+    }
+  }, [open, onOpenChange])
 
   const tags = task?.tags ?? []
   
@@ -129,6 +149,7 @@ export default function TaskDetailsDrawer({
   const [btDetails, setBtDetails] = useState<BtTaskDetails | null>(null)
   const [isEditingTrackers, setIsEditingTrackers] = useState(false)
   const [editedTrackers, setEditedTrackers] = useState("")
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false)
 
   const fetchBtDetails = async () => {
     if (!task) return
@@ -213,17 +234,9 @@ export default function TaskDetailsDrawer({
       <AnimatePresence>
         {open && task ? (
           <>
-            {/* Background Overlay */}
-            <motion.div
-              className="fixed inset-0 z-[110] bg-black/40 backdrop-blur-[1px]"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => onOpenChange(false)}
-            />
-
             {/* Sidebar Container */}
             <motion.aside
+              ref={drawerRef}
               id="task-details-sheet"
               className="fixed right-0 z-[120] w-[500px] sm:w-[560px] border-l border-border bg-popover/95 backdrop-blur-md text-popover-foreground shadow-2xl flex flex-col subpixel-antialiased"
               style={{
@@ -360,12 +373,12 @@ export default function TaskDetailsDrawer({
 
                       {/* 5. 创建时间 */}
                       <InfoRow label="创建时间">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatCreatedAt(task.createdAt)}</span>
+                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
                       </InfoRow>
 
                       {/* 6. 更新时间 */}
                       <InfoRow label="更新时间">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatUpdatedAt(task)}</span>
+                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatUpdatedAt(task, datetimeFormat)}</span>
                       </InfoRow>
 
                       {/* 7. 保存目录 */}
@@ -731,7 +744,7 @@ export default function TaskDetailsDrawer({
                       </InfoRow>
 
                       <InfoRow label="创建日期">
-                        <span className="tabular-nums text-foreground/90 font-medium">{formatCreatedAt(task.createdAt)}</span>
+                        <span className="tabular-nums text-foreground/90 font-medium">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
                       </InfoRow>
                     </div>
                   )}
@@ -757,7 +770,7 @@ export default function TaskDetailsDrawer({
                       <Button
                         variant="outline"
                         className="flex items-center gap-1.5 h-9 px-3 text-xs font-semibold"
-                        onClick={() => restartTask(task.gid)}
+                        onClick={() => setRestartConfirmOpen(true)}
                       >
                         <RefreshCw className="size-4 shrink-0" />
                         <span>重新开始</span>
@@ -801,6 +814,15 @@ export default function TaskDetailsDrawer({
           </>
         ) : null}
       </AnimatePresence>
+
+      <TaskRestartConfirmDialog
+        open={restartConfirmOpen}
+        taskName={task?.name}
+        onOpenChange={setRestartConfirmOpen}
+        onConfirm={() => {
+          if (task) restartTask(task.gid)
+        }}
+      />
     </>
   )
 }

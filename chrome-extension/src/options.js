@@ -8,7 +8,7 @@ const DEFAULT_OPTIONS = {
   minBytes: 0,
   allowExtensions: "zip, rar, 7z, mp4, mkv, mp3, exe, msi, pdf, dmg, iso, img, apk",
   blockExtensions: "crdownload, tmp",
-  bypassDomains: "drive.google.com, docs.google.com, googleusercontent.com",
+  bypassDomains: "docs.google.com",
   serverPort: 18388,
   serverToken: "",
   contextMenuEnabled: true,

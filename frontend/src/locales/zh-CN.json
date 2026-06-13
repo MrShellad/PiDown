@@ -93,6 +93,8 @@
     "languageSetting": "界面语言",
     "languageSettingDesc": "选择应用界面显示语言。设为「自动」时将跟随系统语言偏好。",
     "languageAuto": "自动（跟随系统）",
+    "datetimeFormatSetting": "日期时间格式",
+    "datetimeFormatSettingDesc": "选择列表中日期时间的显示格式。跨年份时才会显示年份。",
     "groupTheme": "主题",
     "groupColorMode": "色彩模式",
     "groupTypography": "字体",

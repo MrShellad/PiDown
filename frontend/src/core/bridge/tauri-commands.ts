@@ -169,6 +169,7 @@ export interface AppSettings {
     font_id: string;
     enable_notifications: boolean;
     language: string;
+    datetime_format: string;
   };
   bt: {
     enable_dht: boolean;
@@ -435,6 +436,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       font_id: "builtin:geist",
       enable_notifications: true,
       language: "auto",
+      datetime_format: "YYYY-MM-DD HH:mm:ss",
     },
     bt: {
       enable_dht: true,

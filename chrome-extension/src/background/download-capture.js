@@ -126,13 +126,11 @@ export function isDomainBypassed(urlStr, bypassDomainsStr) {
     const url = new URL(urlStr);
     const host = url.hostname.toLowerCase();
 
-    // Hardcoded safety bypass for Google Drive, Google Docs, Google User Content, and Google APIs
+    // Hardcoded safety bypass for Google Docs and Google APIs (Google Drive downloads are allowed)
     if (
-      host === 'drive.google.com' ||
       host === 'docs.google.com' ||
       host === 'googleapis.com' ||
       host === 'www.googleapis.com' ||
-      host.endsWith('.googleusercontent.com') ||
       host.endsWith('.googleapis.com')
     ) {
       return true;

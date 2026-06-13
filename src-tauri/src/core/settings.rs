@@ -6,8 +6,8 @@ pub const APP_SETTINGS_VERSION: u32 = 1;
 pub const LEGACY_APP_SETTINGS_KEY: &str = "app_settings_v1";
 pub const DEFAULT_TASK_THREAD_COUNT: u32 = 16;
 pub const MAX_TASK_THREAD_COUNT: u32 = 16;
-pub const DEFAULT_MAX_DOWNLOAD_RETRIES: u32 = 5;
-pub const MAX_DOWNLOAD_RETRIES: u32 = 20;
+pub const DEFAULT_MAX_DOWNLOAD_RETRIES: u32 = 10;
+pub const MAX_DOWNLOAD_RETRIES: u32 = 50;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -152,6 +152,7 @@ pub struct InterfaceSettings {
     pub font_id: String,
     pub enable_notifications: bool,
     pub language: String,
+    pub datetime_format: String,
 }
 
 impl Default for InterfaceSettings {
@@ -172,6 +173,7 @@ impl Default for InterfaceSettings {
             font_id: "builtin:geist".to_string(),
             enable_notifications: true,
             language: "auto".to_string(),
+            datetime_format: "YYYY-MM-DD HH:mm:ss".to_string(),
         }
     }
 }

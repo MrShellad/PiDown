@@ -1516,6 +1516,29 @@ export default function SettingsWindow() {
                           ariaLabel={UI_TEXT.settings.languageSetting}
                         />
                       </SettingsListItem>
+                      <SettingsListItem
+                        title={UI_TEXT.settings.datetimeFormatSetting}
+                        description={UI_TEXT.settings.datetimeFormatSettingDesc}
+                      >
+                        <OptionDropdown
+                          value={draft.interface.datetime_format ?? "YYYY-MM-DD HH:mm:ss"}
+                          options={[
+                            { value: "YYYY-MM-DD HH:mm:ss", label: "YYYY-MM-DD HH:mm:ss" },
+                            { value: "YYYY/MM/DD HH:mm:ss", label: "YYYY/MM/DD HH:mm:ss" },
+                            { value: "YYYY年MM月DD日 HH:mm:ss", label: "YYYY年MM月DD日 HH:mm:ss" },
+                          ]}
+                          onValueChange={(nextFormat) =>
+                            updateDraft((prev) => ({
+                              ...prev,
+                              interface: {
+                                ...prev.interface,
+                                datetime_format: nextFormat,
+                              },
+                            }))
+                          }
+                          ariaLabel={UI_TEXT.settings.datetimeFormatSetting}
+                        />
+                      </SettingsListItem>
                     </SettingsList>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">

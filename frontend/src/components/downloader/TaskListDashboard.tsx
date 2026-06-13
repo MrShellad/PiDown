@@ -152,6 +152,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   const [exitingTaskPositions, setExitingTaskPositions] = useState<Record<string, number>>({});
   const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(() => new Set());
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [activeDetailsGid, setActiveDetailsGid] = useState<string | null>(null);
   const rowViewportRef = useRef<HTMLDivElement | null>(null);
   const previousTasksRef = useRef<Record<string, Task>>({});
   const previousFilteredGidsRef = useRef<string[]>([]);
@@ -266,11 +267,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       : renderedGids.length * TASK_ROW_HEIGHT + Math.max(0, renderedGids.length - 1) * TASK_ROW_GAP;
   const virtualTopSpacer = visibleRange.startIndex * TASK_ROW_STRIDE;
   const primarySelectedGid = useMemo(() => {
+    if (activeDetailsGid && tasks[activeDetailsGid]) return activeDetailsGid;
     for (const gid of selectedTaskIds) {
       if (tasks[gid]) return gid;
     }
     return filteredGids.find((gid) => tasks[gid]) ?? null;
-  }, [filteredGids, selectedTaskIds, tasks]);
+  }, [filteredGids, selectedTaskIds, tasks, activeDetailsGid]);
   const detailsTask = primarySelectedGid ? tasks[primarySelectedGid] : null;
   const detailsCategory =
     detailsTask?.categoryId == null
@@ -440,12 +442,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   };
 
   const toggleTaskDetails = (gid: string) => {
-    if (detailsOpen && primarySelectedGid === gid) {
+    if (detailsOpen && activeDetailsGid === gid) {
       setDetailsOpen(false);
+      setActiveDetailsGid(null);
       return;
     }
 
-    selectSingleTask(gid);
+    setActiveDetailsGid(gid);
     setDetailsOpen(true);
   };
 
@@ -820,7 +823,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         task={detailsTask}
         category={detailsCategory}
         selectedTaskCount={selectedTaskCount}
-        onOpenChange={setDetailsOpen}
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+          if (!open) {
+            setActiveDetailsGid(null);
+          }
+        }}
         onDeleteClick={(gid) => {
           setSelectedTaskIds(new Set([gid]));
           setDeleteConfirmOpen(true);

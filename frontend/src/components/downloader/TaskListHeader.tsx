@@ -114,7 +114,8 @@ function HeaderCell({
       onDrop={(event) => onDrop(event, column.id)}
       onDragEnd={onDragEnd}
       className={cn(
-        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center justify-start px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors active:cursor-grabbing",
+        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors active:cursor-grabbing",
+        column.id === "name" ? "justify-start" : "justify-center",
         "hover:bg-muted/35 hover:text-foreground",
         isDragging && "bg-muted/50 opacity-70"
       )}

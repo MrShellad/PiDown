@@ -13,8 +13,10 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu"
 import { IconPreview } from "@/components/ui/icon-picker"
+import { formatDateTime } from "@/core/datetime"
 import { useTaskSpeed } from "@/core/hooks/useTaskSpeed"
 import { UI_TEXT } from "@/core/locale"
+import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
 import { useDownloadStore, type Category, type Task } from "@/core/store/useDownloadStore"
 import {
   type TaskTableColumnId,
@@ -24,6 +26,7 @@ import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTa
 import { cn } from "@/lib/utils"
 import TaskChecksumDialog from "./checksum/TaskChecksumDialog"
 import TaskDeleteConfirmDialog from "./TaskDeleteConfirmDialog"
+import TaskRestartConfirmDialog from "./TaskRestartConfirmDialog"
 
 interface TaskTableRowProps {
   gid: string
@@ -71,15 +74,8 @@ function PreparingStatus() {
   )
 }
 
-function formatCreatedAt(timestamp?: number) {
-  if (!timestamp) return "--"
-
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date(timestamp * 1000))
+function formatCreatedAt(timestamp?: number, formatPattern?: string) {
+  return formatDateTime(timestamp, formatPattern || "YYYY-MM-DD HH:mm:ss")
 }
 
 function TaskContextMenuTitle({ name }: { name: string }) {
@@ -214,6 +210,7 @@ function Cell({
   downloadedStr,
   totalStr,
   preparing,
+  datetimeFormat,
 }: {
   id: TaskTableColumnId
   task: Task
@@ -222,6 +219,7 @@ function Cell({
   downloadedStr: string
   totalStr: string
   preparing: boolean
+  datetimeFormat?: string
 }) {
   switch (id) {
     case "size":
@@ -293,7 +291,7 @@ function Cell({
     case "createdAt":
       return (
         <span className="truncate tabular-nums text-foreground/80 font-medium">
-          {formatCreatedAt(task.createdAt)}
+          {formatCreatedAt(task.createdAt, datetimeFormat)}
         </span>
       )
     case "tags":
@@ -317,6 +315,7 @@ const TaskTableRow = memo(function TaskTableRow({
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+  const [restartConfirmOpen, setRestartConfirmOpen] = useState(false)
   const storeTask = useDownloadStore((state) => state.tasks[gid])
   const categories = useDownloadStore((state) => state.categories)
   const toggleTask = useDownloadStore((state) => state.toggleTask)
@@ -327,6 +326,7 @@ const TaskTableRow = memo(function TaskTableRow({
   const columns = useTaskTableStore((state) => state.columns)
   const { speedStr, progress, etaStr, downloadedStr, totalStr } = useTaskSpeed(gid)
   const tableWidth = getTaskTableWidth(columns)
+  const datetimeFormat = useAppSettingsStore((state) => state.settings?.interface?.datetime_format)
 
   const task = storeTask ?? taskSnapshot
   if (!task) return null
@@ -361,7 +361,9 @@ const TaskTableRow = memo(function TaskTableRow({
           data-slot="task-table-row"
           role="row"
           aria-selected={selected}
-          onClick={() => onSelect?.(gid)}
+          onClick={() => {
+            onOpenDetails?.(gid)
+          }}
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
             "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
@@ -430,6 +432,10 @@ const TaskTableRow = memo(function TaskTableRow({
       <div
         className="relative z-10 flex min-h-17 shrink-0 items-center justify-center"
         style={{ width: TASK_TABLE_SELECT_COLUMN_WIDTH }}
+        onClick={(event) => {
+          event.stopPropagation()
+          onSelect?.(gid)
+        }}
       >
         <motion.div
           className="relative grid size-9 place-items-center"
@@ -462,7 +468,10 @@ const TaskTableRow = memo(function TaskTableRow({
           <div
             key={column.id}
             data-slot="task-table-cell"
-            className="relative flex min-h-17 shrink-0 items-center px-4"
+            className={cn(
+              "relative flex min-h-17 shrink-0 items-center px-4",
+              column.id === "name" ? "justify-start" : "justify-center"
+            )}
             style={{ flexBasis: column.width, width: column.width }}
           >
             {index > 0 ? (
@@ -487,6 +496,7 @@ const TaskTableRow = memo(function TaskTableRow({
                 downloadedStr={downloadedStr}
                 totalStr={totalStr}
                 preparing={isPreparing}
+                datetimeFormat={datetimeFormat}
               />
             )}
           </div>
@@ -533,7 +543,7 @@ const TaskTableRow = memo(function TaskTableRow({
             <span>删除</span>
             <ContextMenuShortcut>Delete</ContextMenuShortcut>
           </ContextMenuItem>
-          <ContextMenuItem onSelect={() => restartTask(gid)}>
+          <ContextMenuItem onSelect={() => setRestartConfirmOpen(true)}>
             <RefreshCw className="size-5" />
             <span>重新下载</span>
           </ContextMenuItem>
@@ -548,6 +558,12 @@ const TaskTableRow = memo(function TaskTableRow({
         onConfirm={(deleteLocalFiles) => removeTask(gid, deleteLocalFiles)}
       />
       <TaskChecksumDialog open={checksumOpen} task={task} onOpenChange={setChecksumOpen} />
+      <TaskRestartConfirmDialog
+        open={restartConfirmOpen}
+        taskName={task.name}
+        onOpenChange={setRestartConfirmOpen}
+        onConfirm={() => restartTask(gid)}
+      />
     </>
   )
 })
