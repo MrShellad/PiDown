@@ -1,69 +1,71 @@
 # PiDownloader Chrome Extension
 
-Chrome MV3 extension for sending browser downloads to PiDownloader after the user enables it.
+Chrome MV3 扩展，将浏览器下载自动转交给 PiDownloader 桌面应用，并支持在社交平台页面嗅探和下载视频流。
 
-## What It Does
+## 功能概览
 
-- Listens to Chrome `downloads.onCreated` events after the user enables the extension.
-- Sends only the HTTP/HTTPS download URL to the PiDownloader native bridge.
-- Cancels the Chrome download only after PiDownloader confirms it accepted the task.
-- Falls back to Chrome's normal download flow when the bridge is unavailable.
+### 下载接管
 
-This extension is intentionally fail-safe: it does not cancel browser downloads unless the native bridge returns a successful response.
+- 监听 Chrome `downloads.onCreated` 事件，将符合条件的 HTTP/HTTPS 下载转发给 PiDownloader。
+- 通过本地 HTTP 桥接（`127.0.0.1`）与 PiDownloader 桌面应用通信，由运行时 Token 保护。
+- 仅在 PiDownloader 确认接收任务后才取消浏览器下载；桥接不可用时自动回退到浏览器下载。
+- 支持按文件扩展名、最小文件大小、域名白名单等规则过滤下载。
+- 自动提取下载的 Referer、User-Agent 和 Cookie，传递给 PiDownloader 以支持鉴权下载。
 
-## Install For Development
+### 视频嗅探
 
-1. Open `chrome://extensions`.
-2. Enable `Developer mode`.
-3. Click `Load unpacked`.
-4. Select this `chrome-extension` directory.
-5. Build the native host:
+- 在 Twitter / X.com 和 TikTok 页面注入内容脚本，自动检测 HLS（`.m3u8`）和 MP4 视频流。
+- 在视频元素上显示下载按钮，点击后列出所有嗅探到的视频流，支持预览和一键推送到 PiDownloader。
+- 使用 hls.js 在页面内实现 HLS 流预览。
 
-```powershell
-cargo build --manifest-path src-tauri/Cargo.toml --bin pidownloader-native-host
-```
+### 右键菜单
 
-6. Open `chrome://extensions`, copy the extension ID, then register the native host for your platform.
+- 可在右键菜单中添加「使用 PiDownloader 下载此链接」选项，对任意链接发起下载。
 
-```powershell
-.\chrome-extension\native-host\register-windows.example.ps1 -ExtensionId "<extension-id>"
-```
+## 开发安装
 
-For macOS and Linux, create a native messaging host manifest named `com.pidownloader.bridge` in the browser-supported location for your platform, point `path` to the local `pidownloader-native-host` executable, and add:
+1. 打开 `chrome://extensions`。
+2. 启用「开发者模式」。
+3. 点击「加载已解压的扩展程序」。
+4. 选择此 `chrome-extension` 目录。
+5. 启动 PiDownloader 桌面应用。
+6. 打开扩展选项页，点击「配对」按钮自动获取通信 Token，然后启用下载接管。
 
-```text
-chrome-extension://<extension-id>/
-```
+## 通信架构
 
-to `allowed_origins`.
-
-7. Start PiDownloader, open the extension options page, then enable download bridging.
-
-## Native Host Contract
-
-The extension uses Chrome Native Messaging with this fixed host name:
+扩展不使用 Chrome Native Messaging，而是通过 HTTP 直接与 PiDownloader 桌面应用通信：
 
 ```text
-com.pidownloader.bridge
+Chrome 扩展 → HTTP POST → 127.0.0.1:<port>/native-bridge → PiDownloader 桌面应用
 ```
 
-The native host accepts JSON messages over stdin/stdout and returns JSON responses.
-It forwards messages to the running PiDownloader app through a local `127.0.0.1` bridge protected by a runtime token.
-If PiDownloader is not running, the native host returns `ok: false` so Chrome can continue the browser download.
+默认端口为 `18388`，可在选项页自定义。所有请求附带 `token` 字段用于身份验证。
 
-Request:
+### 配对流程
+
+首次使用时，扩展向桌面应用发送 `request_pairing` 请求，桌面应用返回一个 Token。扩展自动保存此 Token，后续通信均携带该 Token。
+
+### 请求格式
+
+下载任务请求：
 
 ```json
 {
+  "token": "<pairing-token>",
   "type": "create_task",
   "version": 1,
   "download": {
-    "url": "https://example.com/file.zip"
+    "url": "https://example.com/file.zip",
+    "filename": "file.zip",
+    "totalSize": 104857600,
+    "referer": "https://example.com/",
+    "userAgent": "Mozilla/5.0 ...",
+    "cookies": ["session=abc123", "token=xyz"]
   }
 }
 ```
 
-Successful response:
+成功响应：
 
 ```json
 {
@@ -71,7 +73,7 @@ Successful response:
 }
 ```
 
-Failed response:
+失败响应：
 
 ```json
 {
@@ -80,37 +82,25 @@ Failed response:
 }
 ```
 
-## Windows Native Host Registration
+## 权限说明
 
-Chrome requires a native messaging host manifest registered in the Windows registry.
+| 权限 | 用途 |
+|------|------|
+| `contextMenus` | 添加右键菜单「使用 PiDownloader 下载此链接」 |
+| `cookies` | 读取下载 URL 的 Cookie，传递给 PiDownloader 以支持鉴权下载 |
+| `downloads` | 监听浏览器下载事件，暂停/取消/清除已接管的下载 |
+| `notifications` | 在下载接管成功或失败时显示桌面通知 |
+| `storage` | 存储用户设置（启用状态、过滤规则、通信配置等） |
+| `webRequest` | 拦截 Twitter/X、TikTok 等平台的媒体请求，嗅探视频流 |
+| `scripting` | 支持内容脚本注入 |
+| `declarativeNetRequest` | 网络请求声明式处理 |
+| `<all_urls>`（host） | 读取任意 URL 的 Cookie，确保各站点的鉴权下载正常工作 |
 
-Example manifest:
+## 安全说明
 
-```json
-{
-  "name": "com.pidownloader.bridge",
-  "description": "PiDownloader Chrome native messaging bridge",
-  "path": "C:\\Path\\To\\pidownloader-native-host.exe",
-  "type": "stdio",
-  "allowed_origins": [
-    "chrome-extension://<extension-id>/"
-  ]
-}
-```
-
-Registry key:
-
-```text
-HKCU\Software\Google\Chrome\NativeMessagingHosts\com.pidownloader.bridge
-```
-
-The default value should be the absolute path to the native host manifest JSON.
-Use `native-host/register-windows.example.ps1` to generate and register this manifest for development.
-
-## Safety Notes
-
-- The extension is disabled by default; users must explicitly enable download bridging.
-- Keep `Fallback to Chrome download` enabled while developing the native bridge.
-- The extension ignores `blob:`, `data:`, `file:`, `chrome-extension:` and other unsupported URLs.
-- Incognito downloads are ignored by default.
-- The manifest does not request broad host permissions; it only uses `downloads`, `nativeMessaging`, `notifications`, and `storage`.
+- 下载接管默认启用，但用户可随时在选项页或弹出窗口中关闭。
+- 建议在开发时保持「回退到浏览器下载」选项启用。
+- 扩展忽略 `blob:`、`data:`、`file:`、`chrome-extension:` 等非 HTTP(S) URL。
+- 默认忽略隐身模式下载。
+- 内容脚本仅注入 Twitter/X 和 TikTok 页面，不会注入其他站点。
+- 所有通信仅发往 `127.0.0.1`，不会向远程服务器发送任何数据。

@@ -215,7 +215,10 @@ pub fn open_directory(path: String) -> Result<(), String> {
     }
 
     #[cfg(target_os = "windows")]
-    let result = std::process::Command::new("explorer").arg(p).spawn();
+    let result = {
+        use std::os::windows::process::CommandExt;
+        std::process::Command::new("explorer").raw_arg(p.as_os_str()).spawn()
+    };
 
     #[cfg(target_os = "macos")]
     let result = std::process::Command::new("open").arg(p).spawn();

@@ -1,6 +1,8 @@
 use crate::core::models::DbTask;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
 
 pub fn task_file_path(task: &DbTask) -> PathBuf {
     Path::new(&task.save_path).join(&task.name)
@@ -28,7 +30,7 @@ pub fn cleanup_task_files(task: &DbTask) {
 
 fn open_path(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    let result = Command::new("explorer").arg(path).spawn();
+    let result = Command::new("explorer").raw_arg(path.as_os_str()).spawn();
 
     #[cfg(target_os = "macos")]
     let result = Command::new("open").arg(path).spawn();
@@ -92,7 +94,7 @@ impl super::AppState {
         {
             if file_path.exists() {
                 let result = Command::new("explorer")
-                    .arg(format!("/select,{}", file_path.to_string_lossy()))
+                    .raw_arg(format!("/select,\"{}\"", file_path.to_string_lossy()))
                     .spawn();
                 return result
                     .map(|_| ())
