@@ -25,7 +25,6 @@ const EXTENSION_PRESETS = [
 ];
 
 const form = document.querySelector("#options-form");
-const statusEl = document.querySelector("#status");
 const resetButton = document.querySelector("#reset");
 const testButton = document.querySelector("#test-connection");
 const pairButton = document.querySelector("#pair-client");
@@ -47,8 +46,53 @@ if (extVersionEl) {
   extVersionEl.textContent = chrome.runtime.getManifest().version;
 }
 
+// Toast system
+const TOAST_ICONS = {
+  success: `<svg class="pidownloader-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+  error: `<svg class="pidownloader-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`,
+  pending: `<svg class="pidownloader-toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+};
+
+let toastContainer = null;
+let activeToasts = [];
+
+function ensureToastContainer() {
+  if (!toastContainer) {
+    toastContainer = document.createElement("div");
+    toastContainer.className = "pidownloader-toast-container top-right";
+    document.body.appendChild(toastContainer);
+  }
+  return toastContainer;
+}
+
+function showToast(message, kind = "success", duration = 3000) {
+  const container = ensureToastContainer();
+  const toast = document.createElement("div");
+  toast.className = `pidownloader-toast toast-${kind}`;
+  toast.innerHTML = `${TOAST_ICONS[kind] || TOAST_ICONS.success}<span>${message}</span>`;
+  container.appendChild(toast);
+
+  const timer = setTimeout(() => dismissToast(toast), duration);
+  toast._timer = timer;
+  activeToasts.push(toast);
+
+  return toast;
+}
+
+function dismissToast(toast) {
+  if (!toast || !toast.parentNode) return;
+  clearTimeout(toast._timer);
+  activeToasts = activeToasts.filter(t => t !== toast);
+  toast.classList.add("toast-out");
+  toast.addEventListener("animationend", () => toast.remove());
+}
+
+function dismissAllToasts() {
+  [...activeToasts].forEach(dismissToast);
+}
+
 init().catch((error) => {
-  showStatus(`加载失败：${error instanceof Error ? error.message : String(error)}`, "error");
+  showToast(`加载失败：${error instanceof Error ? error.message : String(error)}`, "error", 5000);
 });
 
 async function init() {
@@ -319,14 +363,7 @@ function normalizeExtension(value) {
 }
 
 function showStatus(message, kind) {
-  statusEl.textContent = message;
-  statusEl.dataset.kind = kind;
-  statusEl.style.color = kind === "success" ? "var(--success)" : "var(--danger)";
-
-  window.setTimeout(() => {
-    statusEl.textContent = "";
-    delete statusEl.dataset.kind;
-  }, 3000);
+  showToast(message, kind, kind === "error" ? 5000 : 3000);
 }
 
 // Theme handling
