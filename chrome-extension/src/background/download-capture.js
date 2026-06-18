@@ -133,6 +133,17 @@ export function isDomainBypassed(urlStr, bypassDomainsStr) {
       host === 'www.googleapis.com' ||
       host.endsWith('.googleapis.com')
     ) {
+      // Allow Google Drive/Docs downloads and exports
+      const pathname = url.pathname.toLowerCase();
+      const search = url.search.toLowerCase();
+      if (
+        pathname.includes('/uc') ||
+        pathname.includes('/download') ||
+        search.includes('export=download') ||
+        search.includes('confirm=')
+      ) {
+        return false; // Do not bypass! Let it be captured!
+      }
       return true;
     }
 

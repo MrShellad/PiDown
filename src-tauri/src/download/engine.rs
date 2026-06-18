@@ -1,7 +1,7 @@
 use gosh_dl::http::probe_server;
 use gosh_dl::{
-    ConnectionPool, DownloadEngine, DownloadEvent, DownloadId, DownloadOptions, DownloadStatus,
-    EngineConfig, GlobalStats,
+    BatchResult, ConnectionPool, DownloadEngine, DownloadEvent, DownloadId, DownloadOptions,
+    DownloadStatus, EngineConfig, GlobalStats,
 };
 use std::path::Path;
 use std::sync::Arc;
@@ -113,6 +113,8 @@ impl EngineWrapper {
         &self,
         url: &str,
         user_agent: Option<&str>,
+        referer: Option<&str>,
+        cookies: Option<&[String]>,
     ) -> Result<DownloadInspection, String> {
         let effective_user_agent = {
             let ua_guard = self.user_agent.read().map_err(|e| format!("Failed to read lock user agent: {}", e))?;
@@ -128,7 +130,7 @@ impl EngineWrapper {
             guard.client().clone()
         };
 
-        let capabilities = probe_server(&client, url, &effective_user_agent)
+        let capabilities = probe_server(&client, url, &effective_user_agent, cookies, referer)
             .await
             .map_err(|e| format!("Failed to inspect HTTP task: {}", e))?;
 
@@ -261,5 +263,23 @@ impl EngineWrapper {
     /// Subscribe to engine events (state changes, progress, etc.)
     pub fn subscribe(&self) -> broadcast::Receiver<DownloadEvent> {
         self.inner.subscribe()
+    }
+
+    /// Pause all active tasks
+    #[allow(dead_code)]
+    pub async fn pause_all(&self) -> BatchResult {
+        self.inner.pause_all().await
+    }
+
+    /// Resume all paused tasks
+    #[allow(dead_code)]
+    pub async fn resume_all(&self) -> BatchResult {
+        self.inner.resume_all().await
+    }
+
+    /// Cancel all tasks and optionally delete files
+    #[allow(dead_code)]
+    pub async fn cancel_all(&self, delete_files: bool) -> BatchResult {
+        self.inner.cancel_all(delete_files).await
     }
 }

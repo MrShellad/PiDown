@@ -561,7 +561,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   </div>
                   <div
                     ref={rowViewportRef}
-                    className={`relative mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden pb-4 pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
+                    className={`relative mt-2 mb-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg pb-[64px] pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
                       filteredGids.length === 0 ? "flex flex-col" : ""
                     }`}
                     style={{
@@ -691,119 +691,125 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     </div>
                   )}
                 </div>
-              </div>
-            </div>
 
-              {/* Pagination Controls */}
-              <div className="shrink-0 px-3 pt-2">
-                <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
-                    {/* Left: Range Info */}
-                    <div className="flex items-center gap-1.5 font-medium">
-                      <span>显示</span>
-                      <span className="font-semibold text-foreground">
-                        {Math.min(filteredGids.length, (currentPage - 1) * pageSize + 1)}
-                      </span>
-                      <span>-</span>
-                      <span className="font-semibold text-foreground">
-                        {Math.min(filteredGids.length, currentPage * pageSize)}
-                      </span>
-                      <span>条，共</span>
-                      <span className="font-semibold text-foreground">{filteredGids.length}</span>
-                      <span>条</span>
-                    </div>
+                {/* Pagination Controls */}
+                <div
+                  className="absolute bottom-0 z-20"
+                  style={{
+                    width: "calc(100% - 24px)",
+                    left: 12,
+                  }}
+                >
+                  <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
+                      {/* Left: Range Info */}
+                      <div className="flex items-center gap-1.5 font-medium">
+                        <span>显示</span>
+                        <span className="font-semibold text-foreground">
+                          {Math.min(filteredGids.length, (currentPage - 1) * pageSize + 1)}
+                        </span>
+                        <span>-</span>
+                        <span className="font-semibold text-foreground">
+                          {Math.min(filteredGids.length, currentPage * pageSize)}
+                        </span>
+                        <span>条，共</span>
+                        <span className="font-semibold text-foreground">{filteredGids.length}</span>
+                        <span>条</span>
+                      </div>
 
-                    {/* Middle: Page navigation buttons */}
-                    {totalPages > 1 && (
-                      <Pagination className="mx-0 w-auto">
-                        <PaginationContent className="gap-1">
-                          <PaginationItem>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md hover:bg-muted"
-                              disabled={currentPage === 1}
-                              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                            >
-                              <ChevronLeft className="h-4 w-4" />
-                            </Button>
-                          </PaginationItem>
+                      {/* Middle: Page navigation buttons */}
+                      {totalPages > 1 && (
+                        <Pagination className="mx-0 w-auto">
+                          <PaginationContent className="gap-1">
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-muted"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </Button>
+                            </PaginationItem>
 
-                          {/* Page Numbers */}
-                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                            const isNearCurrent = Math.abs(page - currentPage) <= 1;
-                            const isEdge = page === 1 || page === totalPages;
-                            if (totalPages > 7 && !isNearCurrent && !isEdge) {
-                              if (page === 2 || page === totalPages - 1) {
-                                return (
-                                  <PaginationItem key={page}>
-                                    <PaginationEllipsis className="h-8 w-8" />
-                                  </PaginationItem>
-                                );
+                            {/* Page Numbers */}
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                              const isNearCurrent = Math.abs(page - currentPage) <= 1;
+                              const isEdge = page === 1 || page === totalPages;
+                              if (totalPages > 7 && !isNearCurrent && !isEdge) {
+                                if (page === 2 || page === totalPages - 1) {
+                                  return (
+                                    <PaginationItem key={page}>
+                                      <PaginationEllipsis className="h-8 w-8" />
+                                    </PaginationItem>
+                                  );
+                                }
+                                return null;
                               }
-                              return null;
-                            }
 
-                            return (
-                              <PaginationItem key={page}>
-                                <Button
-                                  variant={currentPage === page ? "outline" : "ghost"}
-                                  size="icon"
-                                  className={`h-8 w-8 rounded-md text-xs transition-colors ${
-                                    currentPage === page
-                                      ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
-                                      : "hover:bg-muted"
-                                  }`}
-                                  onClick={() => setCurrentPage(page)}
-                                >
-                                  {page}
-                                </Button>
-                              </PaginationItem>
-                            );
-                          })}
+                              return (
+                                <PaginationItem key={page}>
+                                  <Button
+                                    variant={currentPage === page ? "outline" : "ghost"}
+                                    size="icon"
+                                    className={`h-8 w-8 rounded-md text-xs transition-colors ${
+                                      currentPage === page
+                                        ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                                        : "hover:bg-muted"
+                                    }`}
+                                    onClick={() => setCurrentPage(page)}
+                                  >
+                                    {page}
+                                  </Button>
+                                </PaginationItem>
+                              );
+                            })}
 
-                          <PaginationItem>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 rounded-md hover:bg-muted"
-                              disabled={currentPage === totalPages}
-                              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                            >
-                              <ChevronRight className="h-4 w-4" />
-                            </Button>
-                          </PaginationItem>
-                        </PaginationContent>
-                      </Pagination>
-                    )}
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-muted"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      )}
 
-                    {/* Right: Page Size Dropdown */}
-                    <div className="flex items-center gap-2">
-                      <span>单页显示</span>
-                      <Select
-                        value={String(pageSize)}
-                        onValueChange={(val) => {
-                          const size = parseInt(val, 10);
-                          setPageSize(size);
-                          setCurrentPage(1);
-                        }}
-                      >
-                        <SelectTrigger className="h-8 w-[70px] rounded-md border-border/60 bg-background/50 px-2 text-xs font-semibold hover:bg-muted/50 transition-colors">
-                          <SelectValue placeholder={String(pageSize)} />
-                        </SelectTrigger>
-                        <SelectContent className="min-w-[70px] border-border/80 bg-popover/95 backdrop-blur-md">
-                          {[5, 10, 15, 20, 30, 40].map((size) => (
-                            <SelectItem key={size} value={String(size)} className="text-xs">
-                              {size}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      {/* Right: Page Size Dropdown */}
+                      <div className="flex items-center gap-2">
+                        <span>单页显示</span>
+                        <Select
+                          value={String(pageSize)}
+                          onValueChange={(val) => {
+                            const size = parseInt(val, 10);
+                            setPageSize(size);
+                            setCurrentPage(1);
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[70px] rounded-md border-border/60 bg-background/50 px-2 text-xs font-semibold hover:bg-muted/50 transition-colors">
+                            <SelectValue placeholder={String(pageSize)} />
+                          </SelectTrigger>
+                          <SelectContent className="min-w-[70px] border-border/80 bg-popover/95 backdrop-blur-md">
+                            {[5, 10, 15, 20, 30, 40].map((size) => (
+                              <SelectItem key={size} value={String(size)} className="text-xs">
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
+        </div>
 
       <NewTaskModal
         open={modalOpen}

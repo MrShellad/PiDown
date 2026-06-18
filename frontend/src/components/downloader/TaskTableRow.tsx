@@ -151,7 +151,6 @@ function NameCell({
             onPointerDown={stopRowSelection}
             onMouseDown={stopRowSelection}
             onDoubleClick={stopRowSelection}
-            onContextMenu={stopRowSelection}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.stopPropagation()
@@ -245,7 +244,7 @@ function Cell({
           {statusText(task.status)}
         </span>
       )
-    case "speed":
+    case "speed": {
       if (preparing) {
         return (
           <Tooltip>
@@ -286,6 +285,7 @@ function Cell({
           )}
         </div>
       )
+    }
     case "eta":
       return <span className="truncate tabular-nums text-foreground/80 font-medium">{etaStr}</span>
     case "createdAt":

@@ -631,8 +631,15 @@ impl super::AppState {
         match detect_protocol(url) {
             DownloadProtocol::Http | DownloadProtocol::Https => {
                 let ua = resolve_user_agent(user_agent, &settings.download.global_user_agent);
+                let cookies_norm = cookies.map(normalize_cookies).unwrap_or_default();
+                let referer_norm = normalize_optional_header_value(referer);
                 self.engine
-                    .inspect_http(url, ua.as_deref())
+                    .inspect_http(
+                        url,
+                        ua.as_deref(),
+                        referer_norm.as_deref(),
+                        (!cookies_norm.is_empty()).then_some(cookies_norm.as_slice()),
+                    )
                     .await
             }
             DownloadProtocol::Magnet => crate::download::bt::inspect_magnet(url),

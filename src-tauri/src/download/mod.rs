@@ -8,3 +8,6 @@ pub use engine::{DownloadInspection, EngineHttpConfig, EngineWrapper, HttpTaskOp
 #[allow(unused_imports)]
 pub use manager::DownloadManager;
 pub use protocol::{detect_protocol, DownloadProtocol};
+
+#[cfg(test)]
+mod engine_tests;
