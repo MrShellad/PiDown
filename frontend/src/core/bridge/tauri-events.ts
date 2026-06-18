@@ -2,6 +2,8 @@ import { listen } from "@tauri-apps/api/event";
 import { useDownloadStore } from "../store/useDownloadStore";
 import type { DownloadSpeedPayload } from "../store/useDownloadStore";
 import { useThemeStore } from "../store/useThemeStore";
+import { useAppSettingsStore } from "../store/useAppSettingsStore";
+import { playSoundEffect } from "../audio";
 
 interface TaskUpdatedPayload {
   gid: string;
@@ -57,7 +59,25 @@ export async function setupTauriEvents() {
     if (!soundEnabled) return;
 
     const soundType = event.payload; // e.g., "success" | "warning" | "click"
-    playThemeSound(theme, soundType);
+    if (soundType === "success") {
+      const settings = useAppSettingsStore.getState().settings;
+      const playSoundOnComplete = settings?.download?.play_sound_on_complete ?? true;
+      if (!playSoundOnComplete) return;
+
+      const soundEffectId = settings?.download?.sound_effect_id ?? "success";
+      if (soundEffectId === "success") {
+        const customTheme = useThemeStore.getState().customThemes.find((t) => t.id === theme);
+        if (customTheme && customTheme.sounds && customTheme.sounds.success) {
+          playThemeSound(theme, "success");
+        } else {
+          playSoundEffect("success");
+        }
+      } else {
+        playSoundEffect(soundEffectId);
+      }
+    } else {
+      playThemeSound(theme, soundType);
+    }
   });
 
   return () => {

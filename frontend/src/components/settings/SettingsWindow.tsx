@@ -2437,7 +2437,7 @@ export default function SettingsWindow() {
                           description={UI_TEXT.settings.soundSelectDesc}
                         >
                           <div className="flex items-center gap-3 mt-2">
-                            <div className="w-48 shrink-0">
+                            <div className="w-64 shrink-0">
                               <OptionDropdown
                                 value={draft.download.sound_effect_id ?? "success"}
                                 options={[

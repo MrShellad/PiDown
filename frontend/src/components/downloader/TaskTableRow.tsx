@@ -364,6 +364,11 @@ const TaskTableRow = memo(function TaskTableRow({
           onClick={() => {
             onOpenDetails?.(gid)
           }}
+          onDoubleClick={() => {
+            if (task.status === "Completed" || task.status === "Seeding") {
+              openTaskFile(gid)
+            }
+          }}
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
             "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",

@@ -28,7 +28,6 @@ import {
 } from "../bridge/tauri-commands";
 import { useToastStore } from "./useToastStore";
 import { useAppSettingsStore } from "./useAppSettingsStore";
-import { playSoundEffect } from "../audio";
 import { sendNativeNotification } from "../notification";
 
 export interface Task {
@@ -283,11 +282,6 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
             if (isCompletedNow && !wasCompletedBefore && wasActiveBefore) {
               const settings = useAppSettingsStore.getState().settings;
               if (settings) {
-                if (settings.download.play_sound_on_complete ?? true) {
-                  setTimeout(() => {
-                    playSoundEffect(settings.download.sound_effect_id ?? "success");
-                  }, 50);
-                }
                 if (settings.interface.enable_notifications ?? true) {
                   const taskName = existing?.name || `Task_${activeTask.gid.substring(0, 8)}`;
                   sendNativeNotification("下载已完成", `文件 "${taskName}" 下载成功。`);

@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
 import { motion, AnimatePresence } from "motion/react"
 import {
   CloudDownload,
@@ -61,6 +61,22 @@ export function DownloadToolbarActions({
   const [isExpanded, setIsExpanded] = useState(false)
   const [url, setUrl] = useState("")
   const pushToast = useToastStore((state) => state.pushToast)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isExpanded) return
+
+    const handlePointerDown = (e: PointerEvent | MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsExpanded(false)
+      }
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown)
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown)
+    }
+  }, [isExpanded])
 
   const canDeleteSelected = selectedTaskCount > 0 && Boolean(onDeleteSelected)
   const canPauseSelected = selectedPauseCount > 0 && Boolean(onPauseSelected)
@@ -111,7 +127,19 @@ export function DownloadToolbarActions({
 
   return (
     <>
-      <div className="relative flex items-stretch">
+      <div
+        ref={containerRef}
+        className="relative flex items-stretch"
+        onBlur={(e) => {
+          if (
+            isExpanded &&
+            containerRef.current &&
+            !containerRef.current.contains(e.relatedTarget as Node)
+          ) {
+            setIsExpanded(false)
+          }
+        }}
+      >
         <ToolbarPrimaryButton
           onClick={() => setIsExpanded((prev) => !prev)}
           icon={<Link />}

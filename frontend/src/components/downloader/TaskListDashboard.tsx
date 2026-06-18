@@ -548,8 +548,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   <div
                     className="absolute top-0 z-20"
                     style={{
-                      width: "calc(100% - 24px)",
                       left: 12,
+                      right: 18,
                     }}
                   >
                     <TaskListHeader
@@ -561,7 +561,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   </div>
                   <div
                     ref={rowViewportRef}
-                    className={`relative mt-2 mb-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg pb-[64px] pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
+                    className={`relative mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg pb-[64px] pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
                       filteredGids.length === 0 ? "flex flex-col" : ""
                     }`}
                     style={{
@@ -569,7 +569,9 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       marginRight: -12,
                       paddingLeft: 12,
                       paddingRight: 12,
+                      marginBottom: 6,
                       overflowY: "overlay" as React.CSSProperties["overflowY"],
+                      scrollbarGutter: "stable",
                     }}
                     onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
                   >
@@ -693,13 +695,14 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                 </div>
 
                 {/* Pagination Controls */}
-                <div
-                  className="absolute bottom-0 z-20"
-                  style={{
-                    width: "calc(100% - 24px)",
-                    left: 12,
-                  }}
-                >
+                  <div
+                   className="absolute z-20"
+                   style={{
+                     left: 12,
+                     right: 18,
+                     bottom: 6,
+                   }}
+                 >
                   <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
                       {/* Left: Range Info */}
                       <div className="flex items-center gap-1.5 font-medium">
