@@ -4,10 +4,12 @@ import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { getBackgrounds, type DbBackground } from "@/core/bridge/tauri-commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import AuroraBg from "@/themes/skins/modern-fluid/AuroraBg";
+import { THEME_REGISTRY } from "@/themes/config";
 
 export default function ActiveBackground() {
   const theme = useThemeStore((state) => state.theme);
   const effectsEnabled = useThemeStore((state) => state.effectsEnabled);
+  const customThemes = useThemeStore((state) => state.customThemes);
   const settings = useAppSettingsStore((state) => state.settings);
   const bgId = settings?.interface?.background_id;
 
@@ -23,13 +25,14 @@ export default function ActiveBackground() {
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
   const opacityVal = hideBorderAndBg ? 0 : (settings?.interface?.background_opacity ?? 100);
 
+  const themeMeta = THEME_REGISTRY.find((t) => t.id === theme) || customThemes.find((t) => t.id === theme);
+  const hasCanvasBg = themeMeta?.hasCanvasBg ?? false;
 
   const renderContent = () => {
     if (!activeBg) {
-      if (!effectsEnabled) {
+      if (!effectsEnabled || !hasCanvasBg) {
         return <div className="absolute inset-0" style={{ background: "var(--theme-static-background)" }} />;
       }
-      void theme;
       return <AuroraBg />;
     }
 

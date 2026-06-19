@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import {
   Dialog,
   DialogBody,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input, Field, CompoundInput, CompoundInputButton } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { IconPicker } from "@/components/ui/icon-picker"
 import { pickDownloadDirectory, type CategoryInput, type MatchRules } from "@/core/bridge/tauri-commands"
 import { useDownloadStore, type Category } from "@/core/store/useDownloadStore"
@@ -81,6 +82,11 @@ export function CategoryEditDialog({
     category ? normalizeCategory(category) : emptyCategoryDraft(nextSortOrder)
   )
 
+  useEffect(() => {
+    if (open) {
+      setDraft(category ? normalizeCategory(category) : emptyCategoryDraft(nextSortOrder))
+    }
+  }, [open, category, nextSortOrder])
 
   const updateRules = (patch: Partial<MatchRules>) => {
     setDraft((prev) => ({
@@ -122,7 +128,12 @@ export function CategoryEditDialog({
             {category ? "编辑分类" : "添加新分类"}
           </DialogTitle>
         </DialogHeader>
-        <DialogBody className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+        <DialogBody className="p-0">
+          <ScrollArea
+            scrollbar="overlay"
+            visibility="auto"
+            viewportClassName="space-y-4 px-4 py-4 sm:px-5 max-h-[65vh]"
+          >
           {/* Icon & Name Row */}
           <div className="grid gap-4 grid-cols-[auto_1fr] items-start">
             <Field label="图标与颜色">
@@ -218,6 +229,7 @@ export function CategoryEditDialog({
               </Field>
             </div>
           </div>
+          </ScrollArea>
         </DialogBody>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

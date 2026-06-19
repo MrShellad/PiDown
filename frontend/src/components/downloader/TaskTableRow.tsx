@@ -37,6 +37,7 @@ interface TaskTableRowProps {
   onSelect?: (gid: string) => void
   onContextSelect?: (gid: string) => void
   onOpenDetails?: (gid: string) => void
+  selectionMode?: boolean
 }
 
 function statusText(status: Task["status"]) {
@@ -119,11 +120,15 @@ function NameCell({
   task,
   category,
   detailsOpen = false,
+  selectionMode = false,
+  onSelect,
   onOpenDetails,
 }: {
   task: Task
   category?: Category
   detailsOpen?: boolean
+  selectionMode?: boolean
+  onSelect?: () => void
   onOpenDetails?: () => void
 }) {
   const categoryColor = category?.color ?? "var(--muted-foreground)"
@@ -158,7 +163,11 @@ function NameCell({
             }}
             onClick={(event) => {
               event.stopPropagation()
-              onOpenDetails?.()
+              if (selectionMode) {
+                onSelect?.()
+              } else {
+                onOpenDetails?.()
+              }
             }}
           >
             <IconPreview value={category?.icon ?? "folder"} color={categoryColor} className="size-5" />
@@ -311,6 +320,7 @@ const TaskTableRow = memo(function TaskTableRow({
   onSelect,
   onContextSelect,
   onOpenDetails,
+  selectionMode = false,
 }: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
@@ -362,11 +372,10 @@ const TaskTableRow = memo(function TaskTableRow({
           role="row"
           aria-selected={selected}
           onClick={() => {
-            onOpenDetails?.(gid)
-          }}
-          onDoubleClick={() => {
-            if (task.status === "Completed" || task.status === "Seeding") {
-              openTaskFile(gid)
+            if (selectionMode) {
+              onSelect?.(gid)
+            } else {
+              onOpenDetails?.(gid)
             }
           }}
           onContextMenu={() => onContextSelect?.(gid)}
@@ -430,7 +439,7 @@ const TaskTableRow = memo(function TaskTableRow({
           <div
             aria-hidden="true"
             className={cn(
-              "pointer-events-none absolute inset-0 bg-gradient-to-r from-white/[0.025] via-transparent to-black/5 transition-opacity duration-200",
+              "pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-r from-primary/12 via-primary/[0.03] to-transparent shadow-[inset_0_0_0_1px_color-mix(in_srgb,var(--primary),transparent_82%)] transition-opacity duration-200",
               contextMenuOpen ? "opacity-100" : "opacity-0 group-hover/task-row:opacity-100"
             )}
           />
@@ -490,6 +499,8 @@ const TaskTableRow = memo(function TaskTableRow({
                 task={task}
                 category={category}
                 detailsOpen={detailsOpen}
+                selectionMode={selectionMode}
+                onSelect={() => onSelect?.(gid)}
                 onOpenDetails={onOpenDetails ? () => onOpenDetails(gid) : undefined}
               />
             ) : (

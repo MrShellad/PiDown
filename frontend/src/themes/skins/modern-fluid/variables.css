@@ -1,19 +1,19 @@
-[data-theme="modern"] {
-    --background: oklch(0.08 0.02 280 / 0.7); /* Deep slate-blue half-transparent */
-    --foreground: oklch(0.96 0.01 280);
-    --card: oklch(0.12 0.02 280 / 0.85);
-    --card-foreground: oklch(0.96 0.01 280);
-    --popover: oklch(0.12 0.02 280);
-    --popover-foreground: oklch(0.96 0.01 280);
+html[data-theme="modern"] {
+    --background: oklch(0.16 0.015 280 / 0.75); /* Deep slate-blue half-transparent (slightly lighter for readability) */
+    --foreground: oklch(0.98 0.005 280);
+    --card: oklch(0.22 0.015 280 / 0.88);
+    --card-foreground: oklch(0.98 0.005 280);
+    --popover: oklch(0.22 0.015 280);
+    --popover-foreground: oklch(0.98 0.005 280);
     
     --primary: oklch(0.65 0.22 290); /* Vibrant violet */
     --primary-foreground: oklch(0.99 0.01 290);
     
-    --secondary: oklch(0.2 0.04 280 / 0.6);
-    --secondary-foreground: oklch(0.9 0.03 280);
+    --secondary: oklch(0.26 0.015 280 / 0.75);
+    --secondary-foreground: oklch(0.94 0.01 280);
     
-    --muted: oklch(0.18 0.03 280 / 0.5);
-    --muted-foreground: oklch(0.7 0.03 280);
+    --muted: oklch(0.24 0.015 280 / 0.65);
+    --muted-foreground: oklch(0.81 0.01 280); /* Significantly brighter muted-foreground for contrast */
     
     --accent: oklch(0.65 0.22 290 / 0.15);
     --accent-foreground: oklch(0.65 0.22 290);
@@ -21,10 +21,10 @@
     --destructive: oklch(0.6 0.21 20);
     --destructive-foreground: oklch(0.98 0.01 20);
     
-    --border: oklch(0.25 0.04 280 / 0.5);
-    --input: oklch(0.25 0.04 280 / 0.5);
+    --border: oklch(0.30 0.015 280 / 0.65);
+    --input: oklch(0.30 0.015 280 / 0.65);
     --ring: oklch(0.65 0.22 290);
-    --theme-static-background: oklch(0.08 0.02 280);
+    --theme-static-background: oklch(0.16 0.015 280);
     --aurora-blob-primary: oklch(0.65 0.22 290 / 0.58);
     --aurora-blob-secondary: oklch(0.78 0.14 210 / 0.4);
     --aurora-blob-tertiary: oklch(0.7 0.22 350 / 0.32);
@@ -59,22 +59,22 @@
     --task-selection-ring: color-mix(in srgb, var(--primary), var(--foreground) 20%);
     --task-selection-indicator: color-mix(in srgb, var(--primary), var(--foreground) 10%);
     --task-selection-control-halo: color-mix(in srgb, var(--primary), transparent 78%);
-    --float-disc-background: oklch(0.12 0.02 280 / 0.75);
-    --float-disc-bg-start: oklch(0.16 0.01 280);
-    --float-disc-bg-end: oklch(0.06 0.01 280);
+    --float-disc-background: oklch(0.22 0.015 280 / 0.8);
+    --float-disc-bg-start: oklch(0.26 0.015 280);
+    --float-disc-bg-end: oklch(0.18 0.015 280);
     --float-disc-backdrop: blur(12px);
     --float-disc-border: 1px solid oklch(0.65 0.22 290 / 0.3);
     --float-disc-shadow: 0 8px 32px 0 oklch(0.65 0.22 290 / 0.2);
     --float-disc-color: var(--foreground);
     --float-disc-drag-border: 1px solid var(--primary);
     --float-disc-drag-shadow: var(--button-glow);
-    --float-disc-wave-accent: oklch(0.38 0.12 280);
+    --float-disc-wave-accent: oklch(0.40 0.08 280);
     --float-disc-scanline: var(--primary);
     --float-disc-ring-track: oklch(0.65 0.22 290 / 0.1);
     --float-disc-ring-progress: var(--primary);
 }
 
-[data-theme="modern"][data-color-mode="light"] {
+html[data-theme="modern"][data-color-mode="light"] {
     --background: oklch(0.985 0.014 235 / 0.92);
     --foreground: oklch(0.2 0.055 255);
     --card: oklch(0.995 0.008 235 / 0.88);
@@ -146,3 +146,386 @@
     --float-disc-ring-track: oklch(0.58 0.2 252 / 0.14);
     --float-disc-ring-progress: var(--primary);
 }
+
+html[data-theme="surface"] {
+    --background: #121824;
+    --foreground: #F8FAFC;
+    --card: #1E293B;
+    --card-foreground: #F8FAFC;
+    --popover: #1E293B;
+    --popover-foreground: #F8FAFC;
+
+    --primary: #6366F1;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #2E3B4E;
+    --secondary-foreground: #E2E8F0;
+
+    --muted: #2E3B4E;
+    --muted-foreground: #CBD5E1;
+
+    --accent: rgba(99, 102, 241, 0.15);
+    --accent-foreground: #6366F1;
+
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #2E3B4E;
+    --input: #2E3B4E;
+    --ring: #6366F1;
+    --theme-static-background: #121824;
+
+    --radius: 12px;
+
+    /* Sidebar */
+    --sidebar: #0C101A;
+    --sidebar-foreground: #CBD5E1;
+    --sidebar-primary: #6366F1;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #2A3547;
+    --sidebar-accent-foreground: #F8FAFC;
+    --sidebar-border: #1E293B;
+    --sidebar-ring: #6366F1;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(99, 102, 241, 0.2);
+    --button-glow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    --surface-shadow-raised: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+    --surface-shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+    --surface-shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
+    --surface-shadow-divider: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+    --dialog-header-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+    --dialog-footer-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.2);
+
+    /* Switch */
+    --switch-track-off: #2E3B4E;
+    --switch-track-off-hover: #3A4B63;
+    --switch-track-on: #6366F1;
+    --switch-track-on-hover: #4F46E5;
+    --switch-thumb: #FFFFFF;
+    --switch-icon-off: #6B7280;
+    --switch-press-ring: rgba(99, 102, 241, 0.35);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.4);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.4);
+
+    /* Statuses */
+    --status-success: #10B981;
+    --status-warning: #F59E0B;
+    --status-danger: #EF4444;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(99, 102, 241, 0.18);
+    --task-progress-paused: rgba(245, 158, 11, 0.18);
+    --task-progress-failed: rgba(239, 68, 68, 0.18);
+    --task-selection-overlay: rgba(99, 102, 241, 0.1);
+    --task-selection-ring: #6366F1;
+    --task-selection-indicator: #6366F1;
+    --task-selection-control-halo: rgba(99, 102, 241, 0.2);
+
+    /* Float disc */
+    --float-disc-background: rgba(30, 41, 59, 0.85);
+    --float-disc-bg-start: #1E293B;
+    --float-disc-bg-end: #121824;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #2E3B4E;
+    --float-disc-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    --float-disc-color: #F8FAFC;
+    --float-disc-drag-border: 1px solid #6366F1;
+    --float-disc-drag-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+    --float-disc-wave-accent: #312E81;
+    --float-disc-scanline: #6366F1;
+    --float-disc-ring-track: #1E1B4B;
+    --float-disc-ring-progress: #6366F1;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #2E3B4E;
+    --scrollbar-thumb-hover: #3A4B63;
+    --scrollbar-thumb-active: #4A5F7D;
+}
+
+html[data-theme="surface"][data-color-mode="light"] {
+    --background: #F8FAFC;
+    --foreground: #0F172A;
+    --card: #FFFFFF;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+
+    --primary: #4F46E5;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #F1F5F9;
+    --secondary-foreground: #475569;
+
+    --muted: #F1F5F9;
+    --muted-foreground: #475569;
+
+    --accent: #EEF2FF;
+    --accent-foreground: #4F46E5;
+
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #E2E8F0;
+    --input: #D0D5DD;
+    --ring: #818CF8;
+    --theme-static-background: #F8FAFC;
+
+    /* Sidebar */
+    --sidebar: #FFFFFF;
+    --sidebar-foreground: #475569;
+    --sidebar-primary: #4F46E5;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #F8FAFC;
+    --sidebar-accent-foreground: #0F172A;
+    --sidebar-border: #E2E8F0;
+    --sidebar-ring: #818CF8;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(79, 70, 229, 0.15);
+    --button-glow: 0 4px 12px rgba(79, 70, 229, 0.2);
+    --surface-shadow-raised: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+    --surface-shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --surface-shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
+    --surface-shadow-divider: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+    --dialog-header-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
+    --dialog-footer-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.03);
+
+    /* Switch */
+    --switch-track-off: #E2E8F0;
+    --switch-track-off-hover: #CBD5E1;
+    --switch-track-on: #4F46E5;
+    --switch-track-on-hover: #4338CA;
+    --switch-thumb: #FFFFFF;
+    --switch-icon-off: #94A3B8;
+    --switch-press-ring: rgba(81, 140, 248, 0.2);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.1);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+    /* Statuses */
+    --status-success: #16A34A;
+    --status-warning: #F59E0B;
+    --status-danger: #EF4444;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(79, 70, 229, 0.12);
+    --task-progress-paused: rgba(245, 158, 11, 0.12);
+    --task-progress-failed: rgba(239, 68, 68, 0.12);
+    --task-selection-overlay: rgba(79, 70, 229, 0.06);
+    --task-selection-ring: #4F46E5;
+    --task-selection-indicator: #4F46E5;
+    --task-selection-control-halo: rgba(79, 70, 229, 0.15);
+
+    /* Float disc */
+    --float-disc-background: rgba(255, 255, 255, 0.9);
+    --float-disc-bg-start: #FFFFFF;
+    --float-disc-bg-end: #F8FAFC;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #E2E8F0;
+    --float-disc-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --float-disc-color: #0F172A;
+    --float-disc-drag-border: 1px solid #4F46E5;
+    --float-disc-drag-shadow: 0 4px 14px rgba(79, 70, 229, 0.25);
+    --float-disc-wave-accent: #EEF2FF;
+    --float-disc-scanline: #4F46E5;
+    --float-disc-ring-track: #EEF2FF;
+    --float-disc-ring-progress: #4F46E5;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #CBD5E1;
+    --scrollbar-thumb-hover: #94A3B8;
+    --scrollbar-thumb-active: #64748B;
+}
+
+html[data-theme="ubuntu"] {
+    --background: #360528;
+    --foreground: #FFFFFF;
+    --card: #4A1238;
+    --card-foreground: #FFFFFF;
+    --popover: #4A1238;
+    --popover-foreground: #FFFFFF;
+
+    --primary: #E95420;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #5E2750;
+    --secondary-foreground: #F7F7F7;
+
+    --muted: #4C1D3E;
+    --muted-foreground: #DFD6CF;
+
+    --accent: rgba(233, 84, 32, 0.2);
+    --accent-foreground: #E95420;
+
+    --destructive: #DF382C;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #5E2750;
+    --input: #5E2750;
+    --ring: #E95420;
+    --theme-static-background: #360528;
+
+    --radius: 8px;
+
+    /* Sidebar */
+    --sidebar: #26001B;
+    --sidebar-foreground: #DFD6CF;
+    --sidebar-primary: #E95420;
+    --sidebar-primary-foreground: #FFFFFF;
+    --sidebar-accent: #4A1238;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: #360528;
+    --sidebar-ring: #E95420;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(233, 84, 32, 0.25);
+    --button-glow: 0 4px 14px rgba(233, 84, 32, 0.4);
+    --surface-shadow-raised: 0 10px 25px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --surface-shadow-strong: 0 20px 45px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    --surface-shadow-divider: 0 1px 0 rgba(255, 255, 255, 0.05);
+    --dialog-header-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --dialog-footer-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+
+    /* Switch */
+    --switch-track-off: #5E2750;
+    --switch-track-off-hover: #77216F;
+    --switch-track-on: #E95420;
+    --switch-track-on-hover: #D44315;
+    --switch-thumb: #FFFFFF;
+    --switch-icon-off: #DFD6CF;
+    --switch-press-ring: rgba(233, 84, 32, 0.4);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+    /* Statuses */
+    --status-success: #2D8A4E;
+    --status-warning: #EFB73E;
+    --status-danger: #DF382C;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(233, 84, 32, 0.22);
+    --task-progress-paused: rgba(239, 183, 62, 0.22);
+    --task-progress-failed: rgba(223, 56, 44, 0.22);
+    --task-selection-overlay: rgba(233, 84, 32, 0.12);
+    --task-selection-ring: #E95420;
+    --task-selection-indicator: #E95420;
+    --task-selection-control-halo: rgba(233, 84, 32, 0.3);
+
+    /* Float disc */
+    --float-disc-background: rgba(74, 18, 56, 0.9);
+    --float-disc-bg-start: #4A1238;
+    --float-disc-bg-end: #360528;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #77216F;
+    --float-disc-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --float-disc-color: #FFFFFF;
+    --float-disc-drag-border: 1px solid #E95420;
+    --float-disc-drag-shadow: 0 4px 14px rgba(233, 84, 32, 0.4);
+    --float-disc-wave-accent: #77216F;
+    --float-disc-scanline: #E95420;
+    --float-disc-ring-track: #360528;
+    --float-disc-ring-progress: #E95420;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #5E2750;
+    --scrollbar-thumb-hover: #77216F;
+    --scrollbar-thumb-active: #E95420;
+}
+
+html[data-theme="ubuntu"][data-color-mode="light"] {
+    --background: #F7F7F7;
+    --foreground: #111111;
+    --card: #FFFFFF;
+    --card-foreground: #111111;
+    --popover: #FFFFFF;
+    --popover-foreground: #111111;
+
+    --primary: #E95420;
+    --primary-foreground: #FFFFFF;
+
+    --secondary: #E6E6E6;
+    --secondary-foreground: #333333;
+
+    --muted: #EEEEEE;
+    --muted-foreground: #666666;
+
+    --accent: rgba(233, 84, 32, 0.1);
+    --accent-foreground: #E95420;
+
+    --destructive: #DF382C;
+    --destructive-foreground: #FFFFFF;
+
+    --border: #DCDCDC;
+    --input: #DCDCDC;
+    --ring: #E95420;
+    --theme-static-background: #F7F7F7;
+
+    /* Sidebar */
+    --sidebar: #77216F;
+    --sidebar-foreground: #F7F7F7;
+    --sidebar-primary: #FFFFFF;
+    --sidebar-primary-foreground: #77216F;
+    --sidebar-accent: #5E2750;
+    --sidebar-accent-foreground: #FFFFFF;
+    --sidebar-border: #5E2750;
+    --sidebar-ring: #FFFFFF;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(233, 84, 32, 0.15);
+    --button-glow: 0 4px 12px rgba(233, 84, 32, 0.25);
+    --surface-shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.08);
+    --surface-shadow-strong: 0 16px 36px rgba(0, 0, 0, 0.12);
+    --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+    --surface-shadow-divider: 0 1px 2px rgba(0, 0, 0, 0.04);
+    --dialog-header-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+    --dialog-footer-shadow: 0 -4px 6px rgba(0, 0, 0, 0.04);
+
+    /* Switch */
+    --switch-track-off: #E6E6E6;
+    --switch-track-off-hover: #DCDCDC;
+    --switch-track-on: #E95420;
+    --switch-track-on-hover: #D44315;
+    --switch-thumb: #FFFFFF;
+    --switch-icon-off: #AEA79F;
+    --switch-press-ring: rgba(233, 84, 32, 0.25);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.15);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+    /* Statuses */
+    --status-success: #2D8A4E;
+    --status-warning: #EFB73E;
+    --status-danger: #DF382C;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(233, 84, 32, 0.12);
+    --task-progress-paused: rgba(239, 183, 62, 0.12);
+    --task-progress-failed: rgba(223, 56, 44, 0.12);
+    --task-selection-overlay: rgba(233, 84, 32, 0.06);
+    --task-selection-ring: #E95420;
+    --task-selection-indicator: #E95420;
+    --task-selection-control-halo: rgba(233, 84, 32, 0.2);
+
+    /* Float disc */
+    --float-disc-background: rgba(119, 33, 111, 0.9);
+    --float-disc-bg-start: #77216F;
+    --float-disc-bg-end: #5E2750;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #9F3F8F;
+    --float-disc-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+    --float-disc-color: #FFFFFF;
+    --float-disc-drag-border: 1px solid #E95420;
+    --float-disc-drag-shadow: 0 4px 14px rgba(233, 84, 32, 0.3);
+    --float-disc-wave-accent: #5E2750;
+    --float-disc-scanline: #E95420;
+    --float-disc-ring-track: #300A24;
+    --float-disc-ring-progress: #E95420;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #DCDCDC;
+    --scrollbar-thumb-hover: #CBD5E1;
+    --scrollbar-thumb-active: #94A3B8;
+}
+
+
+

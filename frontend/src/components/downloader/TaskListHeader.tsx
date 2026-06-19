@@ -127,24 +127,24 @@ function HeaderCell({
       {showSeparator ? (
         <span
           aria-hidden="true"
-          className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-divider-glow"
+          className="pointer-events-none absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-divider-glow"
         />
       ) : null}
       <span
         aria-hidden="true"
-        className="mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/header-cell:opacity-80"
+        className="pointer-events-none mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/header-cell:opacity-80"
       >
         <GripVertical className="size-3.5" />
       </span>
       {meta.sortable ? (
         <SortIcon
           className={cn(
-            "mr-1 size-3.5 shrink-0 transition-opacity",
+            "pointer-events-none mr-1 size-3.5 shrink-0 transition-opacity",
             activeSort ? "opacity-100 text-foreground" : "opacity-70"
           )}
         />
       ) : null}
-      <span className="truncate">{meta.label}</span>
+      <span className="pointer-events-none truncate">{meta.label}</span>
       <button
         type="button"
         aria-label={`${meta.label} 调整列宽`}

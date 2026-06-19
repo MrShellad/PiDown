@@ -88,10 +88,12 @@ function statusText(status?: Task["status"]) {
 function InfoRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start py-1.5 min-h-[36px]">
-      <span className="w-[100px] shrink-0 text-muted-foreground text-sm font-semibold select-none leading-6">
+      <span
+        className="w-[70px] mr-4 shrink-0 text-muted-foreground text-sm font-semibold select-none leading-6 inline-block text-justify [text-align-last:justify]"
+      >
         {label}
       </span>
-      <div className="flex-1 min-w-0 text-foreground text-sm font-medium flex items-center gap-1.5 flex-wrap min-h-6 break-all">
+      <div className="flex-1 min-w-0 text-foreground text-sm font-normal flex items-center gap-1.5 flex-wrap min-h-6 break-all">
         {children}
       </div>
     </div>
@@ -353,32 +355,32 @@ export default function TaskDetailsDrawer({
                       <InfoRow label="分类">
                         <div className="flex items-center gap-2">
                           <IconPreview value={category?.icon ?? "folder"} color={category?.color} className="size-4" />
-                          <span className="text-foreground/90 font-medium leading-6">{category?.name ?? "未分类"}</span>
+                          <span className="text-foreground/90 font-normal leading-6">{category?.name ?? "未分类"}</span>
                         </div>
                       </InfoRow>
 
                       {/* 3. 状态 */}
                       <InfoRow label="状态">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-primary/15 text-primary border border-primary/25">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-normal bg-primary/15 text-primary border border-primary/25">
                           {statusText(task.status)}
                         </span>
                       </InfoRow>
 
                       {/* 4. 错误信息 */}
                       <InfoRow label="错误信息">
-                        <span className={cn("font-medium leading-6 break-all", task.errorMessage ? "text-destructive" : "text-foreground/90")}>
+                        <span className={cn("font-normal leading-6 break-all", task.errorMessage ? "text-destructive" : "text-foreground/90")}>
                           {task.errorMessage || "--"}
                         </span>
                       </InfoRow>
 
                       {/* 5. 创建时间 */}
                       <InfoRow label="创建时间">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
+                        <span className="tabular-nums text-foreground/90 font-normal leading-6">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
                       </InfoRow>
 
                       {/* 6. 更新时间 */}
                       <InfoRow label="更新时间">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{formatUpdatedAt(task, datetimeFormat)}</span>
+                        <span className="tabular-nums text-foreground/90 font-normal leading-6">{formatUpdatedAt(task, datetimeFormat)}</span>
                       </InfoRow>
 
                       {/* 7. 保存目录 */}
@@ -398,7 +400,7 @@ export default function TaskDetailsDrawer({
 
                       {/* 8. 文件总大小 */}
                       <InfoRow label="文件总大小">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">
+                        <span className="tabular-nums text-foreground/90 font-normal leading-6">
                           {task.status === "Completed"
                             ? formatBytes(task.totalBytes)
                             : `${formatBytes(task.downloadedBytes)} / ${formatBytes(task.totalBytes)}`}
@@ -407,25 +409,25 @@ export default function TaskDetailsDrawer({
 
                       {/* 9. 进度 */}
                       <InfoRow label="进度">
-                        <span className="font-semibold text-sm text-foreground tabular-nums leading-6">
+                        <span className="font-normal text-sm text-foreground tabular-nums leading-6">
                           {task.progress.toFixed(1)}%
                         </span>
                       </InfoRow>
 
                       {/* 10. 下载速度 */}
                       <InfoRow label="下载速度">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{task.speed || "0 B/s"}</span>
+                        <span className="tabular-nums text-foreground/90 font-normal leading-6">{task.speed || "0 B/s"}</span>
                       </InfoRow>
                       {/* 11. 上传速度 */}
                       {!(task.url?.startsWith("http://") || task.url?.startsWith("https://")) && (
                         <InfoRow label="上传速度">
-                          <span className="tabular-nums text-foreground/90 font-medium leading-6">{task.uploadSpeed || "0 B/s"}</span>
+                          <span className="tabular-nums text-foreground/90 font-normal leading-6">{task.uploadSpeed || "0 B/s"}</span>
                         </InfoRow>
                       )}
 
                       {/* 12. 剩余时间 */}
                       <InfoRow label="剩余时间">
-                        <span className="tabular-nums text-foreground/90 font-medium leading-6">{task.eta || "--"}</span>
+                        <span className="tabular-nums text-foreground/90 font-normal leading-6">{task.eta || "--"}</span>
                       </InfoRow>
                     </div>
                   )}
@@ -484,7 +486,7 @@ export default function TaskDetailsDrawer({
                     ) : (
                       <div className="flex flex-col">
                         <InfoRow label="活动连接">
-                          <span className="tabular-nums text-foreground/90 font-medium">{task.connections ?? 0}</span>
+                          <span className="tabular-nums text-foreground/90 font-normal">{task.connections ?? 0}</span>
                         </InfoRow>
 
                         <InfoRow label="下载链接">
@@ -531,20 +533,20 @@ export default function TaskDetailsDrawer({
                                   return (
                                     <div key={idx} className="flex items-center justify-between px-4 py-3 text-xs hover:bg-muted/10 transition-colors">
                                       <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                        <span className="text-foreground/90 font-mono font-medium truncate select-all">
+                                        <span className="text-foreground/90 font-mono font-normal truncate select-all">
                                           {peer.ip}:{peer.port}
                                         </span>
                                         <span className="text-xs text-muted-foreground truncate select-none">
                                           {peer.client || "未知客户端"}
                                         </span>
                                       </div>
-                                      <span className="w-24 text-right text-primary font-medium shrink-0 tabular-nums">
+                                      <span className="w-24 text-right text-primary font-normal shrink-0 tabular-nums">
                                         {speedDisplay}
                                       </span>
-                                      <span className="w-24 text-right text-muted-foreground font-medium shrink-0 tabular-nums">
+                                      <span className="w-24 text-right text-muted-foreground font-normal shrink-0 tabular-nums">
                                         {uploadDisplay}
                                       </span>
-                                      <span className="w-16 text-right text-foreground/85 font-semibold shrink-0 tabular-nums">
+                                      <span className="w-16 text-right text-foreground/85 font-normal shrink-0 tabular-nums">
                                         {(peer.progress * 100).toFixed(1)}%
                                       </span>
                                     </div>
@@ -574,7 +576,7 @@ export default function TaskDetailsDrawer({
                               {tags.map((tag) => (
                                 <span
                                   key={tag.id}
-                                  className="px-2 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border/80"
+                                  className="px-2 py-0.5 rounded-full text-xs font-normal bg-muted text-muted-foreground border border-border/80"
                                 >
                                   {tag.name}
                                 </span>
@@ -617,7 +619,7 @@ export default function TaskDetailsDrawer({
                                       <div className="flex-1 min-w-0 flex flex-col gap-0.5 pr-4 select-all">
                                         <div className="flex items-center gap-2 min-w-0">
                                           <FileIcon filename={filename || ""} className="size-4 shrink-0 text-muted-foreground/85" />
-                                          <span className="text-foreground/90 font-medium truncate" title={file.path}>
+                                          <span className="text-foreground/90 font-normal truncate" title={file.path}>
                                             {filename}
                                           </span>
                                         </div>
@@ -627,11 +629,11 @@ export default function TaskDetailsDrawer({
                                           </span>
                                         )}
                                       </div>
-                                      <span className="w-20 text-right text-muted-foreground font-medium shrink-0 tabular-nums select-none">
+                                      <span className="w-20 text-right text-muted-foreground font-normal shrink-0 tabular-nums select-none">
                                         {formatBytes(file.size)}
                                       </span>
                                       <div className="w-24 shrink-0 flex flex-col items-end gap-1 pl-2 select-none">
-                                        <span className="font-semibold text-foreground/80 tabular-nums">
+                                        <span className="font-normal text-foreground/80 tabular-nums">
                                           {progress.toFixed(1)}%
                                         </span>
                                         <div className="w-full h-1.5 rounded-full bg-muted/30 overflow-hidden">
@@ -659,7 +661,7 @@ export default function TaskDetailsDrawer({
                           <div className="flex items-center justify-between w-full gap-2">
                             <Tooltip>
                               <TooltipTrigger asChild>
-                                <span className="truncate flex-1 font-semibold text-foreground/90">{task.name}</span>
+                                <span className="truncate flex-1 font-normal text-foreground/90">{task.name}</span>
                               </TooltipTrigger>
                               <TooltipContent className="max-w-md break-all">{task.name}</TooltipContent>
                             </Tooltip>
@@ -705,7 +707,7 @@ export default function TaskDetailsDrawer({
                   {activeTab === 4 && (
                     <div className="flex flex-col">
                       <InfoRow label="分块连接">
-                        <span className="tabular-nums text-foreground/90 font-medium">{task.connections ?? 0} 个活动连接线程</span>
+                        <span className="tabular-nums text-foreground/90 font-normal">{task.connections ?? 0} 个活动连接线程</span>
                       </InfoRow>
 
                       <InfoRow label="多线程机制">
@@ -744,7 +746,7 @@ export default function TaskDetailsDrawer({
                       </InfoRow>
 
                       <InfoRow label="创建日期">
-                        <span className="tabular-nums text-foreground/90 font-medium">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
+                        <span className="tabular-nums text-foreground/90 font-normal">{formatCreatedAt(task.createdAt, datetimeFormat)}</span>
                       </InfoRow>
                     </div>
                   )}

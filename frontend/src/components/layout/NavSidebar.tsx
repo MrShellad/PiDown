@@ -126,16 +126,16 @@ function CategoryNavBranch({
                 onFilterChange(categoryFilter);
               }}
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg py-2 pr-3 pl-7 text-sm transition-all duration-150 font-bold text-foreground",
+                "flex w-full items-center gap-3 rounded-lg py-2 pr-3 pl-7 text-sm transition-all duration-150 font-bold text-sidebar-foreground",
                 isActive
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-transparent hover:bg-secondary"
+                  ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                  : "bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
               )}
             >
               <span
                 className="grid size-[18px] shrink-0 place-items-center"
                 style={{
-                  color: isActive ? "var(--primary-foreground)" : "var(--primary)",
+                  color: isActive ? "var(--sidebar-primary-foreground)" : "var(--sidebar-foreground)",
                 }}
               >
                 <IconPreview value={category.icon} color={category.color} className="size-[18px]" />
@@ -380,7 +380,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
     const paddingLeft = depth === 0 ? "pl-3" : depth === 1 ? "pl-6" : "pl-9";
     const activeWeight = "font-semibold";
     const inactiveWeight =
-      kind === "tag" ? "font-normal text-muted-foreground" : "font-bold text-foreground";
+      kind === "tag" ? "font-normal text-sidebar-foreground/70" : "font-bold text-sidebar-foreground";
 
     const isTopLevel = id === "all" || id === "completed" || id === "incomplete" || id === "seeding";
 
@@ -399,18 +399,18 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           "flex w-full items-center gap-3 rounded-lg py-2 pr-3 text-sm transition-all duration-150",
           paddingLeft,
           isActive
-            ? `${activeWeight} bg-primary text-primary-foreground`
-            : `${inactiveWeight} bg-transparent hover:bg-secondary`
+            ? `${activeWeight} bg-sidebar-primary text-sidebar-primary-foreground`
+            : `${inactiveWeight} bg-transparent hover:bg-sidebar-accent hover:text-sidebar-accent-foreground`
         )}
       >
         <span
           className="grid size-[18px] shrink-0 place-items-center"
           style={{
             color: isActive
-              ? "var(--primary-foreground)"
+              ? "var(--sidebar-primary-foreground)"
               : kind === "tag"
-                ? "var(--muted-foreground)"
-                : "var(--primary)",
+                ? "var(--sidebar-foreground)"
+                : "var(--sidebar-foreground)",
           }}
         >
           {icon}
@@ -420,7 +420,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
         {expandable ? (
           <span
             className="opacity-50 transition-opacity hover:opacity-90 p-0.5"
-            style={{ color: isActive ? "var(--primary-foreground)" : "var(--muted-foreground)" }}
+            style={{ color: isActive ? "var(--sidebar-primary-foreground)" : "var(--sidebar-foreground)" }}
             onClick={(e) => {
               e.stopPropagation();
               onToggle?.();
@@ -434,8 +434,8 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           className={cn(
             "ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums",
             isActive
-              ? "bg-white/20 text-primary-foreground"
-              : "bg-secondary text-muted-foreground"
+              ? "bg-white/20 text-sidebar-primary-foreground"
+              : "bg-sidebar-accent text-sidebar-foreground"
           )}
         >
           {count}
@@ -529,7 +529,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
       className="flex h-full min-h-0 flex-col bg-transparent pt-6 pb-6 pl-6 pr-0 select-none cursor-default"
       style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}
     >
-      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-card text-card-foreground shadow-toolbar-glow">
+      <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-sidebar text-sidebar-foreground shadow-toolbar-glow">
         <ScrollArea
           className="flex-1 px-2 pt-4 pb-6"
           scrollbar="overlay"
@@ -591,13 +591,13 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           </div>
         </ScrollArea>
         {hideBorderAndBg && (
-          <div className="mt-auto shrink-0 border-t border-border/50 bg-secondary/20 p-2 flex justify-between items-center z-10">
-            <span className="text-xs text-muted-foreground pl-2 font-mono tracking-wider">PiDownloader</span>
+          <div className="mt-auto shrink-0 border-t border-sidebar-border/50 bg-sidebar-accent/20 p-2 flex justify-between items-center z-10">
+            <span className="text-xs text-sidebar-foreground/60 pl-2 font-mono tracking-wider">PiDownloader</span>
             <Button
               variant="ghost"
               size="icon-sm"
               onClick={onOpenSettings}
-              className="text-muted-foreground hover:text-foreground cursor-pointer"
+              className="text-sidebar-foreground/70 hover:text-sidebar-accent-foreground cursor-pointer"
               title="打开设置"
             >
               <Settings className="size-4" />

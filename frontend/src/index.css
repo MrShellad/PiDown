@@ -457,6 +457,7 @@
 
   .scrollbar-overlay {
     scrollbar-gutter: auto;
+    overflow-y: overlay !important;
   }
 
   .scrollbar-overlay::-webkit-scrollbar {

@@ -220,7 +220,7 @@ function IconPicker({
           data-slot="icon-picker"
           align="start"
           sideOffset={8}
-          className="z-[80] w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-surface-strong outline-none data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
+          className="z-[200] w-[22rem] max-w-[calc(100vw-2rem)] overflow-hidden rounded-xl bg-popover text-popover-foreground shadow-surface-strong outline-none data-[state=closed]:animate-out data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95"
         >
           <div className="px-4 pt-4 text-base font-semibold">
             <div className="inline-flex border-b-2 border-foreground pb-2 text-foreground">

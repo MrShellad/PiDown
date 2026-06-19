@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AnimatePresence, motion, Reorder } from "motion/react";
 import { ChevronLeft, ChevronRight, Plus, FolderOpen, FolderCheck, FolderDown, Upload } from "lucide-react";
@@ -21,6 +21,7 @@ import TaskDetailsDrawer from "./TaskDetailsDrawer";
 import TaskListHeader from "./TaskListHeader";
 import TaskTableRow from "./TaskTableRow";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Pagination,
   PaginationContent,
@@ -139,6 +140,17 @@ function compareTaskByColumn(a: Task, b: Task, columnId: TaskTableColumnId) {
   }
 }
 
+interface Particle {
+  x: number;
+  y: number; // absolute Y coordinate relative to list start
+  vx: number;
+  vy: number;
+  size: number;
+  color: string;
+  alpha: number;
+  decay: number;
+}
+
 export default function TaskListDashboard({ activeFilter }: TaskListDashboardProps) {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -154,6 +166,131 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [activeDetailsGid, setActiveDetailsGid] = useState<string | null>(null);
   const rowViewportRef = useRef<HTMLDivElement | null>(null);
+  const horizontalScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Scroll ref for particles drawing
+  const scrollTopRef = useRef(scrollTop);
+  useEffect(() => {
+    scrollTopRef.current = scrollTop;
+  }, [scrollTop]);
+
+  // Particle manager setup
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const particlesRef = useRef<Particle[]>([]);
+  const animationFrameIdRef = useRef<number | null>(null);
+
+  const spawnParticles = (previousIndex: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const computedStyle = getComputedStyle(document.documentElement);
+    const primary = computedStyle.getPropertyValue('--primary').trim() || '#6366f1';
+    const accent = computedStyle.getPropertyValue('--accent').trim() || '#10b981';
+    const colors = [primary, accent, '#ffffff', primary];
+    
+    const width = canvas.clientWidth;
+    const rowY = 52 + 8 + previousIndex * TASK_ROW_STRIDE;
+    
+    const numParticles = 45;
+    const newParticles: Particle[] = [];
+    const horizontalCenter = 12 + (width - 24) / 2;
+
+    for (let i = 0; i < numParticles; i++) {
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const xPos = 12 + Math.random() * (width - 24);
+      const pushDirection = xPos > horizontalCenter ? 1 : -1;
+      
+      newParticles.push({
+        x: xPos,
+        y: rowY + Math.random() * TASK_ROW_HEIGHT,
+        vx: (Math.random() - 0.5) * 4.5 + pushDirection * (Math.random() * 2),
+        vy: -1.2 - Math.random() * 4.8,
+        size: 2.2 + Math.random() * 3.8,
+        color,
+        alpha: 1.0,
+        decay: 0.015 + Math.random() * 0.015,
+      });
+    }
+
+    particlesRef.current = [...particlesRef.current, ...newParticles];
+
+    if (!animationFrameIdRef.current) {
+      animate();
+    }
+  };
+
+  const animate = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) {
+      animationFrameIdRef.current = null;
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+      animationFrameIdRef.current = null;
+      return;
+    }
+
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    
+    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+    }
+    
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    const particles = particlesRef.current;
+    const currentScrollTop = scrollTopRef.current;
+    const activeParticles: Particle[] = [];
+    
+    for (const p of particles) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.16; // gravity
+      p.alpha -= p.decay;
+      
+      if (p.alpha > 0) {
+        const drawY = p.y - currentScrollTop;
+        
+        if (drawY >= -50 && drawY <= height + 50) {
+          ctx.save();
+          ctx.globalAlpha = p.alpha;
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, drawY, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+        
+        activeParticles.push(p);
+      }
+    }
+    
+    particlesRef.current = activeParticles;
+
+    if (activeParticles.length > 0) {
+      animationFrameIdRef.current = requestAnimationFrame(animate);
+    } else {
+      animationFrameIdRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (animationFrameIdRef.current) {
+        cancelAnimationFrame(animationFrameIdRef.current);
+      }
+    };
+  }, []);
+  const [scrollState, setScrollState] = useState({
+    canScrollLeft: false,
+    canScrollRight: false,
+  });
   const previousTasksRef = useRef<Record<string, Task>>({});
   const previousFilteredGidsRef = useRef<string[]>([]);
   const animationTimeoutsRef = useRef<number[]>([]);
@@ -240,6 +377,59 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     };
   }, [activeFilter, categories, tags]);
   const tableWidth = getTaskTableWidth(columns);
+
+  const updateScrollState = useCallback(() => {
+    const el = horizontalScrollRef.current;
+    if (!el) return;
+    const canScrollLeft = el.scrollLeft > 2;
+    const canScrollRight = el.scrollLeft < el.scrollWidth - el.clientWidth - 2;
+    setScrollState((prev) => {
+      if (prev.canScrollLeft === canScrollLeft && prev.canScrollRight === canScrollRight) {
+        return prev;
+      }
+      return { canScrollLeft, canScrollRight };
+    });
+  }, []);
+
+  useEffect(() => {
+    const el = horizontalScrollRef.current;
+    if (!el) return;
+
+    updateScrollState();
+
+    const observer = new ResizeObserver(() => {
+      updateScrollState();
+    });
+    observer.observe(el);
+
+    const child = el.firstElementChild;
+    if (child) {
+      observer.observe(child);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, [updateScrollState, tableWidth, filteredGids.length]);
+
+  const maskStyle = useMemo(() => {
+    const { canScrollLeft, canScrollRight } = scrollState;
+    if (!canScrollLeft && !canScrollRight) return {};
+
+    const leftGradient = canScrollLeft
+      ? "rgba(0,0,0,0) 0%, rgba(0,0,0,1) 24px"
+      : "rgba(0,0,0,1) 0%";
+    const rightGradient = canScrollRight
+      ? "rgba(0,0,0,1) calc(100% - 24px), rgba(0,0,0,0) 100%"
+      : "rgba(0,0,0,1) 100%";
+
+    const val = `linear-gradient(to right, ${leftGradient}, ${rightGradient})`;
+    return {
+      WebkitMaskImage: val,
+      maskImage: val,
+    };
+  }, [scrollState]);
+
   const selectedFilteredCount = paginatedFilteredGids.filter((gid) => selectedTaskIds.has(gid)).length;
   const allFilteredSelected =
     paginatedFilteredGids.length > 0 && selectedFilteredCount === paginatedFilteredGids.length;
@@ -368,6 +558,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       const exitGids = Object.keys(nextSnapshots);
 
       if (exitGids.length > 0) {
+        for (const gid of exitGids) {
+          const prevIndex = nextPositions[gid];
+          if (prevIndex !== undefined) {
+            spawnParticles(prevIndex);
+          }
+        }
+
         setExitingTaskSnapshots((current) => ({ ...current, ...nextSnapshots }));
         setExitingTaskPositions((current) => ({ ...current, ...nextPositions }));
         setExitingTaskIds((current) => {
@@ -532,8 +729,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
           <div className="flex min-h-0 flex-1 flex-col gap-3">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
               <div
+                ref={horizontalScrollRef}
                 className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
-                style={{ overflowX: "auto" as React.CSSProperties["overflowX"] }}
+                style={{
+                  overflowX: "auto" as React.CSSProperties["overflowX"],
+                  ...maskStyle,
+                }}
+                onScroll={updateScrollState}
               >
                 <div
                   className="flex min-h-0 flex-col overflow-visible relative"
@@ -549,7 +751,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     className="absolute top-0 z-20"
                     style={{
                       left: 12,
-                      right: 18,
+                      right: 12,
                     }}
                   >
                     <TaskListHeader
@@ -559,19 +761,24 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       onCheckedChange={toggleAllFilteredTasks}
                     />
                   </div>
-                  <div
-                    ref={rowViewportRef}
-                    className={`relative mt-2 min-h-0 flex-1 overflow-y-auto overflow-x-hidden rounded-b-lg pb-[64px] pt-0 scrollbar-interactive scrollbar-overlay scrollbar-auto-hide scroll-smooth ${
-                      filteredGids.length === 0 ? "flex flex-col" : ""
-                    }`}
+                  <ScrollArea
+                    viewportRef={rowViewportRef}
+                    scrollbar="overlay"
+                    visibility="auto"
+                    gutter="stable"
+                    variant="ghost"
+                    className="mt-2 min-h-0 flex-1"
                     style={{
                       marginLeft: -12,
                       marginRight: -12,
+                      marginBottom: 6,
+                    }}
+                    viewportClassName={`relative pb-[64px] pt-0 scroll-smooth ${
+                      filteredGids.length === 0 ? "flex flex-col" : ""
+                    }`}
+                    viewportStyle={{
                       paddingLeft: 12,
                       paddingRight: 12,
-                      marginBottom: 6,
-                      overflowY: "overlay" as React.CSSProperties["overflowY"],
-                      scrollbarGutter: "stable",
                     }}
                     onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
                   >
@@ -684,28 +891,40 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                   onSelect={isExiting ? undefined : toggleTaskSelection}
                                   onContextSelect={isExiting ? undefined : selectSingleTask}
                                   onOpenDetails={isExiting ? undefined : toggleTaskDetails}
+                                  selectionMode={selectedTaskIds.size > 0}
                                 />
                               </Reorder.Item>
                             );
                           })}
                         </AnimatePresence>
                       </Reorder.Group>
+
+                      {/* Canvas Overlay for Particle Explosion */}
+                      <canvas
+                        ref={canvasRef}
+                        className="absolute left-0 pointer-events-none z-50"
+                        style={{
+                          top: scrollTop,
+                          width: "100%",
+                          height: viewportHeight,
+                        }}
+                      />
                     </div>
                   )}
-                </div>
+                </ScrollArea>
 
                 {/* Pagination Controls */}
                   <div
-                   className="absolute z-20"
-                   style={{
-                     left: 12,
-                     right: 18,
-                     bottom: 6,
-                   }}
-                 >
+                    className="absolute z-20"
+                    style={{
+                      left: 12,
+                      right: 12,
+                      bottom: 6,
+                    }}
+                  >
                   <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
                       {/* Left: Range Info */}
-                      <div className="flex items-center gap-1.5 font-medium">
+                      <div className="flex flex-1 items-center gap-1.5 font-medium justify-start">
                         <span>显示</span>
                         <span className="font-semibold text-foreground">
                           {Math.min(filteredGids.length, (currentPage - 1) * pageSize + 1)}
@@ -720,71 +939,73 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       </div>
 
                       {/* Middle: Page navigation buttons */}
-                      {totalPages > 1 && (
-                        <Pagination className="mx-0 w-auto">
-                          <PaginationContent className="gap-1">
-                            <PaginationItem>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-md hover:bg-muted"
-                                disabled={currentPage === 1}
-                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                              >
-                                <ChevronLeft className="h-4 w-4" />
-                              </Button>
-                            </PaginationItem>
+                      <div className="flex flex-1 items-center justify-center">
+                        {totalPages > 1 && (
+                          <Pagination className="mx-0 w-auto">
+                            <PaginationContent className="gap-1">
+                              <PaginationItem>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-md hover:bg-muted"
+                                  disabled={currentPage === 1}
+                                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                                >
+                                  <ChevronLeft className="h-4 w-4" />
+                                </Button>
+                              </PaginationItem>
 
-                            {/* Page Numbers */}
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                              const isNearCurrent = Math.abs(page - currentPage) <= 1;
-                              const isEdge = page === 1 || page === totalPages;
-                              if (totalPages > 7 && !isNearCurrent && !isEdge) {
-                                if (page === 2 || page === totalPages - 1) {
-                                  return (
-                                    <PaginationItem key={page}>
-                                      <PaginationEllipsis className="h-8 w-8" />
-                                    </PaginationItem>
-                                  );
+                              {/* Page Numbers */}
+                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                                const isNearCurrent = Math.abs(page - currentPage) <= 1;
+                                const isEdge = page === 1 || page === totalPages;
+                                if (totalPages > 7 && !isNearCurrent && !isEdge) {
+                                  if (page === 2 || page === totalPages - 1) {
+                                    return (
+                                      <PaginationItem key={page}>
+                                        <PaginationEllipsis className="h-8 w-8" />
+                                      </PaginationItem>
+                                    );
+                                  }
+                                  return null;
                                 }
-                                return null;
-                              }
 
-                              return (
-                                <PaginationItem key={page}>
-                                  <Button
-                                    variant={currentPage === page ? "outline" : "ghost"}
-                                    size="icon"
-                                    className={`h-8 w-8 rounded-md text-xs transition-colors ${
-                                      currentPage === page
-                                        ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
-                                        : "hover:bg-muted"
-                                    }`}
-                                    onClick={() => setCurrentPage(page)}
-                                  >
-                                    {page}
-                                  </Button>
-                                </PaginationItem>
-                              );
-                            })}
+                                return (
+                                  <PaginationItem key={page}>
+                                    <Button
+                                      variant={currentPage === page ? "outline" : "ghost"}
+                                      size="icon"
+                                      className={`h-8 w-8 rounded-md text-xs transition-colors ${
+                                        currentPage === page
+                                          ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                                          : "hover:bg-muted"
+                                      }`}
+                                      onClick={() => setCurrentPage(page)}
+                                    >
+                                      {page}
+                                    </Button>
+                                  </PaginationItem>
+                                );
+                              })}
 
-                            <PaginationItem>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 rounded-md hover:bg-muted"
-                                disabled={currentPage === totalPages}
-                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                              >
-                                <ChevronRight className="h-4 w-4" />
-                              </Button>
-                            </PaginationItem>
-                          </PaginationContent>
-                        </Pagination>
-                      )}
+                              <PaginationItem>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 rounded-md hover:bg-muted"
+                                  disabled={currentPage === totalPages}
+                                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                                >
+                                  <ChevronRight className="h-4 w-4" />
+                                </Button>
+                              </PaginationItem>
+                            </PaginationContent>
+                          </Pagination>
+                        )}
+                      </div>
 
                       {/* Right: Page Size Dropdown */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-1 items-center gap-2 justify-end">
                         <span>单页显示</span>
                         <Select
                           value={String(pageSize)}

@@ -3,6 +3,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react"
 
 import { CategoryDropdown, CategoryEditDialog } from "@/components/common"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import {
   Dialog,
   DialogBody,
@@ -381,12 +382,18 @@ export default function DownloadRulesManager() {
               {editingTag ? "编辑标签" : "添加标签"}
             </DialogTitle>
           </DialogHeader>
-          <DialogBody className="space-y-4 max-h-[65vh] overflow-y-auto pr-1">
+          <DialogBody className="p-0">
+            <ScrollArea
+              scrollbar="overlay"
+              visibility="auto"
+              viewportClassName="space-y-4 px-4 py-4 sm:px-5 max-h-[65vh]"
+            >
             <TagForm
               value={tagDraft}
               categories={categories}
               onChange={setTagDraft}
             />
+            </ScrollArea>
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" onClick={() => setTagEditorOpen(false)}>

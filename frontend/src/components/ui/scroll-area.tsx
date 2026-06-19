@@ -57,7 +57,10 @@ interface ScrollAreaProps
     VariantProps<typeof scrollAreaVariants>,
     VariantProps<typeof viewportVariants> {
   viewportClassName?: string;
+  viewportStyle?: React.CSSProperties;
   safePadding?: boolean;
+  viewportRef?: React.Ref<HTMLDivElement>;
+  onScroll?: React.UIEventHandler<HTMLDivElement>;
 }
 
 export const ScrollArea = React.forwardRef<
@@ -66,12 +69,15 @@ export const ScrollArea = React.forwardRef<
 >(({
   className,
   viewportClassName,
+  viewportStyle,
   variant,
   scrollbar,
   orientation,
   visibility,
   gutter,
   safePadding = false,
+  viewportRef,
+  onScroll,
   children,
   ...props
 }, ref) => {
@@ -83,12 +89,15 @@ export const ScrollArea = React.forwardRef<
       {...props}
     >
       <div
+        ref={viewportRef}
         data-slot="scroll-area-viewport"
         className={cn(
           viewportVariants({ scrollbar, orientation, visibility, gutter }),
           safePadding && scrollbar !== "hidden" && orientation !== "horizontal" && "pr-2",
           viewportClassName
         )}
+        style={viewportStyle}
+        onScroll={onScroll}
       >
         {children}
       </div>

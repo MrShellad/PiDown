@@ -129,7 +129,7 @@ export default function WindowFrame({
   return (
     <div className="window-frame relative select-none" style={{ zIndex: 100 }}>
       <div
-        className="flex items-center rounded-t-lg border-b border-border bg-card text-base backdrop-blur-md"
+        className="flex items-center rounded-t-lg bg-background text-base backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
         style={{ height: UI_TOKENS.frameHeights.modern }}
       >
         {showMenu ? (
@@ -153,7 +153,7 @@ export default function WindowFrame({
           style={{ cursor: "move" }}
         >
           <div className="pointer-events-none flex items-center gap-2">
-            <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-primary to-cyan-400" />
+            <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-primary to-sidebar" />
             <span className="text-sm font-semibold tracking-tight text-foreground/80">{title}</span>
           </div>
         </div>

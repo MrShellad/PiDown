@@ -61,6 +61,8 @@ import { useDownloadStore } from "@/core/store/useDownloadStore";
 import {
   useThemeStore,
   getModernThemeStyles,
+  getSurfaceThemeStyles,
+  getUbuntuThemeStyles,
   parseThemeZip,
   type CustomTheme,
 } from "@/core/store/useThemeStore";
@@ -215,6 +217,33 @@ export default function SettingsWindow() {
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
   const [tokenCopied, setTokenCopied] = useState(false);
+
+  const themeScrollRef = useRef<HTMLDivElement>(null);
+  const [showLeftScroll, setShowLeftScroll] = useState(false);
+  const [showRightScroll, setShowRightScroll] = useState(true);
+
+  const updateThemeScrollButtons = () => {
+    if (themeScrollRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = themeScrollRef.current;
+      setShowLeftScroll(scrollLeft > 10);
+      setShowRightScroll(scrollLeft < scrollWidth - clientWidth - 10);
+    }
+  };
+
+  const scrollThemes = (direction: "left" | "right") => {
+    if (themeScrollRef.current) {
+      const container = themeScrollRef.current;
+      const cardWidth = 304; // w-72 (288px) + gap-4 (16px)
+      const targetScroll = direction === "left" 
+        ? container.scrollLeft - cardWidth 
+        : container.scrollLeft + cardWidth;
+      
+      container.scrollTo({
+        left: targetScroll,
+        behavior: "smooth"
+      });
+    }
+  };
 
 
 
@@ -466,8 +495,12 @@ export default function SettingsWindow() {
 
 
   const allThemes = useMemo(() => {
-    const { dark, light } = getModernThemeStyles();
+    const { dark: modernDark, light: modernLight } = getModernThemeStyles();
+    const { dark: surfaceDark, light: surfaceLight } = getSurfaceThemeStyles();
+    const { dark: ubuntuDark, light: ubuntuLight } = getUbuntuThemeStyles();
     const modernMeta = THEME_REGISTRY.find((t) => t.id === "modern")!;
+    const surfaceMeta = THEME_REGISTRY.find((t) => t.id === "surface")!;
+    const ubuntuMeta = THEME_REGISTRY.find((t) => t.id === "ubuntu")!;
 
     const modernTheme: CustomTheme = {
       id: "modern",
@@ -481,7 +514,7 @@ export default function SettingsWindow() {
       hasSpecialSound: modernMeta.hasSpecialSound,
       accent: modernMeta.accent,
       previewClassName: modernMeta.previewClassName,
-      styles: { dark, light },
+      styles: { dark: modernDark, light: modernLight },
       font: {
         id: "builtin:geist",
         name: "Geist",
@@ -511,8 +544,60 @@ export default function SettingsWindow() {
       },
     };
 
-    return [modernTheme, ...customThemes];
+    const surfaceTheme: CustomTheme = {
+      id: "surface",
+      name: surfaceMeta.name,
+      description: surfaceMeta.description,
+      author: "PiDown Team",
+      version: "1.0.0",
+      created_at: "2026-06-18",
+      updated_at: "2026-06-18",
+      hasCanvasBg: surfaceMeta.hasCanvasBg,
+      hasSpecialSound: surfaceMeta.hasSpecialSound,
+      accent: surfaceMeta.accent,
+      previewClassName: surfaceMeta.previewClassName,
+      styles: { dark: surfaceDark, light: surfaceLight },
+      font: {
+        id: "builtin:geist",
+        name: "Geist",
+        stack: "'Geist Variable', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif",
+      },
+    };
+
+    const ubuntuTheme: CustomTheme = {
+      id: "ubuntu",
+      name: ubuntuMeta.name,
+      description: ubuntuMeta.description,
+      author: "PiDown Team",
+      version: "1.0.0",
+      created_at: "2026-06-18",
+      updated_at: "2026-06-18",
+      hasCanvasBg: ubuntuMeta.hasCanvasBg,
+      hasSpecialSound: ubuntuMeta.hasSpecialSound,
+      accent: ubuntuMeta.accent,
+      previewClassName: ubuntuMeta.previewClassName,
+      styles: { dark: ubuntuDark, light: ubuntuLight },
+      font: {
+        id: "builtin:geist",
+        name: "Geist",
+        stack: "'Geist Variable', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans CJK SC', sans-serif",
+      },
+    };
+
+    return [modernTheme, surfaceTheme, ubuntuTheme, ...customThemes];
   }, [customThemes]);
+
+  useEffect(() => {
+    // Initial check after layout renders
+    const timer = setTimeout(() => {
+      updateThemeScrollButtons();
+    }, 150);
+    window.addEventListener("resize", updateThemeScrollButtons);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updateThemeScrollButtons);
+    };
+  }, [allThemes, activeSection]);
 
   useEffect(() => {
     load().catch(console.error);
@@ -1841,145 +1926,198 @@ export default function SettingsWindow() {
                         </Button>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-4">
-                      {allThemes.map((item) => {
-                        const active = theme === item.id;
-                        const isCustom = item.id !== "modern";
+                    <div className="relative flex items-center group/carousel">
+                      {/* Left Scroll Button */}
+                      {showLeftScroll && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => scrollThemes("left")}
+                          className="absolute -left-4 z-20 size-9 rounded-full bg-card/90 shadow-md hover:bg-accent border-border cursor-pointer transition-transform active:scale-95"
+                        >
+                          <ChevronLeft className="size-5" />
+                        </Button>
+                      )}
 
-                        return (
-                          <article
-                            key={item.id}
-                            className={`group/theme-card flex h-96 w-72 shrink-0 flex-col overflow-hidden rounded-xl border bg-card/82 shadow-surface-raised transition-all ${
-                              active
-                                ? "border-primary ring-2 ring-primary/25"
-                                : "border-border hover:border-primary/45 hover:bg-card"
-                            }`}
-                          >
-                            <div className="relative h-28 overflow-hidden">
-                              {item.previewImage ? (
-                                <img
-                                  src={item.previewImage}
-                                  alt={item.name}
-                                  className="h-full w-full object-cover"
-                                />
-                              ) : (
-                                <div className={`h-full w-full ${item.previewClassName || "bg-gradient-to-br from-primary/30 to-accent/30"}`} />
-                              )}
-                              <div className="absolute inset-x-4 top-4 h-6 rounded-t-lg border border-primary-foreground/30 bg-primary/85 shadow-surface-raised" />
-                              <div className="absolute inset-x-4 bottom-4 h-14 rounded-b-lg border border-border/70 bg-card/82 shadow-surface-strong backdrop-blur-sm" />
-                              <div className="absolute bottom-6 left-7 h-2 w-16 rounded-full bg-primary/70" />
-                              <div className="absolute bottom-6 right-7 h-2 w-8 rounded-full bg-accent/70" />
-                              <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
-                                {item.accent || UI_TEXT.settings.customTheme}
-                              </div>
-                            </div>
+                      {/* Left Blur Overlay */}
+                      {showLeftScroll && (
+                        <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-card to-transparent pointer-events-none z-10" />
+                      )}
 
-                            <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-                              <div className="space-y-1.5">
-                                <div className="flex items-center justify-between gap-3">
-                                  <h3 className="text-base font-bold leading-6 text-foreground">
-                                    {item.name}
-                                  </h3>
-                                  {active ? (
-                                    <span className="rounded-full bg-primary/12 px-2.5 py-1 text-xs font-semibold text-primary">
-                                      {UI_TEXT.settings.active}
-                                    </span>
-                                  ) : null}
-                                </div>
-                                <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">
-                                  {item.description}
-                                </p>
-                              </div>
+                      {/* Viewport for theme cards */}
+                      <div
+                        ref={themeScrollRef}
+                        onScroll={updateThemeScrollButtons}
+                        className="flex w-full flex-row gap-4 overflow-x-auto py-2 scroll-smooth scrollbar-none snap-x snap-mandatory"
+                        style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
+                      >
+                        {allThemes.map((item) => {
+                          const active = theme === item.id;
+                          const isCustom = item.id !== "modern" && item.id !== "surface" && item.id !== "ubuntu";
+                          const cardPrimaryColor = item.styles[colorMode]?.["--primary"] || "var(--primary)";
+                          const cardAccentColor = item.styles[colorMode]?.["--accent"] || item.styles[colorMode]?.["--primary"] || "var(--accent)";
 
-                              <div className="flex flex-wrap gap-2">
-                                <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                  {item.hasCanvasBg ? UI_TEXT.settings.dynamicBg : UI_TEXT.settings.staticBg}
-                                </span>
-                                <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                  {item.hasSpecialSound ? UI_TEXT.settings.themeSound : UI_TEXT.settings.defaultSound}
-                                </span>
-                                {item.font && (
-                                  <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                    {UI_TEXT.settings.fontPrefix}{item.font.name}
-                                  </span>
-                                )}
-                              </div>
-
-                              <div className="mt-auto flex w-full gap-2">
-                                <Button
-                                  variant={active ? "default" : "outline"}
-                                  size="sm"
-                                  className="flex-1"
-                                  onClick={() => setTheme(item.id)}
-                                >
-                                  {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
-                                </Button>
-                                
-                                {/* Temporarily hide theme editor edit/duplicate entry points */}
-                                {false && (isCustom ? (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="outline"
-                                        size="icon"
-                                        className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                        onClick={() => openEditTheme(item)}
-                                      >
-                                        <Pencil className="size-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{UI_TEXT.settings.editTheme}</TooltipContent>
-                                  </Tooltip>
+                          return (
+                            <article
+                              key={item.id}
+                              className={`group/theme-card flex h-96 w-72 shrink-0 flex-col overflow-hidden rounded-xl border bg-card/82 shadow-surface-raised transition-all snap-start ${
+                                active
+                                  ? "border-primary ring-2 ring-primary/25"
+                                  : "border-border hover:border-primary/45 hover:bg-card"
+                              }`}
+                            >
+                              <div className="relative h-28 overflow-hidden">
+                                {item.previewImage ? (
+                                  <img
+                                    src={item.previewImage}
+                                    alt={item.name}
+                                    className="h-full w-full object-cover"
+                                  />
                                 ) : (
+                                  <div className={`h-full w-full ${item.previewClassName || "bg-gradient-to-br from-primary/30 to-accent/30"}`} />
+                                )}
+                                <div 
+                                  className="absolute inset-x-4 top-4 h-6 rounded-t-lg border border-primary-foreground/30 shadow-surface-raised" 
+                                  style={{ backgroundColor: cardPrimaryColor, opacity: 0.85 }}
+                                />
+                                <div className="absolute inset-x-4 bottom-4 h-14 rounded-b-lg border border-border/70 bg-card/82 shadow-surface-strong backdrop-blur-sm" />
+                                <div 
+                                  className="absolute bottom-6 left-7 h-2 w-16 rounded-full" 
+                                  style={{ backgroundColor: cardPrimaryColor, opacity: 0.7 }}
+                                />
+                                <div 
+                                  className="absolute bottom-6 right-7 h-2 w-8 rounded-full" 
+                                  style={{ backgroundColor: cardAccentColor, opacity: 0.7 }}
+                                />
+                                <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
+                                  {item.accent || UI_TEXT.settings.customTheme}
+                                </div>
+                              </div>
+
+                              <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
+                                <div className="space-y-1.5">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <h3 className="text-base font-bold leading-6 text-foreground">
+                                      {item.name}
+                                    </h3>
+                                    {active ? (
+                                      <span className="rounded-full bg-primary/12 px-2.5 py-1 text-xs font-semibold text-primary">
+                                        {UI_TEXT.settings.active}
+                                      </span>
+                                    ) : null}
+                                  </div>
+                                  <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">
+                                    {item.description}
+                                  </p>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                    {item.hasCanvasBg ? UI_TEXT.settings.dynamicBg : UI_TEXT.settings.staticBg}
+                                  </span>
+                                  <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                    {item.hasSpecialSound ? UI_TEXT.settings.themeSound : UI_TEXT.settings.defaultSound}
+                                  </span>
+                                  {item.font && (
+                                    <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                      {UI_TEXT.settings.fontPrefix}{item.font.name}
+                                    </span>
+                                  )}
+                                </div>
+
+                                <div className="mt-auto flex w-full gap-2">
+                                  <Button
+                                    variant={active ? "default" : "outline"}
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setTheme(item.id)}
+                                  >
+                                    {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
+                                  </Button>
+                                  
+                                  {/* Temporarily hide theme editor edit/duplicate entry points */}
+                                  {false && (isCustom ? (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                          onClick={() => openEditTheme(item)}
+                                        >
+                                          <Pencil className="size-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{UI_TEXT.settings.editTheme}</TooltipContent>
+                                    </Tooltip>
+                                  ) : (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="outline"
+                                          size="icon"
+                                          className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                          onClick={() => openDuplicateTheme(item)}
+                                        >
+                                          <Copy className="size-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{UI_TEXT.settings.createTheme}</TooltipContent>
+                                    </Tooltip>
+                                  ))}
+
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button
                                         variant="outline"
                                         size="icon"
                                         className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                        onClick={() => openDuplicateTheme(item)}
+                                        onClick={() => exportThemeTemplate(item)}
                                       >
-                                        <Copy className="size-4" />
+                                        <Download className="size-4" />
                                       </Button>
                                     </TooltipTrigger>
-                                    <TooltipContent>{UI_TEXT.settings.createTheme}</TooltipContent>
+                                    <TooltipContent>{UI_TEXT.settings.exportTheme}</TooltipContent>
                                   </Tooltip>
-                                ))}
 
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <Button
-                                      variant="outline"
-                                      size="icon"
-                                      className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                      onClick={() => exportThemeTemplate(item)}
-                                    >
-                                      <Download className="size-4" />
-                                    </Button>
-                                  </TooltipTrigger>
-                                  <TooltipContent>{UI_TEXT.settings.exportTheme}</TooltipContent>
-                                </Tooltip>
-
-                                {isCustom && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <Button
-                                        variant="destructive"
-                                        size="icon"
-                                        className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                        onClick={() => deleteTheme(item.id)}
-                                      >
-                                        <Trash2 className="size-4" />
-                                      </Button>
-                                    </TooltipTrigger>
-                                    <TooltipContent>{UI_TEXT.settings.deleteTheme}</TooltipContent>
-                                  </Tooltip>
-                                )}
+                                  {isCustom && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button
+                                          variant="destructive"
+                                          size="icon"
+                                          className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                          onClick={() => deleteTheme(item.id)}
+                                        >
+                                          <Trash2 className="size-4" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>{UI_TEXT.settings.deleteTheme}</TooltipContent>
+                                    </Tooltip>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          </article>
-                        );
-                      })}
+                            </article>
+                          );
+                        })}
+                      </div>
+
+                      {/* Right Blur Overlay */}
+                      {showRightScroll && (
+                        <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-card to-transparent pointer-events-none z-10" />
+                      )}
+
+                      {/* Right Scroll Button */}
+                      {showRightScroll && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => scrollThemes("right")}
+                          className="absolute -right-4 z-20 size-9 rounded-full bg-card/90 shadow-md hover:bg-accent border-border cursor-pointer transition-transform active:scale-95"
+                        >
+                          <ChevronRight className="size-5" />
+                        </Button>
+                      )}
                     </div>
 
                     <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">

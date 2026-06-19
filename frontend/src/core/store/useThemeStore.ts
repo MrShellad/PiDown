@@ -252,6 +252,30 @@ export function getModernThemeStyles(): { dark: Record<string, string>; light: R
   }
 }
 
+export function getSurfaceThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
+  try {
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="surface"\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="surface"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    return { dark: darkVars, light: lightVars };
+  } catch (e) {
+    console.error("Failed to parse surface theme variables", e);
+    return { dark: {}, light: {} };
+  }
+}
+
+export function getUbuntuThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
+  try {
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="ubuntu"\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="ubuntu"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    return { dark: darkVars, light: lightVars };
+  } catch (e) {
+    console.error("Failed to parse ubuntu theme variables", e);
+    return { dark: {}, light: {} };
+  }
+}
+
+
+
 // Helpers for ZIP Parsing
 function hasExtension(filename: string, extensions: string[]): boolean {
   const lower = filename.toLowerCase();
