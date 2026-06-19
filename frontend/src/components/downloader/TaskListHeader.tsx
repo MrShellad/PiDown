@@ -1,16 +1,25 @@
-import { useRef, useState } from "react"
-import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical } from "lucide-react"
+import { useRef } from "react"
+import { ArrowDown, ArrowUp, ChevronsUpDown, GripVertical, SlidersHorizontal } from "lucide-react"
 import { motion } from "motion/react"
+import type { Table } from "@tanstack/react-table"
 
 import { Checkbox } from "@/components/ui/checkbox"
+import { Button } from "@/components/ui/button"
+import { Popover as PopoverPrimitive } from "radix-ui"
+import { Separator } from "@/components/ui/separator"
 import { UI_TEXT } from "@/core/locale"
+import type { Task } from "@/core/store/useDownloadStore"
 import {
   type TaskTableColumnId,
   type TaskTableColumnState,
   type TaskTableSortState,
   useTaskTableStore,
 } from "@/core/store/useTaskTableStore"
-import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
+import {
+  getTaskTableWidth,
+  TASK_TABLE_SELECT_COLUMN_WIDTH,
+  TASK_TABLE_SETTINGS_COLUMN_WIDTH,
+} from "@/core/taskTableLayout"
 import { cn } from "@/lib/utils"
 
 type TaskListHeaderChecked = React.ComponentProps<typeof Checkbox>["checked"]
@@ -21,6 +30,7 @@ interface TaskListHeaderProps {
   disabled?: boolean
   embedded?: boolean
   onCheckedChange?: (checked: boolean) => void
+  table: Table<Task>
 }
 
 interface TaskListHeaderColumnMeta {
@@ -78,46 +88,28 @@ const TASK_TABLE_COLUMN_META: Record<TaskTableColumnId, TaskListHeaderColumnMeta
 function HeaderCell({
   column,
   meta,
-  activeDragId,
   sort,
   showSeparator,
   onSort,
   onResizeStart,
-  onDragStart,
-  onDragOver,
-  onDrop,
-  onDragEnd,
 }: {
-  column: TaskTableColumnState
+  column: { id: TaskTableColumnId; width: number }
   meta: TaskListHeaderColumnMeta
-  activeDragId: TaskTableColumnId | null
   sort: TaskTableSortState | null
   showSeparator?: boolean
   onSort: (id: TaskTableColumnId) => void
   onResizeStart: (event: React.PointerEvent<HTMLButtonElement>, column: TaskTableColumnState) => void
-  onDragStart: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
-  onDragOver: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
-  onDrop: (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => void
-  onDragEnd: () => void
 }) {
-  const isDragging = activeDragId === column.id
   const activeSort = sort?.id === column.id ? sort.direction : null
   const SortIcon = activeSort === "asc" ? ArrowUp : activeSort === "desc" ? ArrowDown : ChevronsUpDown
 
   return (
     <div
       data-slot="task-list-header-cell"
-      draggable
-      aria-label={`${meta.label} 拖拽调整列顺序`}
-      onDragStart={(event) => onDragStart(event, column.id)}
-      onDragOver={(event) => onDragOver(event, column.id)}
-      onDrop={(event) => onDrop(event, column.id)}
-      onDragEnd={onDragEnd}
       className={cn(
-        "group/header-cell relative flex h-full shrink-0 cursor-grab select-none items-center px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors active:cursor-grabbing",
+        "group/header-cell relative flex h-full shrink-0 select-none items-center px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors",
         column.id === "name" ? "justify-start" : "justify-center",
-        "hover:bg-muted/35 hover:text-foreground",
-        isDragging && "bg-muted/50 opacity-70"
+        "hover:bg-muted/35 hover:text-foreground"
       )}
       style={{ flexBasis: column.width, width: column.width, minWidth: meta.minWidth }}
       onClick={() => {
@@ -130,12 +122,6 @@ function HeaderCell({
           className="pointer-events-none absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/80 shadow-divider-glow"
         />
       ) : null}
-      <span
-        aria-hidden="true"
-        className="pointer-events-none mr-1 flex size-5 shrink-0 items-center justify-center rounded-sm opacity-0 transition-opacity group-hover/header-cell:opacity-80"
-      >
-        <GripVertical className="size-3.5" />
-      </span>
       {meta.sortable ? (
         <SortIcon
           className={cn(
@@ -152,7 +138,7 @@ function HeaderCell({
         draggable={false}
         onClick={(event) => event.stopPropagation()}
         onDragStart={(event) => event.preventDefault()}
-        onPointerDown={(event) => onResizeStart(event, column)}
+        onPointerDown={(event) => onResizeStart(event, column as TaskTableColumnState)}
       />
     </div>
   )
@@ -164,27 +150,25 @@ export default function TaskListHeader({
   disabled,
   embedded = false,
   onCheckedChange,
+  table,
 }: TaskListHeaderProps) {
   const columns = useTaskTableStore((state) => state.columns)
+  const toggleColumnVisibility = useTaskTableStore((state) => state.toggleColumnVisibility)
+  const resetColumns = useTaskTableStore((state) => state.resetColumns)
+  
   const tableWidth = getTaskTableWidth(columns)
   const sort = useTaskTableStore((state) => state.sort)
   const resizeColumn = useTaskTableStore((state) => state.resizeColumn)
   const moveColumn = useTaskTableStore((state) => state.moveColumn)
   const toggleSortColumn = useTaskTableStore((state) => state.toggleSortColumn)
+  
   const checkedActive = checked === true || checked === "indeterminate"
   const resizeRef = useRef<{
     id: TaskTableColumnId
     startX: number
     startWidth: number
   } | null>(null)
-  const suppressSortClickRef = useRef(false)
-  const [activeDragId, setActiveDragId] = useState<TaskTableColumnId | null>(null)
-
-  const releaseSortSuppression = () => {
-    window.setTimeout(() => {
-      suppressSortClickRef.current = false
-    }, 0)
-  }
+  const menuDragSourceIdRef = useRef<TaskTableColumnId | null>(null)
 
   const handleResizeStart = (
     event: React.PointerEvent<HTMLButtonElement>,
@@ -218,45 +202,50 @@ export default function TaskListHeader({
     window.addEventListener("pointerup", handlePointerUp)
   }
 
-  const handleDragStart = (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => {
-    if (resizeRef.current) {
-      event.preventDefault()
-      return
-    }
-
-    suppressSortClickRef.current = true
-    setActiveDragId(id)
-    event.dataTransfer.effectAllowed = "move"
-    event.dataTransfer.setData("application/x-pidownloader-column", id)
-    event.dataTransfer.setData("text/plain", id)
+  const handleSort = (id: TaskTableColumnId) => {
+    toggleSortColumn(id)
   }
 
-  const handleDragOver = (event: React.DragEvent<HTMLDivElement>) => {
+  // Menu DnD handlers
+  const handleMenuDragStart = (event: React.DragEvent<HTMLDivElement>, id: TaskTableColumnId) => {
+    menuDragSourceIdRef.current = id
+    event.dataTransfer.effectAllowed = "move"
+    event.dataTransfer.setData("text/plain", id)
+
+    // Apply active/drag style to the row directly to avoid React re-render which cancels drag in WebView2.
+    const dragRow = event.currentTarget.closest("[data-drag-row]")
+    if (dragRow) {
+      dragRow.classList.add("opacity-40", "bg-muted/30")
+    }
+  }
+
+  const handleMenuDragOver = (event: React.DragEvent<HTMLDivElement>) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = "move"
   }
 
-  const handleDrop = (event: React.DragEvent<HTMLDivElement>, targetId: TaskTableColumnId) => {
+  const handleMenuDrop = (event: React.DragEvent<HTMLDivElement>, targetId: TaskTableColumnId) => {
     event.preventDefault()
     event.stopPropagation()
-    const sourceId =
-      (event.dataTransfer.getData("application/x-pidownloader-column") ||
-        event.dataTransfer.getData("text/plain")) as TaskTableColumnId
+    const sourceId = menuDragSourceIdRef.current
 
-    if (sourceId) moveColumn(sourceId, targetId)
-    setActiveDragId(null)
-    releaseSortSuppression()
+    if (sourceId && sourceId !== targetId) {
+      moveColumn(sourceId, targetId)
+    }
+    menuDragSourceIdRef.current = null
   }
 
-  const handleDragEnd = () => {
-    setActiveDragId(null)
-    releaseSortSuppression()
+  const handleMenuDragEnd = (event: React.DragEvent<HTMLDivElement>) => {
+    const dragRow = event.currentTarget.closest("[data-drag-row]")
+    if (dragRow) {
+      dragRow.classList.remove("opacity-40", "bg-muted/30")
+    }
+    window.setTimeout(() => {
+      menuDragSourceIdRef.current = null
+    }, 100)
   }
 
-  const handleSort = (id: TaskTableColumnId) => {
-    if (suppressSortClickRef.current) return
-    toggleSortColumn(id)
-  }
+  const visibleLeafColumns = table.getVisibleLeafColumns()
 
   return (
     <div
@@ -266,7 +255,7 @@ export default function TaskListHeader({
         embedded ? "rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40" : "rounded-lg bg-card/95 shadow-surface-raised",
         className
       )}
-      style={{ width: "100%", minWidth: tableWidth }}
+      style={{ width: `${tableWidth}px` }}
     >
       <div
         className="flex h-full shrink-0 items-center justify-center"
@@ -298,22 +287,96 @@ export default function TaskListHeader({
         </motion.div>
       </div>
       <div className="flex min-w-0 flex-1 overflow-hidden">
-        {columns.map((column, index) => (
-          <HeaderCell
-            key={column.id}
-            column={column}
-            meta={TASK_TABLE_COLUMN_META[column.id]}
-            activeDragId={activeDragId}
-            sort={sort}
-            showSeparator={index > 0}
-            onSort={handleSort}
-            onResizeStart={handleResizeStart}
-            onDragStart={handleDragStart}
-            onDragOver={handleDragOver}
-            onDrop={handleDrop}
-            onDragEnd={handleDragEnd}
-          />
-        ))}
+        {visibleLeafColumns.map((col, index) => {
+          const storeCol = columns.find((c) => c.id === col.id)
+          const colState = { id: col.id as TaskTableColumnId, width: storeCol?.width || col.getSize() }
+          return (
+            <HeaderCell
+              key={col.id}
+              column={colState}
+              meta={TASK_TABLE_COLUMN_META[col.id as TaskTableColumnId]}
+              sort={sort}
+              showSeparator={index > 0}
+              onSort={handleSort}
+              onResizeStart={handleResizeStart}
+            />
+          )
+        })}
+      </div>
+      
+      {/* Column settings button */}
+      <div 
+        className="flex h-full shrink-0 items-center justify-center border-l border-border/40 px-2.5"
+        style={{ width: TASK_TABLE_SETTINGS_COLUMN_WIDTH }}
+      >
+        <PopoverPrimitive.Root modal={false}>
+          <PopoverPrimitive.Trigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8.5 rounded-md hover:bg-muted/50 text-foreground/85 hover:text-foreground"
+              aria-label="管理列"
+            >
+              <SlidersHorizontal className="size-4" />
+            </Button>
+          </PopoverPrimitive.Trigger>
+          <PopoverPrimitive.Portal>
+            <PopoverPrimitive.Content 
+              align="end" 
+              sideOffset={6}
+              className="w-56 p-2 bg-popover/98 backdrop-blur-md border border-border/80 shadow-lg z-[200] rounded-lg outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+            >
+              <div className="px-2 py-1.5 text-xs font-bold text-muted-foreground border-b border-border/40 mb-1 select-none">
+                表头列管理
+              </div>
+              <div className="space-y-1 max-h-64 overflow-y-auto">
+                {columns.map((col) => {
+                  const meta = TASK_TABLE_COLUMN_META[col.id]
+
+                  return (
+                    <div
+                      key={col.id}
+                      data-drag-row={col.id}
+                      onDragOver={handleMenuDragOver}
+                      onDragEnter={(e) => e.preventDefault()}
+                      onDrop={(e) => handleMenuDrop(e, col.id)}
+                      className="flex items-center gap-2 px-1.5 py-1 rounded-md text-sm select-none transition-colors hover:bg-muted/40"
+                    >
+                      <div
+                        draggable
+                        onDragStart={(e) => handleMenuDragStart(e, col.id)}
+                        onDragEnd={handleMenuDragEnd}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-muted/60 rounded text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <GripVertical className="size-3.5" />
+                      </div>
+                      <Checkbox
+                        checked={col.visible !== false}
+                        disabled={col.id === "name"}
+                        onCheckedChange={() => toggleColumnVisibility(col.id)}
+                        className="size-4"
+                      />
+                      <span className="text-foreground/90 font-medium truncate flex-1">{meta.label}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              <Separator className="my-1.5" />
+              <div className="px-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => resetColumns()}
+                  className="w-full h-8 justify-start text-xs text-primary hover:bg-primary/10 hover:text-primary font-medium"
+                >
+                  重置列设置
+                </Button>
+              </div>
+            </PopoverPrimitive.Content>
+          </PopoverPrimitive.Portal>
+        </PopoverPrimitive.Root>
       </div>
     </div>
   )

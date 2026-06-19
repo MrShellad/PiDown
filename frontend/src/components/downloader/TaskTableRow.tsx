@@ -22,7 +22,12 @@ import {
   type TaskTableColumnId,
   useTaskTableStore,
 } from "@/core/store/useTaskTableStore"
-import { getTaskTableWidth, TASK_TABLE_SELECT_COLUMN_WIDTH } from "@/core/taskTableLayout"
+import {
+  getTaskTableWidth,
+  TASK_TABLE_SELECT_COLUMN_WIDTH,
+  TASK_TABLE_SETTINGS_COLUMN_WIDTH,
+} from "@/core/taskTableLayout"
+import type { Table } from "@tanstack/react-table"
 import { cn } from "@/lib/utils"
 import TaskChecksumDialog from "./checksum/TaskChecksumDialog"
 import TaskDeleteConfirmDialog from "./TaskDeleteConfirmDialog"
@@ -38,6 +43,7 @@ interface TaskTableRowProps {
   onContextSelect?: (gid: string) => void
   onOpenDetails?: (gid: string) => void
   selectionMode?: boolean
+  table: Table<Task>
 }
 
 function statusText(status: Task["status"]) {
@@ -176,7 +182,7 @@ function NameCell({
         <TooltipContent>{`查看任务详情：${category?.name ?? "未分类"}`}</TooltipContent>
       </Tooltip>
       <div className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold leading-5 text-foreground">
+        <span className="block truncate text-sm font-medium leading-5 text-foreground">
           {task.name}
         </span>
       </div>
@@ -321,6 +327,7 @@ const TaskTableRow = memo(function TaskTableRow({
   onContextSelect,
   onOpenDetails,
   selectionMode = false,
+  table,
 }: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
@@ -380,10 +387,10 @@ const TaskTableRow = memo(function TaskTableRow({
           }}
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
-            "group/task-row relative flex min-h-17 cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
+            "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-card"
           )}
-          style={{ width: "100%", minWidth: tableWidth }}
+          style={{ width: `${tableWidth}px` }}
         >
       <motion.div
         aria-hidden="true"
@@ -444,7 +451,7 @@ const TaskTableRow = memo(function TaskTableRow({
             )}
           />
       <div
-        className="relative z-10 flex min-h-17 shrink-0 items-center justify-center"
+        className="relative z-10 flex min-h-[60px] shrink-0 items-center justify-center"
         style={{ width: TASK_TABLE_SELECT_COLUMN_WIDTH }}
         onClick={(event) => {
           event.stopPropagation()
@@ -478,46 +485,58 @@ const TaskTableRow = memo(function TaskTableRow({
       </div>
 
       <div className="relative z-10 flex min-w-0 flex-1 overflow-hidden">
-        {columns.map((column, index) => (
-          <div
-            key={column.id}
-            data-slot="task-table-cell"
-            className={cn(
-              "relative flex min-h-17 shrink-0 items-center px-4",
-              column.id === "name" ? "justify-start" : "justify-center"
-            )}
-            style={{ flexBasis: column.width, width: column.width }}
-          >
-            {index > 0 ? (
-              <span
-                aria-hidden="true"
-                className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/50"
-              />
-            ) : null}
-            {column.id === "name" ? (
-              <NameCell
-                task={task}
-                category={category}
-                detailsOpen={detailsOpen}
-                selectionMode={selectionMode}
-                onSelect={() => onSelect?.(gid)}
-                onOpenDetails={onOpenDetails ? () => onOpenDetails(gid) : undefined}
-              />
-            ) : (
-              <Cell
-                id={column.id}
-                task={task}
-                speedStr={speedStr}
-                etaStr={etaStr}
-                downloadedStr={downloadedStr}
-                totalStr={totalStr}
-                preparing={isPreparing}
-                datetimeFormat={datetimeFormat}
-              />
-            )}
-          </div>
-        ))}
+        {table.getVisibleLeafColumns().map((col, index) => {
+          const colId = col.id as TaskTableColumnId
+          const storeCol = columns.find((c) => c.id === colId)
+          const width = storeCol?.width || col.getSize()
+
+          return (
+            <div
+              key={colId}
+              data-slot="task-table-cell"
+              className={cn(
+                "relative flex min-h-[60px] shrink-0 items-center px-4",
+                colId === "name" ? "justify-start" : "justify-center"
+              )}
+              style={{ flexBasis: width, width: width }}
+            >
+              {index > 0 ? (
+                <span
+                  aria-hidden="true"
+                  className="absolute left-0 top-1/2 h-6 w-px -translate-y-1/2 bg-border/50"
+                />
+              ) : null}
+              {colId === "name" ? (
+                <NameCell
+                  task={task}
+                  category={category}
+                  detailsOpen={detailsOpen}
+                  selectionMode={selectionMode}
+                  onSelect={() => onSelect?.(gid)}
+                  onOpenDetails={onOpenDetails ? () => onOpenDetails(gid) : undefined}
+                />
+              ) : (
+                <Cell
+                  id={colId}
+                  task={task}
+                  speedStr={speedStr}
+                  etaStr={etaStr}
+                  downloadedStr={downloadedStr}
+                  totalStr={totalStr}
+                  preparing={isPreparing}
+                  datetimeFormat={datetimeFormat}
+                />
+              )}
+            </div>
+          )
+        })}
       </div>
+
+      {/* Settings column alignment spacer */}
+      <div
+        className="relative z-10 h-full shrink-0"
+        style={{ width: TASK_TABLE_SETTINGS_COLUMN_WIDTH }}
+      />
           </motion.div>
         </ContextMenuTrigger>
         <ContextMenuContent className="w-72">

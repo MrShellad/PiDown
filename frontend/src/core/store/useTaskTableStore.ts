@@ -20,19 +20,20 @@ export interface TaskTableSortState {
 export interface TaskTableColumnState {
   id: TaskTableColumnId
   width: number
+  visible?: boolean
 }
 
 const MIN_COLUMN_WIDTH = 88
 const MAX_COLUMN_WIDTH = 360
 
 export const DEFAULT_TASK_TABLE_COLUMNS: TaskTableColumnState[] = [
-  { id: "name", width: 360 },
-  { id: "size", width: 112 },
-  { id: "status", width: 112 },
-  { id: "speed", width: 112 },
-  { id: "eta", width: 144 },
-  { id: "createdAt", width: 144 },
-  { id: "tags", width: 128 },
+  { id: "name", width: 360, visible: true },
+  { id: "size", width: 112, visible: true },
+  { id: "status", width: 112, visible: true },
+  { id: "speed", width: 112, visible: true },
+  { id: "eta", width: 144, visible: true },
+  { id: "createdAt", width: 144, visible: true },
+  { id: "tags", width: 128, visible: true },
 ]
 
 interface TaskTableState {
@@ -42,6 +43,7 @@ interface TaskTableState {
   resizeColumn: (id: TaskTableColumnId, width: number) => void
   moveColumn: (sourceId: TaskTableColumnId, targetId: TaskTableColumnId) => void
   toggleSortColumn: (id: TaskTableColumnId) => void
+  toggleColumnVisibility: (id: TaskTableColumnId) => void
   resetColumns: () => void
   setPageSize: (size: number) => void
 }
@@ -50,7 +52,7 @@ function clampWidth(width: number) {
   return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, Math.round(width)))
 }
 
-function normalizeColumns(columns: TaskTableColumnState[]) {
+function normalizeColumns(columns: TaskTableColumnState[]): TaskTableColumnState[] {
   const defaultsById = new Map(DEFAULT_TASK_TABLE_COLUMNS.map((column) => [column.id, column]))
   const seen = new Set<TaskTableColumnId>()
   const normalized: TaskTableColumnState[] = []
@@ -63,11 +65,17 @@ function normalizeColumns(columns: TaskTableColumnState[]) {
     normalized.push({
       id: column.id,
       width: clampWidth(Number.isFinite(column.width) ? column.width : fallback.width),
+      visible: column.visible !== false,
     })
   })
 
   DEFAULT_TASK_TABLE_COLUMNS.forEach((column) => {
-    if (!seen.has(column.id)) normalized.push(column)
+    if (!seen.has(column.id)) {
+      normalized.push({
+        ...column,
+        visible: true,
+      })
+    }
   })
 
   return normalized
@@ -123,6 +131,17 @@ export const useTaskTableStore = create<TaskTableState>()(
           if (state.sort.direction === "asc") return { sort: { id, direction: "desc" } }
           return { sort: null }
         })
+      },
+
+      toggleColumnVisibility: (id) => {
+        if (id === "name") return
+        set((state) => ({
+          columns: normalizeColumns(
+            state.columns.map((column) =>
+              column.id === id ? { ...column, visible: column.visible === false } : column
+            )
+          ),
+        }))
       },
 
       resetColumns: () => set({ columns: DEFAULT_TASK_TABLE_COLUMNS }),

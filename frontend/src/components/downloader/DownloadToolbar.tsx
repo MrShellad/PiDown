@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { Toolbar } from "@/components/ui/toolbar"
+import { Search, X } from "lucide-react"
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
 import { parseNullableSpeedLimit } from "@/core/transfer"
@@ -17,6 +18,8 @@ interface DownloadToolbarProps {
   selectedTaskCount?: number
   selectedPauseCount?: number
   selectedResumeCount?: number
+  searchQuery: string
+  onSearchQueryChange: (query: string) => void
   onCreateTask: (initialUrl?: string) => void
   onPauseSelected?: () => void
   onResumeSelected?: () => void
@@ -28,6 +31,8 @@ export default function DownloadToolbar({
   selectedTaskCount = 0,
   selectedPauseCount = 0,
   selectedResumeCount = 0,
+  searchQuery,
+  onSearchQueryChange,
   onCreateTask,
   onPauseSelected,
   onResumeSelected,
@@ -103,6 +108,30 @@ export default function DownloadToolbar({
           onResumeSelected={onResumeSelected}
           onDeleteSelected={onDeleteSelected}
         />
+        
+        {/* Adaptive search input */}
+        <div className="flex-grow flex justify-end px-4 min-w-[120px] max-w-sm ml-auto">
+          <div className="relative w-full flex items-center group">
+            <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
+            <input
+              type="text"
+              placeholder="搜索任务..."
+              value={searchQuery}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              className="w-full h-9 pl-9 pr-8 rounded-md border border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 text-xs outline-none transition placeholder:text-muted-foreground/60 text-foreground"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchQueryChange("")}
+                className="absolute right-2.5 p-0.5 rounded hover:bg-muted text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                aria-label="清空搜索"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
         <SpeedLimitPopover
           open={limitPopoverOpen}
           onOpenChange={setLimitPopoverOpen}

@@ -288,7 +288,7 @@ export function DownloadToolbarActions({
           icon={<Trash2 />}
           onClick={onDeleteSelected}
           disabled={!canDeleteSelected}
-          className="text-destructive hover:text-destructive focus-visible:ring-destructive/30 disabled:text-muted-foreground [&_[data-slot=toolbar-button-icon]]:text-current [&_[data-slot=toolbar-button-icon]]:group-hover/toolbar-button:text-current"
+          className="text-destructive hover:text-destructive focus-visible:ring-destructive/30 disabled:text-muted-foreground [&_[data-slot=toolbar-button-icon]]:text-current [&_[data-slot=toolbar-button-icon]]:group-hover/toolbar-button:text-current w-28 justify-center"
         >
           {selectedTaskCount > 0
             ? `${UI_TEXT.dashboard.delete} (${selectedTaskCount})`

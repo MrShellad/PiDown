@@ -10,6 +10,7 @@ import { useDownloadStore } from "@/core/store/useDownloadStore";
 import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
+import { useReactTable, getCoreRowModel, type ColumnDef } from "@tanstack/react-table";
 import { IconPreview } from "@/components/ui/icon-picker";
 import {
   getTaskTableWidth,
@@ -87,7 +88,7 @@ interface TaskListDashboardProps {
   activeFilter: NavFilter;
 }
 
-const TASK_ROW_HEIGHT = 68;
+const TASK_ROW_HEIGHT = 60;
 const TASK_ROW_GAP = 8;
 const TASK_ROW_STRIDE = TASK_ROW_HEIGHT + TASK_ROW_GAP;
 const TASK_LIST_OVERSCAN = 6;
@@ -153,6 +154,7 @@ interface Particle {
 
 export default function TaskListDashboard({ activeFilter }: TaskListDashboardProps) {
   const [modalOpen, setModalOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [externalDownloadRequest, setExternalDownloadRequest] =
     useState<ExternalDownloadRequest | null>(null);
@@ -173,6 +175,16 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   useEffect(() => {
     scrollTopRef.current = scrollTop;
   }, [scrollTop]);
+
+  // Reset search query when activeFilter changes
+  useEffect(() => {
+    setSearchQuery("");
+  }, [activeFilter]);
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery]);
 
   // Particle manager setup
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -304,13 +316,27 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   const sort = useTaskTableStore((state) => state.sort);
   const pageSize = useTaskTableStore((state) => state.pageSize);
   const setPageSize = useTaskTableStore((state) => state.setPageSize);
+
+
   const filterContext = useMemo(() => ({ categories, tags }), [categories, tags]);
 
   const [currentPage, setCurrentPage] = useState(1);
 
   const filteredGids = useMemo(
     () => {
-      const gids = filterTaskIds(tasks, activeFilter, filterContext);
+      let gids = filterTaskIds(tasks, activeFilter, filterContext);
+
+      if (searchQuery.trim()) {
+        const query = searchQuery.trim().toLowerCase();
+        gids = gids.filter((gid) => {
+          const task = tasks[gid];
+          return task && (
+            task.name.toLowerCase().includes(query) ||
+            (task.url && task.url.toLowerCase().includes(query))
+          );
+        });
+      }
+
       if (!sort) return gids;
 
       return gids
@@ -326,7 +352,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         })
         .map((item) => item.gid);
     },
-    [tasks, activeFilter, filterContext, sort]
+    [tasks, activeFilter, filterContext, sort, searchQuery]
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredGids.length / pageSize));
@@ -342,6 +368,42 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     const endIndex = startIndex + pageSize;
     return filteredGids.slice(startIndex, endIndex);
   }, [filteredGids, currentPage, pageSize]);
+
+  const columnsConfig = useMemo<ColumnDef<Task>[]>(() => [
+    { id: "name", header: UI_TEXT.dashboard.columns.name },
+    { id: "size", header: UI_TEXT.dashboard.columns.size },
+    { id: "status", header: UI_TEXT.dashboard.columns.status },
+    { id: "speed", header: UI_TEXT.dashboard.columns.speed },
+    { id: "eta", header: UI_TEXT.dashboard.columns.eta },
+    { id: "createdAt", header: UI_TEXT.dashboard.columns.createdAt },
+    { id: "tags", header: UI_TEXT.dashboard.columns.tags },
+  ], []);
+
+  const tableData = useMemo(() => {
+    return paginatedFilteredGids.map((gid) => tasks[gid]).filter((t): t is Task => Boolean(t));
+  }, [paginatedFilteredGids, tasks]);
+
+  const columnVisibility = useMemo(() => {
+    const visibility: Record<string, boolean> = {};
+    columns.forEach((col) => {
+      visibility[col.id] = col.visible !== false;
+    });
+    return visibility;
+  }, [columns]);
+
+  const columnOrder = useMemo(() => {
+    return columns.map((col) => col.id);
+  }, [columns]);
+
+  const table = useReactTable({
+    data: tableData,
+    columns: columnsConfig,
+    state: {
+      columnVisibility,
+      columnOrder,
+    },
+    getCoreRowModel: getCoreRowModel(),
+  });
 
   const renderedGids = useMemo(() => {
     if (exitingTaskIds.size === 0) return paginatedFilteredGids;
@@ -712,6 +774,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
               selectedTaskCount={selectedTaskCount}
               selectedPauseCount={selectedDownloadableGids.length}
               selectedResumeCount={selectedResumableGids.length}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
               onCreateTask={(initialUrl) => {
                 if (initialUrl && initialUrl.trim()) {
                   setExternalDownloadRequest({ url: initialUrl.trim() });
@@ -751,7 +815,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     className="absolute top-0 z-20"
                     style={{
                       left: 12,
-                      right: 12,
+                      width: `${tableWidth}px`,
                     }}
                   >
                     <TaskListHeader
@@ -759,6 +823,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       disabled={filteredGids.length === 0}
                       embedded
                       onCheckedChange={toggleAllFilteredTasks}
+                      table={table}
                     />
                   </div>
                   <ScrollArea
@@ -787,7 +852,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   {filteredGids.length === 0 ? (
                     <motion.div
                       className="flex flex-1 flex-col items-center justify-center gap-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-8 shadow-lg text-center"
-                      style={{ width: "100%", minWidth: tableWidth }}
+                      style={{ width: `${tableWidth}px` }}
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
@@ -817,7 +882,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       )}
                     </motion.div>
                   ) : (
-                    <div className="relative" style={{ width: "100%", minWidth: tableWidth, height: virtualHeight }}>
+                    <div className="relative" style={{ width: `${tableWidth}px`, height: virtualHeight }}>
                       <div aria-hidden="true" style={{ height: virtualTopSpacer }} />
                       <Reorder.Group
                         as="div"
@@ -825,7 +890,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         values={visibleGids}
                         onReorder={() => undefined}
                         className="flex flex-col gap-2"
-                        style={{ width: "100%", minWidth: tableWidth }}
+                        style={{ width: `${tableWidth}px` }}
                       >
                         <AnimatePresence initial={false} mode="popLayout">
                            {visibleGids.map((gid) => {
@@ -841,8 +906,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                  dragListener={false}
                                className="list-none overflow-hidden"
                                  style={{
-                                   width: "100%",
-                                   minWidth: tableWidth,
+                                   width: `${tableWidth}px`,
                                    pointerEvents: isExiting ? "none" : "auto",
                                  }}
                                 layout="position"
@@ -892,6 +956,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                   onContextSelect={isExiting ? undefined : selectSingleTask}
                                   onOpenDetails={isExiting ? undefined : toggleTaskDetails}
                                   selectionMode={selectedTaskIds.size > 0}
+                                  table={table}
                                 />
                               </Reorder.Item>
                             );
@@ -918,7 +983,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     className="absolute z-20"
                     style={{
                       left: 12,
-                      right: 12,
+                      width: `${tableWidth}px`,
                       bottom: 6,
                     }}
                   >
