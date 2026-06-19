@@ -1909,7 +1909,6 @@ dependencies = [
 [[package]]
 name = "gosh-dl"
 version = "0.5.0"
-source = "git+https://github.com/MrShellad/gosh-dl.git?branch=main#a4d2e70e0c278176b74546e9ea04194b2349cf2a"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
