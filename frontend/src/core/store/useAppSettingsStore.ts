@@ -9,11 +9,12 @@ import { useThemeStore, applyThemeToDocument } from "./useThemeStore";
 import { applyLanguage } from "../i18n";
 
 export type SettingsSectionId =
-  | "download"
+  | "general"
   | "transfer"
-  | "integration"
-  | "appearance"
-  | "magnet";
+  | "category"
+  | "extension"
+  | "magnet"
+  | "appearance";
 
 interface AppSettingsState {
   settings: AppSettings | null;
@@ -37,7 +38,7 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
   settings: null,
   loading: false,
   saving: false,
-  activeSection: "download",
+  activeSection: "general",
   lastError: null,
   lastSavedAt: null,
 

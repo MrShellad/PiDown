@@ -55,7 +55,7 @@ function formatUpdatedAt(task: Task, formatPattern?: string) {
 function formatBytes(bytes: number | null | undefined) {
   if (bytes == null || !Number.isFinite(bytes) || bytes <= 0) return "--"
 
-  const units = ["B", "KiB", "MiB", "GiB", "TiB"]
+  const units = ["B", "KB", "MB", "GB", "TB"]
   let value = bytes
   let unitIndex = 0
   while (value >= 1024 && unitIndex < units.length - 1) {

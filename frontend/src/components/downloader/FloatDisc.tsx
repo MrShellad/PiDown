@@ -27,7 +27,7 @@ import {
   ContextMenuRadioItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { getCurrentWindow, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
+import { getCurrentWindow, currentMonitor, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 import { emitTo, listen } from "@tauri-apps/api/event";
 import NewTaskModal from "./NewTaskModal";
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
@@ -263,6 +263,97 @@ export default function FloatDisc() {
       getCurrentWindow().setIgnoreCursorEvents(false).catch(console.error);
     };
   }, []);
+
+  // Snap-to-edge logic
+  const snapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const performSnap = useCallback(async () => {
+    if (isModalOpenRef.current) return;
+
+    try {
+      const win = getCurrentWindow();
+      const size = await win.outerSize();
+      if (size.width > 550 || size.height > 550) return;
+
+      const monitor = await currentMonitor();
+      if (!monitor) return;
+
+      const pos = await win.outerPosition();
+      const dpr = window.devicePixelRatio || 1;
+      const discRadius = 40 * dpr;
+
+      const discCenterX = pos.x + size.width / 2;
+      const discCenterY = pos.y + size.height / 2;
+
+      const monitorLeft = monitor.position.x;
+      const monitorRight = monitor.position.x + monitor.size.width;
+      const monitorTop = monitor.position.y;
+      const monitorBottom = monitor.position.y + monitor.size.height;
+
+      const distLeft = discCenterX - monitorLeft;
+      const distRight = monitorRight - discCenterX;
+      const distTop = discCenterY - monitorTop;
+      const distBottom = monitorBottom - discCenterY;
+
+      const minDist = Math.min(distLeft, distRight, distTop, distBottom);
+
+      let targetX = pos.x;
+      let targetY = pos.y;
+      const padding = 2 * dpr;
+
+      if (minDist === distLeft) {
+        targetX = Math.round(monitorLeft + padding + discRadius - size.width / 2);
+      } else if (minDist === distRight) {
+        targetX = Math.round(monitorRight - padding - discRadius - size.width / 2);
+      } else if (minDist === distTop) {
+        targetY = Math.round(monitorTop + padding + discRadius - size.height / 2);
+      } else {
+        targetY = Math.round(monitorBottom - padding - discRadius - size.height / 2);
+      }
+
+      if (minDist === distLeft || minDist === distRight) {
+        const minY = monitorTop + padding + discRadius - size.height / 2;
+        const maxY = monitorBottom - padding - discRadius - size.height / 2;
+        targetY = Math.max(minY, Math.min(maxY, targetY));
+      } else {
+        const minX = monitorLeft + padding + discRadius - size.width / 2;
+        const maxX = monitorRight - padding - discRadius - size.width / 2;
+        targetX = Math.max(minX, Math.min(maxX, targetX));
+      }
+
+      if (Math.abs(pos.x - targetX) > 1 || Math.abs(pos.y - targetY) > 1) {
+        await win.setPosition(new PhysicalPosition(targetX, targetY));
+      }
+    } catch (err) {
+      console.error("Failed to perform snap to edge:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+
+    const setupListener = async () => {
+      const win = getCurrentWindow();
+      unlisten = await win.onMoved(() => {
+        if (isModalOpenRef.current) return;
+
+        if (snapTimeoutRef.current) {
+          clearTimeout(snapTimeoutRef.current);
+        }
+
+        snapTimeoutRef.current = setTimeout(() => {
+          performSnap();
+        }, 150);
+      });
+    };
+
+    setupListener().catch(console.error);
+
+    return () => {
+      if (unlisten) unlisten();
+      if (snapTimeoutRef.current) clearTimeout(snapTimeoutRef.current);
+    };
+  }, [performSnap]);
 
   // Display mode: hide/show float window based on active tasks and settings
   const activeTasks = Object.values(tasks).filter((t) => t.status === "Downloading");
@@ -606,13 +697,13 @@ export default function FloatDisc() {
                       </div>
                     ) : activeTasks.length > 0 ? (
                       <div className="flex flex-col items-center justify-center gap-0.5">
-                        <span className="text-[10px] opacity-80 font-semibold tracking-wider leading-none uppercase">
+                        <span className="text-[10px] opacity-80 font-normal tracking-wider leading-none uppercase">
                           SPEED
                         </span>
-                        <span className="text-[13px] font-black tracking-tight leading-none max-w-[64px] truncate drop-shadow-xs">
+                        <span className="text-[13px] font-normal tracking-tight leading-none max-w-[64px] truncate drop-shadow-xs">
                           {globalSpeed}
                         </span>
-                        <span className="text-[11px] font-extrabold leading-none opacity-95">
+                        <span className="text-[11px] font-normal leading-none opacity-95">
                           {Math.round(averageProgress)}%
                         </span>
                       </div>

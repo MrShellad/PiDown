@@ -53,7 +53,7 @@ export function CategoryDropdown({
           <span className="truncate">{selectedCategory?.name ?? noCategoryLabel}</span>
         </span>
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent className="max-h-[160px]">
         <SelectItem value={NO_CATEGORY_VALUE}>
           <span className="flex min-w-0 items-center gap-2">
             <CategoryOptionIcon className="size-4" />

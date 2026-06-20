@@ -98,8 +98,10 @@ function taskMatchesRules(task: Task, rules?: Category["rules"] | Tag["rules"] |
   }
 
   if (keywords.length && !keywords.some((keyword) => filename.includes(keyword))) return false;
-  if (rules.min_size_bytes != null && (totalBytes == null || totalBytes < rules.min_size_bytes)) return false;
-  if (rules.max_size_bytes != null && totalBytes != null && totalBytes > rules.max_size_bytes) return false;
+  if (totalBytes !== null) {
+    if (rules.min_size_bytes != null && totalBytes < rules.min_size_bytes) return false;
+    if (rules.max_size_bytes != null && totalBytes > rules.max_size_bytes) return false;
+  }
 
   return true;
 }

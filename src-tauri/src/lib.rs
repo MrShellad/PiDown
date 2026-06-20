@@ -13,6 +13,7 @@ use tauri::Manager;
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .setup(|app| {
             // Initialize logging in debug mode
             if cfg!(debug_assertions) {
@@ -45,6 +46,16 @@ pub fn run() {
             events::start_event_reporter(app_handle, state.clone());
 
             let settings = state.get_settings();
+
+            // Sync system auto-start configuration on startup
+            use tauri_plugin_autostart::ManagerExt;
+            let autostart_manager = app.autolaunch();
+            if settings.interface.auto_start_on_boot {
+                let _ = autostart_manager.enable();
+            } else {
+                let _ = autostart_manager.disable();
+            }
+
             let disable_shadow = settings.interface.disable_window_shadow;
             if let Some(main_win) = app.get_webview_window("main") {
                 let _ = commands::window::set_window_shadow(&main_win, disable_shadow);

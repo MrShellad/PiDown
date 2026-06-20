@@ -291,10 +291,10 @@ function Cell({
               </TooltipTrigger>
               <TooltipContent>
                 {hasDownLimit && hasUpLimit
-                  ? `限速: 下载 ${task.maxDownloadSpeedKib} KiB/s, 上传 ${task.maxUploadSpeedKib} KiB/s`
+                  ? `限速: 下载 ${task.maxDownloadSpeedKib} KB/s, 上传 ${task.maxUploadSpeedKib} KB/s`
                   : hasDownLimit
-                    ? `限速: 下载 ${task.maxDownloadSpeedKib} KiB/s`
-                    : `限速: 上传 ${task.maxUploadSpeedKib} KiB/s`}
+                    ? `限速: 下载 ${task.maxDownloadSpeedKib} KB/s`
+                    : `限速: 上传 ${task.maxUploadSpeedKib} KB/s`}
               </TooltipContent>
             </Tooltip>
           )}

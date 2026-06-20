@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { downloadDir } from "@tauri-apps/api/path";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 export interface TaskConfig {
   url: string;
@@ -170,6 +171,7 @@ export interface AppSettings {
     enable_notifications: boolean;
     language: string;
     datetime_format: string;
+    auto_start_on_boot: boolean;
   };
   bt: {
     enable_dht: boolean;
@@ -267,11 +269,49 @@ export async function writeClipboardText(text: string): Promise<void> {
 }
 
 export async function pickDownloadDirectory(defaultPath?: string): Promise<string | null> {
-  return invoke<string | null>("pick_download_directory", { defaultPath });
+  const isFloat = window.location.pathname === "/float";
+  const win = getCurrentWindow();
+  if (isFloat) {
+    try {
+      await win.setAlwaysOnTop(false);
+    } catch (e) {
+      console.error("Failed to disable alwaysOnTop:", e);
+    }
+  }
+  try {
+    return await invoke<string | null>("pick_download_directory", { defaultPath });
+  } finally {
+    if (isFloat) {
+      try {
+        await win.setAlwaysOnTop(true);
+      } catch (e) {
+        console.error("Failed to restore alwaysOnTop:", e);
+      }
+    }
+  }
 }
 
 export async function pickTorrentFile(): Promise<string | null> {
-  return invoke<string | null>("pick_torrent_file");
+  const isFloat = window.location.pathname === "/float";
+  const win = getCurrentWindow();
+  if (isFloat) {
+    try {
+      await win.setAlwaysOnTop(false);
+    } catch (e) {
+      console.error("Failed to disable alwaysOnTop:", e);
+    }
+  }
+  try {
+    return await invoke<string | null>("pick_torrent_file");
+  } finally {
+    if (isFloat) {
+      try {
+        await win.setAlwaysOnTop(true);
+      } catch (e) {
+        console.error("Failed to restore alwaysOnTop:", e);
+      }
+    }
+  }
 }
 
 export async function previewTaskClassification(
@@ -437,6 +477,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       enable_notifications: true,
       language: "auto",
       datetime_format: "YYYY-MM-DD HH:mm:ss",
+      auto_start_on_boot: false,
     },
     bt: {
       enable_dht: true,
@@ -475,7 +516,26 @@ export async function getBackgrounds(): Promise<DbBackground[]> {
 }
 
 export async function pickBackgroundFile(): Promise<string | null> {
-  return invoke<string | null>("pick_background_file");
+  const isFloat = window.location.pathname === "/float";
+  const win = getCurrentWindow();
+  if (isFloat) {
+    try {
+      await win.setAlwaysOnTop(false);
+    } catch (e) {
+      console.error("Failed to disable alwaysOnTop:", e);
+    }
+  }
+  try {
+    return await invoke<string | null>("pick_background_file");
+  } finally {
+    if (isFloat) {
+      try {
+        await win.setAlwaysOnTop(true);
+      } catch (e) {
+        console.error("Failed to restore alwaysOnTop:", e);
+      }
+    }
+  }
 }
 
 export async function importBackgroundFile(filePath: string): Promise<DbBackground> {

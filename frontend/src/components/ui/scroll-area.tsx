@@ -71,9 +71,9 @@ export const ScrollArea = React.forwardRef<
   viewportClassName,
   viewportStyle,
   variant,
-  scrollbar,
-  orientation,
-  visibility,
+  scrollbar = "thin",
+  orientation = "vertical",
+  visibility = "always",
   gutter,
   safePadding = false,
   viewportRef,
@@ -81,6 +81,10 @@ export const ScrollArea = React.forwardRef<
   children,
   ...props
 }, ref) => {
+  // When using overlay scrollbar, we enforce gutter="none" to prevent layout shifts
+  const isOverlay = scrollbar === "overlay";
+  const resolvedGutter = isOverlay ? "none" : (gutter ?? "none");
+
   return (
     <div
       ref={ref}
@@ -92,7 +96,10 @@ export const ScrollArea = React.forwardRef<
         ref={viewportRef}
         data-slot="scroll-area-viewport"
         className={cn(
-          viewportVariants({ scrollbar, orientation, visibility, gutter }),
+          viewportVariants({ scrollbar, orientation, visibility, gutter: resolvedGutter }),
+          isOverlay && orientation === "vertical" && "[overflow-y:overlay!important]",
+          isOverlay && orientation === "horizontal" && "[overflow-x:overlay!important]",
+          isOverlay && orientation === "both" && "[overflow:overlay!important]",
           safePadding && scrollbar !== "hidden" && orientation !== "horizontal" && "pr-2",
           viewportClassName
         )}

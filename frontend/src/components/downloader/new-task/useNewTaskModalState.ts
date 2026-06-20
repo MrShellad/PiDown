@@ -47,6 +47,13 @@ export function useNewTaskModalState({
   const savePathIsManual = useRef(false)
   const [categoryId, setCategoryId] = useState<number | null>(null)
   const [categoryTouched, setCategoryTouched] = useState(false)
+  const categoryIdRef = useRef<number | null>(null)
+  const categoryTouchedRef = useRef(false)
+
+  useEffect(() => {
+    categoryIdRef.current = categoryId
+    categoryTouchedRef.current = categoryTouched
+  }, [categoryId, categoryTouched])
   const [advancedDraft, setAdvancedDraft] = useState<NewTaskAdvancedDraft>({
     maxDownloadSpeedInput: "",
     maxUploadSpeedInput: "",
@@ -193,6 +200,37 @@ export function useNewTaskModalState({
       setSavePath(preview.save_path || globalSaveDir)
     }
   }, [globalSaveDir])
+
+  // Automatically update classification preview when filename changes (debounced)
+  useEffect(() => {
+    if (step !== "details" || !filename.trim()) return
+
+    let active = true
+    const updatePreview = async () => {
+      try {
+        const nextUrl = url.trim()
+        const nextFilename = filename.trim()
+        if (active) {
+          await applyClassificationPreview(
+            nextUrl,
+            nextFilename,
+            totalSize,
+            categoryIdRef.current,
+            categoryTouchedRef.current,
+            { touchPath: !savePathIsManual.current }
+          )
+        }
+      } catch (err) {
+        console.error("Failed to auto-update task classification:", err)
+      }
+    }
+
+    const timer = setTimeout(updatePreview, 300)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [filename, step, url, totalSize, applyClassificationPreview])
 
   const resetForm = useCallback(() => {
     savePathIsManual.current = false

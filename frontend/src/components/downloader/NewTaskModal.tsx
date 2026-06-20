@@ -41,10 +41,10 @@ export default function NewTaskModal({
           overlayClassName={isFloat ? "bg-transparent backdrop-blur-none" : undefined}
           className={cn(
             "border-border bg-card text-card-foreground sm:max-w-[46rem] flex flex-col",
-            isFloat ? "max-h-none h-fit" : "max-h-[calc(100vh-4rem)]"
+            isFloat ? "h-[540px]" : "max-h-[calc(100vh-4rem)]"
           )}
         >
-          <DialogHeader 
+          <DialogHeader
             data-tauri-drag-region={isFloat ? "true" : undefined}
             style={isFloat ? { cursor: "move" } : undefined}
             className="shrink-0"
@@ -56,11 +56,11 @@ export default function NewTaskModal({
           </DialogHeader>
 
           <form onSubmit={actions.handleSubmit} className="flex flex-col min-h-0 flex-1">
-            <ScrollArea 
+            <ScrollArea
               className={cn(
                 "flex-1 min-h-0",
-                isFloat ? "max-h-none h-auto" : "max-h-[calc(100vh-12rem)]"
-              )} 
+                isFloat ? "h-[390px]" : "max-h-[calc(100vh-12rem)]"
+              )}
               scrollbar="overlay"
             >
               <DialogBody className="px-5 py-5">

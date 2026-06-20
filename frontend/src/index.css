@@ -363,7 +363,13 @@
   }
   body {
     background-color: transparent !important;
-    @apply text-foreground;
+    @apply text-foreground select-none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  input, textarea, [contenteditable="true"] {
+    user-select: text !important;
+    -webkit-user-select: text !important;
   }
   html, body, #root, input, button, select, textarea {
     -webkit-font-smoothing: antialiased;
@@ -458,19 +464,6 @@
   .scrollbar-overlay {
     scrollbar-gutter: auto;
     overflow-y: overlay !important;
-  }
-
-  .scrollbar-overlay::-webkit-scrollbar {
-    width: 0.375rem;
-    height: 0.375rem;
-    background: transparent;
-  }
-
-  .scrollbar-overlay:hover::-webkit-scrollbar,
-  .scrollbar-overlay:active::-webkit-scrollbar,
-  .scrollbar-overlay:focus-within::-webkit-scrollbar {
-    width: 0.5rem;
-    height: 0.5rem;
   }
 
   .scrollbar-horizontal-margins::-webkit-scrollbar-track {

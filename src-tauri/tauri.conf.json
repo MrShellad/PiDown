@@ -23,7 +23,8 @@
         "fullscreen": false,
         "decorations": false,
         "transparent": true,
-        "shadow": false
+        "shadow": false,
+        "scrollBarStyle": "fluentOverlay"
       },
       {
         "label": "float",
@@ -37,7 +38,8 @@
         "alwaysOnTop": true,
         "skipTaskbar": true,
         "visible": false,
-        "shadow": false
+        "shadow": false,
+        "scrollBarStyle": "fluentOverlay"
       }
     ],
     "security": {

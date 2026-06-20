@@ -16,6 +16,16 @@ pub async fn update_app_settings(
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
     let disable_shadow = settings.interface.disable_window_shadow;
+    
+    // Sync system auto-start configuration
+    use tauri_plugin_autostart::ManagerExt;
+    let autostart_manager = app.autolaunch();
+    if settings.interface.auto_start_on_boot {
+        let _ = autostart_manager.enable();
+    } else {
+        let _ = autostart_manager.disable();
+    }
+
     let result = state.update_settings(settings)?;
 
     use tauri::Manager;

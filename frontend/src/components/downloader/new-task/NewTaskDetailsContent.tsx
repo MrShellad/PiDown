@@ -3,8 +3,9 @@ import type { TorrentFileInspection, FileConflictCheck } from "@/core/bridge/tau
 import { NewTaskAdvancedForm } from "./NewTaskAdvancedForm"
 import { NewTaskBasicForm } from "./NewTaskBasicForm"
 import { NewTaskBtForm } from "./NewTaskBtForm"
-import { NewTaskSegmentedControl } from "./NewTaskSegmentedControl"
+import { SegmentedControl } from "@/components/common"
 import type { NewTaskAdvancedDraft, NewTaskDetailsTab } from "./types"
+import { UI_TEXT } from "@/core/locale"
 import { AnimatePresence, motion } from "motion/react"
 
 interface NewTaskDetailsContentProps {
@@ -90,7 +91,17 @@ export function NewTaskDetailsContent({
 }: NewTaskDetailsContentProps) {
   return (
     <div className="space-y-4">
-      <NewTaskSegmentedControl value={detailsTab} onValueChange={onDetailsTabChange} />
+      <div className="flex h-10 w-full items-center justify-center">
+        <SegmentedControl
+          value={detailsTab}
+          options={[
+            { value: "basic", label: UI_TEXT.newTask.tabs.basic },
+            { value: "advanced", label: UI_TEXT.newTask.tabs.advanced },
+          ]}
+          onValueChange={onDetailsTabChange}
+          className="w-60 h-10 p-1"
+        />
+      </div>
 
       <div className="relative">
         <AnimatePresence mode="popLayout">

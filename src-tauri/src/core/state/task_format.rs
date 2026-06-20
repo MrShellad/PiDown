@@ -4,15 +4,15 @@ pub fn format_speed(bytes_per_sec: u64, display_unit: &SpeedDisplayUnit) -> Stri
     if bytes_per_sec == 0 {
         return match display_unit {
             SpeedDisplayUnit::Auto => "0 B/s".to_string(),
-            SpeedDisplayUnit::Kib => "0 KiB/s".to_string(),
-            SpeedDisplayUnit::Mib => "0 MiB/s".to_string(),
-            SpeedDisplayUnit::Mb => "0 MB/s".to_string(),
+            SpeedDisplayUnit::Kib => "0 KB/s".to_string(),
+            SpeedDisplayUnit::Mib => "0 MB/s".to_string(),
+            SpeedDisplayUnit::Mb => "0 bps".to_string(),
         };
     }
 
     match display_unit {
         SpeedDisplayUnit::Auto => {
-            let units = ["B/s", "KiB/s", "MiB/s", "GiB/s"];
+            let units = ["B/s", "KB/s", "MB/s", "GB/s"];
             let mut speed = bytes_per_sec as f64;
             let mut unit_idx = 0;
 
@@ -23,9 +23,25 @@ pub fn format_speed(bytes_per_sec: u64, display_unit: &SpeedDisplayUnit) -> Stri
 
             format!("{speed:.1} {}", units[unit_idx])
         }
-        SpeedDisplayUnit::Kib => format!("{:.1} KiB/s", bytes_per_sec as f64 / 1024.0),
-        SpeedDisplayUnit::Mib => format!("{:.2} MiB/s", bytes_per_sec as f64 / 1024.0 / 1024.0),
-        SpeedDisplayUnit::Mb => format!("{:.2} MB/s", bytes_per_sec as f64 / 1_000_000.0),
+        SpeedDisplayUnit::Kib => format!("{:.1} KB/s", bytes_per_sec as f64 / 1024.0),
+        SpeedDisplayUnit::Mib => format!("{:.2} MB/s", bytes_per_sec as f64 / 1024.0 / 1024.0),
+        SpeedDisplayUnit::Mb => {
+            let bits_per_sec = bytes_per_sec as f64 * 8.0;
+            let units = ["bps", "Kbps", "Mbps", "Gbps"];
+            let mut speed = bits_per_sec;
+            let mut unit_idx = 0;
+
+            while speed >= 1000.0 && unit_idx < units.len() - 1 {
+                speed /= 1000.0;
+                unit_idx += 1;
+            }
+
+            if unit_idx == 0 {
+                format!("{:.0} bps", speed)
+            } else {
+                format!("{:.2} {}", speed, units[unit_idx])
+            }
+        }
     }
 }
 

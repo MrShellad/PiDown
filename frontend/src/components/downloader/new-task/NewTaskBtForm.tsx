@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { ChevronDown, ChevronRight, Folder, FolderOpen, HardDrive, Film, List, Magnet } from "lucide-react"
 
 import { CategoryDropdown } from "@/components/common/CategoryDropdown"
@@ -152,6 +153,36 @@ export function NewTaskBtForm({
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({})
   const [videoOnly, setVideoOnly] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
+  const savePathContainerRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState({ top: 0, left: 0, width: 0 })
+
+  const updateCoords = () => {
+    if (savePathContainerRef.current) {
+      const rect = savePathContainerRef.current.getBoundingClientRect()
+      setCoords({
+        top: rect.bottom + window.scrollY,
+        left: rect.left + window.scrollX,
+        width: rect.width,
+      })
+    }
+  }
+
+  useEffect(() => {
+    if (showHistory) {
+      updateCoords()
+      window.addEventListener("resize", updateCoords)
+      const scrollEl = document.querySelector('[data-radix-scroll-area-viewport]')
+      if (scrollEl) {
+        scrollEl.addEventListener("scroll", updateCoords)
+      }
+      return () => {
+        window.removeEventListener("resize", updateCoords)
+        if (scrollEl) {
+          scrollEl.removeEventListener("scroll", updateCoords)
+        }
+      }
+    }
+  }, [showHistory])
 
   // Memoize tree representation
   const tree = useMemo(() => {
@@ -515,14 +546,20 @@ export function NewTaskBtForm({
             {UI_TEXT.newTask.freeSpace.replace("{{size}}", freeSpaceText || "")} {isDiskSpaceWarning && UI_TEXT.newTask.diskSpaceWarning}
           </span>
         </div>
-        <div className="relative">
+        <div ref={savePathContainerRef} className="relative">
           <CompoundInput
             type="text"
             size="lg"
             value={savePath}
             onChange={(event) => onSavePathChange(event.target.value)}
-            onFocus={() => setShowHistory(true)}
-            onClick={() => setShowHistory(true)}
+            onFocus={() => {
+              updateCoords()
+              setShowHistory(true)
+            }}
+            onClick={() => {
+              updateCoords()
+              setShowHistory(true)
+            }}
             onBlur={() => setTimeout(() => setShowHistory(false), 200)}
             disabled={loading}
             inputClassName="font-mono"
@@ -548,17 +585,27 @@ export function NewTaskBtForm({
               </CompoundInputButton>
             }
           />
-          {showHistory && savePathHistory && savePathHistory.length > 0 && (
-            <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md">
+          {showHistory && savePathHistory && savePathHistory.length > 0 && createPortal(
+            <div
+              onMouseDown={(e) => {
+                // Prevent input blur when clicking scrollbar or container background
+                e.preventDefault()
+              }}
+              style={{
+                position: "absolute",
+                top: `${coords.top}px`,
+                left: `${coords.left}px`,
+                width: `${coords.width}px`,
+              }}
+              className="z-[9999] mt-1 max-h-36 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md font-sans"
+            >
               {savePathHistory.map((path, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onMouseDown={(e) => {
-                    // Prevent input blur before onClick fires
+                    // Select item and close dropdown immediately on mousedown to prevent focus trap conflicts
                     e.preventDefault()
-                  }}
-                  onClick={() => {
                     onSavePathChange(path)
                     setShowHistory(false)
                   }}
@@ -568,7 +615,8 @@ export function NewTaskBtForm({
                   <span className="truncate">{path}</span>
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
         {formConflict && formConflict.exists && (

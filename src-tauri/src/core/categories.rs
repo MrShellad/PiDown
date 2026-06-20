@@ -198,15 +198,18 @@ pub fn match_rules(rules: &MatchRules, url: &str, filename: &str, size_bytes: Op
         return false;
     }
 
-    if let Some(min_size) = rules.min_size_bytes {
-        if size_bytes.unwrap_or(0) < min_size {
-            return false;
+    let size = size_bytes.unwrap_or(0);
+    if size > 0 {
+        if let Some(min_size) = rules.min_size_bytes {
+            if size < min_size {
+                return false;
+            }
         }
-    }
 
-    if let Some(max_size) = rules.max_size_bytes {
-        if size_bytes.unwrap_or(u64::MAX) > max_size {
-            return false;
+        if let Some(max_size) = rules.max_size_bytes {
+            if size > max_size {
+                return false;
+            }
         }
     }
 
@@ -271,5 +274,33 @@ mod tests {
 
         assert_eq!(document.directory, "Documents");
         assert!(document.extensions.contains(&"pdf"));
+    }
+
+    #[test]
+    fn match_rules_ignores_size_limits_when_size_is_zero_or_none() {
+        use super::{match_rules, MatchRules};
+
+        let rules = MatchRules {
+            domains: vec![],
+            extensions: vec!["zip".to_string()],
+            name_keywords: vec![],
+            min_size_bytes: Some(1024),
+            max_size_bytes: Some(2048),
+        };
+
+        // File size is 0: limits ignored, should match (true)
+        assert!(match_rules(&rules, "http://example.com/file.zip", "file.zip", Some(0)));
+
+        // File size is None (unknown): limits ignored, should match (true)
+        assert!(match_rules(&rules, "http://example.com/file.zip", "file.zip", None));
+
+        // File size is within limits: should match (true)
+        assert!(match_rules(&rules, "http://example.com/file.zip", "file.zip", Some(1500)));
+
+        // File size is too small: should not match (false)
+        assert!(!match_rules(&rules, "http://example.com/file.zip", "file.zip", Some(500)));
+
+        // File size is too large: should not match (false)
+        assert!(!match_rules(&rules, "http://example.com/file.zip", "file.zip", Some(3000)));
     }
 }

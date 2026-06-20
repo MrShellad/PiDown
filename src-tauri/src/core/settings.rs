@@ -153,6 +153,7 @@ pub struct InterfaceSettings {
     pub enable_notifications: bool,
     pub language: String,
     pub datetime_format: String,
+    pub auto_start_on_boot: bool,
 }
 
 impl Default for InterfaceSettings {
@@ -174,6 +175,7 @@ impl Default for InterfaceSettings {
             enable_notifications: true,
             language: "auto".to_string(),
             datetime_format: "YYYY-MM-DD HH:mm:ss".to_string(),
+            auto_start_on_boot: false,
         }
     }
 }

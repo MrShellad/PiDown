@@ -18,7 +18,7 @@ export function inferFileName(url: string) {
 export function formatBytes(bytes: number | null) {
   if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return "--"
 
-  const units = ["B", "KiB", "MiB", "GiB", "TiB"]
+  const units = ["B", "KB", "MB", "GB", "TB"]
   let value = bytes
   let unitIndex = 0
   while (value >= 1024 && unitIndex < units.length - 1) {
