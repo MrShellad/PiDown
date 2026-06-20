@@ -597,7 +597,7 @@ export function NewTaskBtForm({
                 left: `${coords.left}px`,
                 width: `${coords.width}px`,
               }}
-              className="z-[9999] mt-1 max-h-36 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md font-sans"
+              className="window-frame z-[9999] mt-1 max-h-36 overflow-y-auto rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md font-sans"
             >
               {savePathHistory.map((path, idx) => (
                 <button

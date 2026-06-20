@@ -1,4 +1,5 @@
 import * as React from "react"
+import { Search, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip"
@@ -43,7 +44,7 @@ function Toolbar({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="toolbar"
       role="toolbar"
       className={cn(
-        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-card text-card-foreground shadow-toolbar-glow",
+        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-toolbar text-card-foreground shadow-toolbar-glow",
         className
       )}
       {...props}
@@ -173,4 +174,106 @@ function ToolbarPrimaryButton({
   )
 }
 
-export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarPrimaryButton, ToolbarSeparator }
+export interface PageHeaderToolbarProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
+  title?: React.ReactNode
+  description?: React.ReactNode
+  leftActions?: React.ReactNode
+  searchQuery?: string
+  onSearchQueryChange?: (query: string) => void
+  searchPlaceholder?: string
+  rightActions?: React.ReactNode
+  expandedSearchClassName?: string
+}
+
+function PageHeaderToolbar({
+  className,
+  title,
+  description,
+  leftActions,
+  searchQuery,
+  onSearchQueryChange,
+  searchPlaceholder = "搜索...",
+  rightActions,
+  expandedSearchClassName,
+  children,
+  ...props
+}: PageHeaderToolbarProps) {
+  const [isSearchFocused, setIsSearchFocused] = React.useState(false)
+  const isExpanded = isSearchFocused || !!searchQuery
+
+  return (
+    <div
+      data-slot="page-header-toolbar"
+      role="toolbar"
+      className={cn(
+        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-toolbar text-card-foreground shadow-toolbar-glow border border-border/30 relative",
+        className
+      )}
+      {...props}
+    >
+      {/* Left section */}
+      <div className="flex items-stretch min-w-0">
+        {title && (
+          <div className={cn(
+            "flex flex-col justify-center px-5 py-2 min-w-0 shrink-0",
+            leftActions && "border-r border-border/40"
+          )}>
+            {typeof title === "string" ? (
+              <h2 className="text-sm font-bold text-foreground tracking-wide truncate leading-5">{title}</h2>
+            ) : (
+              title
+            )}
+            {description && (
+              <p className="text-2xs text-muted-foreground truncate leading-4 mt-0.5">{description}</p>
+            )}
+          </div>
+        )}
+        {leftActions}
+      </div>
+
+      {/* Middle section: Search Input */}
+      {onSearchQueryChange !== undefined && (
+        <div
+          className={cn(
+            "transition-all duration-300 self-stretch",
+            isExpanded
+              ? cn("absolute inset-y-0 left-0 bg-toolbar px-5 z-20 flex items-center justify-end", expandedSearchClassName || "right-0")
+              : "relative w-36 ml-auto flex items-center justify-end px-3"
+          )}
+        >
+          <div className={cn(
+            "relative w-full flex items-center group transition-all duration-300",
+            isExpanded ? "max-w-md" : "max-w-[144px]"
+          )}>
+            <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
+            <input
+              type="text"
+              placeholder={searchPlaceholder}
+              value={searchQuery || ""}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
+              onChange={(e) => onSearchQueryChange(e.target.value)}
+              className="w-full h-9 pl-9 pr-8 rounded-md border border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 text-xs outline-none transition placeholder:text-muted-foreground/60 text-foreground"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => onSearchQueryChange("")}
+                className="absolute right-2.5 p-0.5 rounded hover:bg-muted text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                aria-label="清空搜索"
+              >
+                <X className="size-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Right section */}
+      {rightActions}
+      {children}
+    </div>
+  )
+}
+
+export { Toolbar, ToolbarButton, ToolbarGroup, ToolbarPrimaryButton, ToolbarSeparator, PageHeaderToolbar }

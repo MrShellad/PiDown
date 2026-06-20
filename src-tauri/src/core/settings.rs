@@ -65,6 +65,7 @@ pub struct DownloadSettings {
     pub browser_extension_token: String,
     pub play_sound_on_complete: bool,
     pub sound_effect_id: String,
+    pub auto_remove_on_file_deleted: bool,
 }
 
 impl Default for DownloadSettings {
@@ -79,6 +80,7 @@ impl Default for DownloadSettings {
             browser_extension_token: uuid::Uuid::new_v4().to_string(),
             play_sound_on_complete: true,
             sound_effect_id: "success".to_string(),
+            auto_remove_on_file_deleted: false,
         }
     }
 }
@@ -315,6 +317,7 @@ mod tests {
             document.settings.download.default_save_dir,
             settings.download.default_save_dir
         );
+        assert_eq!(document.settings.download.auto_remove_on_file_deleted, false);
     }
 
     #[test]

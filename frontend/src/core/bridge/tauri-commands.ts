@@ -143,6 +143,7 @@ export interface AppSettings {
     browser_extension_token: string;
     play_sound_on_complete: boolean;
     sound_effect_id: string;
+    auto_remove_on_file_deleted: boolean;
   };
   transfer: {
     max_concurrent_downloads: number;
@@ -449,6 +450,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       browser_extension_token: "",
       play_sound_on_complete: true,
       sound_effect_id: "success",
+      auto_remove_on_file_deleted: false,
     },
     transfer: {
       max_concurrent_downloads: 3,

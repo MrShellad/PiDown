@@ -1,5 +1,5 @@
 mod classification;
-mod file_actions;
+pub(crate) mod file_actions;
 mod settings_state;
 pub(crate) mod task_format;
 mod task_service;

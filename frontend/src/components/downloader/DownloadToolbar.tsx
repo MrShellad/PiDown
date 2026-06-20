@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react"
 
-import { Toolbar } from "@/components/ui/toolbar"
-import { Search, X } from "lucide-react"
+import { PageHeaderToolbar } from "@/components/ui/toolbar"
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
 import { parseNullableSpeedLimit } from "@/core/transfer"
@@ -97,8 +96,11 @@ export default function DownloadToolbar({
   }
 
   return (
-    <>
-      <Toolbar className={className} aria-label="下载任务工具栏">
+    <PageHeaderToolbar
+      className={className}
+      aria-label="下载任务工具栏"
+      expandedSearchClassName="right-[248px] border-r border-border/40"
+      leftActions={
         <DownloadToolbarActions
           selectedTaskCount={selectedTaskCount}
           selectedPauseCount={selectedPauseCount}
@@ -108,30 +110,11 @@ export default function DownloadToolbar({
           onResumeSelected={onResumeSelected}
           onDeleteSelected={onDeleteSelected}
         />
-        
-        {/* Adaptive search input */}
-        <div className="flex-grow flex justify-end px-4 min-w-[120px] max-w-sm ml-auto">
-          <div className="relative w-full flex items-center group">
-            <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
-            <input
-              type="text"
-              placeholder="搜索任务..."
-              value={searchQuery}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full h-9 pl-9 pr-8 rounded-md border border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 text-xs outline-none transition placeholder:text-muted-foreground/60 text-foreground"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchQueryChange("")}
-                className="absolute right-2.5 p-0.5 rounded hover:bg-muted text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer"
-                aria-label="清空搜索"
-              >
-                <X className="size-3.5" />
-              </button>
-            )}
-          </div>
-        </div>
+      }
+      searchQuery={searchQuery}
+      onSearchQueryChange={onSearchQueryChange}
+      searchPlaceholder="搜索任务..."
+      rightActions={
         <SpeedLimitPopover
           open={limitPopoverOpen}
           onOpenChange={setLimitPopoverOpen}
@@ -151,8 +134,8 @@ export default function DownloadToolbar({
             onOpenLimits={prepareSpeedLimitPopover}
           />
         </SpeedLimitPopover>
-      </Toolbar>
-    </>
+      }
+    />
   )
 }
 

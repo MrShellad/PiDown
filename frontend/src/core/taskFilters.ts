@@ -1,6 +1,6 @@
 import type { Category, Tag, Task } from "@/core/store/useDownloadStore";
 
-export type SystemNavFilter = "all" | "completed" | "incomplete" | "seeding";
+export type SystemNavFilter = "all" | "completed" | "incomplete" | "seeding" | "devices";
 export type CategoryNavFilter = `category:${number}` | `completed:category:${number}` | `incomplete:category:${number}` | `seeding:category:${number}`;
 export type TagNavFilter = `tag:${number}` | `completed:tag:${number}` | `incomplete:tag:${number}` | `seeding:tag:${number}`;
 export type NavFilter = SystemNavFilter | CategoryNavFilter | TagNavFilter;
@@ -147,6 +147,8 @@ export function taskMatchesFilter(task: Task, filter: NavFilter, context: TaskFi
       return task.status !== "Completed";
     case "seeding":
       return task.status === "Seeding";
+    case "devices":
+      return false;
     case "all":
     default:
       return true;

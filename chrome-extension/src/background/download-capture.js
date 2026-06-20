@@ -14,17 +14,24 @@ const pendingDownloads = new Set();
 const settledDownloads = new Set();
 const retryState = new Map();
 
-export async function scheduleDownloadCapture(downloadId, initialItem) {
+export async function scheduleDownloadCapture(downloadId, initialItem, forceImmediate = false) {
   if (pendingDownloads.has(downloadId) || settledDownloads.has(downloadId)) return;
 
   const current = retryState.get(downloadId);
-  if (current?.timerId != null) return;
+  if (current?.timerId != null) {
+    if (forceImmediate) {
+      clearTimeout(current.timerId);
+    } else {
+      return;
+    }
+  }
 
   const attempt = current?.attempt ?? 0;
-  const delay = CAPTURE_RETRY_DELAYS_MS[Math.min(attempt, CAPTURE_RETRY_DELAYS_MS.length - 1)];
+  const delay = forceImmediate ? 0 : CAPTURE_RETRY_DELAYS_MS[Math.min(attempt, CAPTURE_RETRY_DELAYS_MS.length - 1)];
   const timerId = setTimeout(() => {
     retryState.delete(downloadId);
-    attemptDownloadCapture(downloadId, initialItem, attempt).catch((error) => {
+    const itemToUse = forceImmediate ? null : initialItem;
+    attemptDownloadCapture(downloadId, itemToUse, attempt).catch((error) => {
       console.warn("[PiDownloader] failed to capture download", error);
       retryState.delete(downloadId);
     });
@@ -376,7 +383,7 @@ export function initDownloadCapture() {
 
   chrome.downloads.onChanged.addListener((delta) => {
     if (!shouldRecheckDownload(delta)) return;
-    scheduleDownloadCapture(delta.id).catch((error) => {
+    scheduleDownloadCapture(delta.id, null, true).catch((error) => {
       console.warn("[PiDownloader] failed to re-check download", error);
     });
   });

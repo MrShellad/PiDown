@@ -43,6 +43,7 @@ pub fn run() {
                 log::warn!("PiDownloader native bridge is unavailable: {error}");
             }
             events::start_global_event_ticker(app_handle.clone(), state.clone());
+            events::start_file_status_tracker(app_handle.clone(), state.clone());
             events::start_event_reporter(app_handle, state.clone());
 
             let settings = state.get_settings();

@@ -31,7 +31,7 @@ export function SettingsSectionCard({
   return (
     <section
       className={cn(
-        "rounded-xl border border-border bg-card/75 p-6 backdrop-blur-xl",
+        "p-6",
         className
       )}
     >

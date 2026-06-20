@@ -14,6 +14,7 @@ import {
   Trash2,
   Settings,
   Upload,
+  LaptopMinimal,
 } from "lucide-react";
 
 
@@ -430,16 +431,18 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           </span>
         ) : null}
 
-        <span
-          className={cn(
-            "ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums",
-            isActive
-              ? "bg-white/20 text-sidebar-primary-foreground"
-              : "bg-sidebar-accent text-sidebar-foreground"
-          )}
-        >
-          {count}
-        </span>
+        {id !== "devices" && (
+          <span
+            className={cn(
+              "ml-1 rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums",
+              isActive
+                ? "bg-white/20 text-sidebar-primary-foreground"
+                : "bg-sidebar-accent text-sidebar-foreground"
+            )}
+          >
+            {count}
+          </span>
+        )}
       </button>
     );
   };
@@ -590,6 +593,15 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
             {renderCategoryTree("incomplete", "incomplete")}
           </div>
         </ScrollArea>
+
+        <div className="shrink-0 flex flex-col border-t border-sidebar-border/30 pt-2 pb-2 px-2 bg-sidebar">
+          {renderItem({
+            id: "devices",
+            label: "我的设备",
+            icon: <LaptopMinimal className="size-[18px] shrink-0" />,
+            kind: "system",
+          })}
+        </div>
         {hideBorderAndBg && (
           <div className="mt-auto shrink-0 border-t border-sidebar-border/50 bg-sidebar-accent/20 p-2 flex justify-between items-center z-10">
             <span className="text-xs text-sidebar-foreground/60 pl-2 font-mono tracking-wider">PiDownloader</span>

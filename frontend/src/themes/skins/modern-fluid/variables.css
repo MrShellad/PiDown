@@ -3,6 +3,10 @@ html[data-theme="modern"] {
     --foreground: oklch(0.98 0.005 280);
     --card: oklch(0.22 0.015 280 / 0.88);
     --card-foreground: oklch(0.98 0.005 280);
+    --toolbar-bg: oklch(0.25 0.015 280 / 0.95);
+    --table-header-bg: oklch(0.20 0.012 280 / 0.60);
+    --task-row-bg: oklch(0.22 0.015 280 / 0.88);
+    --task-row-hover-bg: oklch(0.24 0.015 280);
     --popover: oklch(0.22 0.015 280);
     --popover-foreground: oklch(0.98 0.005 280);
     
@@ -79,6 +83,10 @@ html[data-theme="modern"][data-color-mode="light"] {
     --foreground: oklch(0.2 0.055 255);
     --card: oklch(0.995 0.008 235 / 0.88);
     --card-foreground: oklch(0.2 0.055 255);
+    --toolbar-bg: oklch(0.965 0.012 235 / 0.96);
+    --table-header-bg: oklch(0.94 0.015 235 / 0.60);
+    --task-row-bg: oklch(0.995 0.008 235 / 0.90);
+    --task-row-hover-bg: oklch(0.98 0.01 235 / 0.95);
     --popover: oklch(0.995 0.008 235 / 0.96);
     --popover-foreground: oklch(0.2 0.055 255);
 
@@ -152,6 +160,10 @@ html[data-theme="surface"] {
     --foreground: #F8FAFC;
     --card: #1E293B;
     --card-foreground: #F8FAFC;
+    --toolbar-bg: #243049;
+    --table-header-bg: rgba(30, 41, 59, 0.5);
+    --task-row-bg: rgba(30, 41, 59, 0.9);
+    --task-row-hover-bg: #25334A;
     --popover: #1E293B;
     --popover-foreground: #F8FAFC;
 
@@ -248,6 +260,10 @@ html[data-theme="surface"][data-color-mode="light"] {
     --foreground: #0F172A;
     --card: #FFFFFF;
     --card-foreground: #0F172A;
+    --toolbar-bg: #EDF2F7;
+    --table-header-bg: rgba(241, 245, 249, 0.6);
+    --task-row-bg: rgba(255, 255, 255, 0.95);
+    --task-row-hover-bg: #F8FAFC;
     --popover: #FFFFFF;
     --popover-foreground: #0F172A;
 
@@ -342,6 +358,10 @@ html[data-theme="ubuntu"] {
     --foreground: #FFFFFF;
     --card: #4A1238;
     --card-foreground: #FFFFFF;
+    --toolbar-bg: #5E1D4A;
+    --table-header-bg: rgba(74, 18, 56, 0.55);
+    --task-row-bg: rgba(74, 18, 56, 0.9);
+    --task-row-hover-bg: #541540;
     --popover: #4A1238;
     --popover-foreground: #FFFFFF;
 
@@ -438,6 +458,10 @@ html[data-theme="ubuntu"][data-color-mode="light"] {
     --foreground: #111111;
     --card: #FFFFFF;
     --card-foreground: #111111;
+    --toolbar-bg: #EBEBEB;
+    --table-header-bg: rgba(238, 238, 238, 0.6);
+    --task-row-bg: rgba(255, 255, 255, 0.95);
+    --task-row-hover-bg: #F5F5F5;
     --popover: #FFFFFF;
     --popover-foreground: #111111;
 

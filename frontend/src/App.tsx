@@ -1,12 +1,10 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
 import { useState } from "react";
-import { Settings as SettingsIcon, X } from "lucide-react";
 import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
 import WindowFrame from "./components/layout/WindowFrame";
 import NavSidebar from "./components/layout/NavSidebar";
-import { Button } from "./components/ui/button";
-import { Dialog, DialogClose, DialogContent, DialogTitle } from "./components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useDownloadStore } from "./core/store/useDownloadStore";
 import { UI_TEXT } from "./core/locale";
@@ -16,6 +14,7 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
+import DevicesDashboard from "./components/downloader/DevicesDashboard";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 
 
@@ -74,13 +73,17 @@ export default function App() {
               onFilterChange={setActiveFilter}
               onOpenSettings={() => setSettingsOpen(true)}
             />
-            <TaskListDashboard activeFilter={visibleFilter} />
+            {visibleFilter === "devices" ? (
+              <DevicesDashboard />
+            ) : (
+              <TaskListDashboard activeFilter={visibleFilter} />
+            )}
           </div>
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogContent
               size="full"
               showCloseButton={false}
-              className="border border-border bg-background/95 p-0 shadow-surface-strong"
+              className="border border-border bg-card p-0 shadow-surface-strong"
               overlayClassName="bg-black/45 backdrop-blur-none"
               style={{
                 width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
@@ -91,18 +94,8 @@ export default function App() {
               }}
             >
               <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-card/88 px-5">
-                  <DialogTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <SettingsIcon className="size-4 text-primary" />
-                    {UI_TEXT.settings.title}
-                  </DialogTitle>
-                  <DialogClose asChild>
-                    <Button variant="ghost" size="icon-sm" aria-label={UI_TEXT.settings.cancel}>
-                      <X className="size-4" />
-                    </Button>
-                  </DialogClose>
-                </div>
-                <SettingsWindow />
+                <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
+                <SettingsWindow onClose={() => setSettingsOpen(false)} />
               </div>
             </DialogContent>
           </Dialog>

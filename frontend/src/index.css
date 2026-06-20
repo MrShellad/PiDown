@@ -149,6 +149,26 @@
   inherits: true;
   initial-value: color-mix(in oklab, oklch(0.577 0.245 27.325) 22%, transparent);
 }
+@property --toolbar-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
+@property --table-header-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(0.97 0 0 / 0.95);
+}
+@property --task-row-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0 / 0.95);
+}
+@property --task-row-hover-bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
 
 @custom-variant dark (&:is(.dark *));
 
@@ -211,6 +231,10 @@
     --shadow-dialog-footer: var(--dialog-footer-shadow);
     --color-popover-soft: var(--popover-soft);
     --color-muted-soft: var(--muted-soft);
+    --color-toolbar: var(--toolbar-bg);
+    --color-table-header: var(--table-header-bg);
+    --color-task-row: var(--task-row-bg);
+    --color-task-row-hover: var(--task-row-hover-bg);
 }
 
 :root {
@@ -219,6 +243,10 @@
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
+    --toolbar-bg: oklch(1 0 0);
+    --table-header-bg: oklch(0.97 0 0 / 0.95);
+    --task-row-bg: oklch(1 0 0 / 0.95);
+    --task-row-hover-bg: oklch(1 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
     --primary: oklch(0.205 0 0);

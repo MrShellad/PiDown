@@ -387,8 +387,8 @@ const TaskTableRow = memo(function TaskTableRow({
           }}
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
-            "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-card/95 text-sm leading-5 transition-colors hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
-            contextMenuOpen && "bg-card"
+            "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-task-row text-sm leading-5 transition-colors hover:bg-task-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
+            contextMenuOpen && "bg-task-row-hover"
           )}
           style={{ width: `${tableWidth}px` }}
         >

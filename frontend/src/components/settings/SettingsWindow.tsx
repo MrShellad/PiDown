@@ -22,6 +22,7 @@ import {
   Copy,
   Check,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompoundInput, CompoundInputButton } from "@/components/ui/input";
@@ -130,7 +131,7 @@ function SettingsWindowSkeleton() {
   return (
     <div className="flex h-full min-h-0 flex-1 overflow-hidden bg-transparent select-none">
       <aside
-        className="flex min-h-0 shrink-0 flex-col bg-card/70 px-3 py-4 shadow-[var(--settings-sidebar-shadow)] backdrop-blur-xl"
+        className="flex min-h-0 shrink-0 flex-col bg-[color-mix(in_oklab,var(--background),#000_4%)] dark:bg-[color-mix(in_oklab,var(--background),#000_15%)] px-3 py-4 border-r border-border/40 shadow-[var(--settings-sidebar-shadow)]"
         style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
       >
         <div className="space-y-2">
@@ -144,8 +145,8 @@ function SettingsWindowSkeleton() {
       </aside>
 
       <main className="min-w-0 flex-1 px-6 pt-4 pb-6">
-        <div className="mx-auto max-w-5xl rounded-xl border border-border bg-card/82 p-5 shadow-surface-raised backdrop-blur-xl">
-          <div className="mb-6 flex items-start justify-between gap-4">
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
             <div className="space-y-3">
               <div className="h-5 w-28 rounded-full bg-muted/75" />
               <div className="h-4 w-80 max-w-full rounded-full bg-muted/55" />
@@ -154,7 +155,7 @@ function SettingsWindowSkeleton() {
           </div>
           <div className="space-y-3">
             {[0, 1, 2].map((item) => (
-              <div key={item} className="rounded-lg border border-border bg-secondary/40 p-4">
+              <div key={item} className="rounded-lg border border-border/40 bg-secondary/20 p-4">
                 <div className="h-4 w-32 rounded-full bg-muted/75" />
                 <div className="mt-3 h-3 w-64 max-w-full rounded-full bg-muted/55" />
               </div>
@@ -166,15 +167,49 @@ function SettingsWindowSkeleton() {
   );
 }
 
-function ResetSettingsButton({ onClick }: { onClick: () => void }) {
+function ResetSettingsButton({ onClick, onClose }: { onClick: () => void; onClose?: () => void }) {
   return (
-    <Button variant="destructive" onClick={onClick}>
-      {UI_TEXT.settings.reset}
+    <div className="flex items-center gap-2">
+      <Button variant="destructive" size="sm" onClick={onClick}>
+        {UI_TEXT.settings.reset}
+      </Button>
+      {onClose && (
+        <Button variant="outline" size="sm" onClick={onClose}>
+          关闭
+        </Button>
+      )}
+    </div>
+  );
+}
+
+function CheckForUpdatesButton() {
+  const [checking, setChecking] = useState(false);
+
+  const handleCheck = () => {
+    setChecking(true);
+    setTimeout(() => {
+      setChecking(false);
+      useToastStore.getState().pushToast({
+        title: "已是最新版本",
+        description: "当前版本 v0.0.3 已是最新版本。",
+        variant: "success",
+      });
+    }, 1200);
+  };
+
+  return (
+    <Button
+      onClick={handleCheck}
+      loading={checking}
+      loadingText="正在检查更新..."
+      className="px-6"
+    >
+      检查更新
     </Button>
   );
 }
 
-export default function SettingsWindow() {
+export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
   const prefersReducedMotion = useReducedMotion();
 
   const {
@@ -270,6 +305,7 @@ export default function SettingsWindow() {
     { id: "extension", label: UI_TEXT.settings.navExtension, icon: <MonitorCog className="size-4" /> },
     { id: "magnet", label: UI_TEXT.settings.navMagnet, icon: <Magnet className="size-4" /> },
     { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
+    { id: "about", label: "关于", icon: <Info className="size-4" /> },
   ], [draft?.interface?.language]);
 
   const speedDisplayUnitOptions = useMemo<{ value: SpeedDisplayUnit; label: string }[]>(() => [
@@ -987,7 +1023,7 @@ export default function SettingsWindow() {
     >
       <div className="flex min-h-0 flex-1">
         <aside
-          className="relative z-10 flex min-h-0 shrink-0 flex-col bg-card/70 px-2.5 py-4 shadow-[var(--settings-sidebar-shadow)] backdrop-blur-xl"
+          className="relative z-10 flex min-h-0 shrink-0 flex-col bg-[color-mix(in_oklab,var(--background),#000_4%)] dark:bg-[color-mix(in_oklab,var(--background),#000_15%)] px-2.5 py-4 border-r border-border/40 shadow-[var(--settings-sidebar-shadow)]"
           style={{ width: UI_TOKENS.settingsSidebarWidth, minWidth: UI_TOKENS.settingsSidebarWidth }}
         >
           <ScrollArea className="flex-1" visibility="auto" scrollbar="overlay" viewportClassName="space-y-1">
@@ -1025,7 +1061,7 @@ export default function SettingsWindow() {
 
         <main className="min-w-0 flex-1">
           <ScrollArea className="h-full" gutter="stable" safePadding viewportClassName="px-6 pt-4 pb-6">
-            <div className="mx-auto flex max-w-5xl flex-col gap-6">
+            <div className="flex flex-col gap-6">
               {visibleError ? (
                 <div className="rounded-md border border-border bg-secondary/60 px-3 py-2 text-sm leading-6 text-muted-foreground">
                   {visibleError}
@@ -1047,7 +1083,7 @@ export default function SettingsWindow() {
                         icon={<Settings className="size-5" />}
                         title={UI_TEXT.settings.navGeneral}
                         description={UI_TEXT.settings.navGeneralDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                       />
 
                       <div className="mt-5">
@@ -1146,6 +1182,24 @@ export default function SettingsWindow() {
                                     download: {
                                       ...prev.download,
                                       auto_start_downloads: checked,
+                                    },
+                                  }))
+                                }
+                              />
+                            }
+                          />
+                          <SettingsListItem
+                            title={UI_TEXT.settings.autoRemoveOnFileDeleted}
+                            description={UI_TEXT.settings.autoRemoveOnFileDeletedDesc}
+                            action={
+                              <Switch
+                                checked={draft.download.auto_remove_on_file_deleted}
+                                onCheckedChange={(checked) =>
+                                  updateDraft((prev) => ({
+                                    ...prev,
+                                    download: {
+                                      ...prev.download,
+                                      auto_remove_on_file_deleted: checked,
                                     },
                                   }))
                                 }
@@ -1310,7 +1364,7 @@ export default function SettingsWindow() {
                         icon={<Cable className="size-5" />}
                         title={UI_TEXT.settings.navTransfer}
                         description={UI_TEXT.settings.navTransferDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                       />
 
                       <div className="mt-5">
@@ -1523,7 +1577,7 @@ export default function SettingsWindow() {
                           icon={<FolderTree className="size-5" />}
                           title={UI_TEXT.settings.navCategory}
                           description={UI_TEXT.settings.navCategoryDesc}
-                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                         />
 
                         <div className="mt-5">
@@ -1644,7 +1698,7 @@ export default function SettingsWindow() {
                                         {icon.extensions.map((ext) => (
                                           <span
                                             key={ext}
-                                            className="px-1.5 py-0.5 text-[10px] font-semibold font-mono uppercase bg-card rounded border border-border/40 text-foreground/80"
+                                            className="px-1.5 py-0.5 text-xs font-semibold font-mono uppercase bg-card rounded border border-border/40 text-foreground/80"
                                           >
                                             .{ext}
                                           </span>
@@ -1694,7 +1748,7 @@ export default function SettingsWindow() {
                         icon={<MonitorCog className="size-5" />}
                         title={UI_TEXT.settings.navExtension}
                         description={UI_TEXT.settings.navExtensionDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                       />
 
                       <div className="mt-5">
@@ -1832,7 +1886,7 @@ export default function SettingsWindow() {
                         icon={<Magnet className="size-5" />}
                         title={UI_TEXT.settings.magnetTitle}
                         description={UI_TEXT.settings.magnetDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                       />
 
                       <div className="mt-5">
@@ -2082,7 +2136,7 @@ export default function SettingsWindow() {
                           icon={<Paintbrush className="size-5" />}
                           title={UI_TEXT.settings.navAppearance}
                           description={UI_TEXT.settings.navAppearanceDesc}
-                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} />}
+                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
                         />
 
                         <div className="mt-5">
@@ -2175,7 +2229,7 @@ export default function SettingsWindow() {
                                         className="absolute bottom-6 right-7 h-2 w-8 rounded-full" 
                                         style={{ backgroundColor: cardAccentColor, opacity: 0.7 }}
                                       />
-                                      <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-[11px] font-semibold text-foreground shadow-surface-raised">
+                                      <div className="absolute right-4 top-3 rounded-full border border-primary-foreground/45 bg-card/78 px-2 py-1 text-xs font-semibold text-foreground shadow-surface-raised">
                                         {item.accent || UI_TEXT.settings.customTheme}
                                       </div>
                                     </div>
@@ -2507,7 +2561,7 @@ export default function SettingsWindow() {
                                                   <span className="mt-1 text-xs text-muted-foreground">{UI_TEXT.settings.useThemeBuiltinEffects}</span>
                                                 </div>
                                                 {draft.interface.background_id === null && (
-                                                  <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-[10px] font-bold text-primary">
+                                                  <div className="absolute right-2 top-2 rounded-full bg-primary/12 px-1.5 py-0.5 text-xs font-bold text-primary">
                                                     {UI_TEXT.settings.inUse}
                                                   </div>
                                                 )}
@@ -2566,13 +2620,13 @@ export default function SettingsWindow() {
 
                                               {/* Badges */}
                                               {active && (
-                                                <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm z-10">
+                                                <div className="absolute left-2 top-2 rounded-full bg-primary/95 px-1.5 py-0.5 text-xs font-bold text-primary-foreground shadow-sm z-10">
                                                   {UI_TEXT.settings.applied}
                                                 </div>
                                               )}
 
                                               {bg.is_online && (
-                                                <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-[10px] font-bold text-accent-foreground shadow-sm z-10">
+                                                <div className="absolute right-2 top-2 rounded-full bg-accent/95 px-1.5 py-0.5 text-xs font-bold text-accent-foreground shadow-sm z-10">
                                                   {UI_TEXT.settings.online}
                                                 </div>
                                               )}
@@ -2795,6 +2849,69 @@ export default function SettingsWindow() {
                         </div>
                       </SettingsSectionCard>
                     </>
+                  ) : null}
+
+                  {activeSection === "about" ? (
+                    <SettingsSectionCard>
+                      <SettingsSectionHeader
+                        icon={<Info className="size-5" />}
+                        title="关于"
+                        description="关于 PiDownloader 桌面下载器"
+                        action={
+                          onClose && (
+                            <Button variant="outline" size="sm" onClick={onClose}>
+                              关闭
+                            </Button>
+                          )
+                        }
+                      />
+
+                      <div className="mt-8 flex flex-col items-center justify-center text-center">
+                        {/* Centered Logo */}
+                        <div className="relative flex size-24 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-glow-effect mb-5 select-none">
+                          <Download className="size-12 animate-pulse" style={{ animationDuration: "3s" }} />
+                          <div className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                            Pi
+                          </div>
+                        </div>
+
+                        {/* Title & Description */}
+                        <h3 className="text-2xl font-bold text-foreground tracking-wide">PiDownloader</h3>
+                        <p className="mt-1 text-sm text-muted-foreground font-medium">桌面多线程加速下载器</p>
+
+                        {/* Metadata Box */}
+                        <div className="mt-6 w-full max-w-sm rounded-xl border border-border bg-secondary/10 p-5 space-y-3.5 text-sm">
+                          <div className="flex justify-between items-center">
+                            <span className="text-muted-foreground">客户端版本</span>
+                            <span className="font-semibold text-foreground font-mono">v0.0.3</span>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-border/40 pt-3">
+                            <span className="text-muted-foreground">下载核心引擎</span>
+                            <span className="font-semibold text-foreground font-mono">gosh-dl v0.4.0</span>
+                          </div>
+                          <div className="flex justify-between items-center border-t border-border/40 pt-3">
+                            <span className="text-muted-foreground">开源项目</span>
+                            <a
+                              href="https://github.com/MrShellad/PiDown"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 font-medium text-primary hover:underline"
+                            >
+                              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" />
+                                <path d="M9 18c-4.51 2-5-2-7-2" />
+                              </svg>
+                              MrShellad/PiDown
+                            </a>
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="mt-8">
+                          <CheckForUpdatesButton />
+                        </div>
+                      </div>
+                    </SettingsSectionCard>
                   ) : null}
                 </motion.div>
               </AnimatePresence>

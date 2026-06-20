@@ -3,9 +3,6 @@ import { motion, AnimatePresence } from "motion/react"
 import {
   CloudDownload,
   Link,
-  ListEnd,
-  ListPlus,
-  ListStart,
   Pause,
   Play,
   Square,
@@ -259,19 +256,7 @@ export function DownloadToolbarActions({
         </ToolbarButton>
       </ToolbarGroup>
 
-      <ToolbarSeparator />
 
-      <ToolbarGroup>
-        <ToolbarButton icon={<ListStart />} disabled>
-          {UI_TEXT.dashboard.startQueue}
-        </ToolbarButton>
-        <ToolbarButton icon={<ListEnd />} disabled>
-          {UI_TEXT.dashboard.stopQueue}
-        </ToolbarButton>
-        <ToolbarButton icon={<ListPlus />} disabled>
-          {UI_TEXT.dashboard.queue}
-        </ToolbarButton>
-      </ToolbarGroup>
 
       <ToolbarSeparator />
 

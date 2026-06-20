@@ -111,6 +111,8 @@
     "browse": "Browse...",
     "autoStart": "Auto-Start Downloads",
     "autoStartDesc": "Start downloading immediately after creating a task; if turned off, the task stays paused initially.",
+    "autoRemoveOnFileDeleted": "Auto-track File Status",
+    "autoRemoveOnFileDeletedDesc": "If the local file is deleted or moved, the download task is automatically removed.",
     "autoStartOnBoot": "Start on Boot",
     "autoStartOnBootDesc": "Automatically start the application when the computer boots up.",
     "autoCategory": "Auto-Classify Tasks",

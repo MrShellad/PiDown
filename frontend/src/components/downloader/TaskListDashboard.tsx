@@ -201,7 +201,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     const colors = [primary, accent, '#ffffff', primary];
     
     const width = canvas.clientWidth;
-    const rowY = 52 + 8 + previousIndex * TASK_ROW_STRIDE;
+    const rowY = previousIndex * TASK_ROW_STRIDE;
     
     const numParticles = 45;
     const newParticles: Particle[] = [];
@@ -834,16 +834,16 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     variant="ghost"
                     className="mt-2 min-h-0 flex-1"
                     style={{
-                      marginLeft: -12,
-                      marginRight: -12,
-                      marginBottom: 6,
+                      width: `${tableWidth}px`,
+                      marginBottom: 8,
+                      clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
                     }}
-                    viewportClassName={`relative pb-[64px] pt-0 scroll-smooth ${
+                    viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg ${
                       filteredGids.length === 0 ? "flex flex-col" : ""
                     }`}
                     viewportStyle={{
-                      paddingLeft: 12,
-                      paddingRight: 12,
+                      paddingLeft: 0,
+                      paddingRight: 0,
                     }}
                     onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
                   >
@@ -964,16 +964,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         </AnimatePresence>
                       </Reorder.Group>
 
-                      {/* Canvas Overlay for Particle Explosion */}
-                      <canvas
-                        ref={canvasRef}
-                        className="absolute left-0 pointer-events-none z-50"
-                        style={{
-                          top: scrollTop,
-                          width: "100%",
-                          height: viewportHeight,
-                        }}
-                      />
                     </div>
                   )}
                 </ScrollArea>
@@ -987,7 +977,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       bottom: 6,
                     }}
                   >
-                  <div className="flex h-12 items-center justify-between rounded-lg bg-card/95 backdrop-blur-md shadow-md border border-border/40 px-4 text-xs text-muted-foreground select-none">
+                  <div className="flex h-12 items-center justify-between rounded-lg bg-toolbar backdrop-blur-md shadow-sm border border-border/40 px-4 text-xs text-muted-foreground select-none">
                       {/* Left: Range Info */}
                       <div className="flex flex-1 items-center gap-1.5 font-medium justify-start">
                         <span>显示</span>
@@ -1094,6 +1084,18 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       </div>
                     </div>
                   </div>
+                  {/* Canvas Overlay for Particle Explosion */}
+                  {filteredGids.length > 0 && (
+                    <canvas
+                      ref={canvasRef}
+                      className="absolute left-12 pointer-events-none z-50"
+                      style={{
+                        top: 60,
+                        width: `${tableWidth}px`,
+                        height: `${viewportHeight}px`,
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </div>

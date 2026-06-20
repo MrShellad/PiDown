@@ -220,3 +220,65 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
         }
     });
 }
+
+pub fn start_file_status_tracker(_app_handle: AppHandle, state: Arc<AppState>) {
+    tauri::async_runtime::spawn(async move {
+        // Run check loop every 10 seconds
+        let mut interval = tokio::time::interval(Duration::from_secs(10));
+        loop {
+            interval.tick().await;
+
+            let enabled = state.get_settings().download.auto_remove_on_file_deleted;
+            if !enabled {
+                continue;
+            }
+
+            let completed_tasks: Vec<crate::core::models::DbTask> = {
+                let cache = state.task_cache.read().unwrap();
+                cache
+                    .values()
+                    .filter(|task| task.status == "Completed")
+                    .cloned()
+                    .collect()
+            };
+
+            for task in completed_tasks {
+                // If setting was disabled mid-loop, stop checking
+                if !state.get_settings().download.auto_remove_on_file_deleted {
+                    break;
+                }
+
+                let file_path = crate::core::state::file_actions::task_file_path(&task);
+
+                // Run the disk I/O exists check in tokio blocking thread pool to avoid blocking the main thread
+                let file_exists = {
+                    let path = file_path.clone();
+                    tokio::task::spawn_blocking(move || path.exists())
+                        .await
+                        .unwrap_or(true)
+                };
+
+                if !file_exists {
+                    log::info!(
+                        "Local file for task '{}' ({}) is deleted or moved. Automatically removing task.",
+                        task.name,
+                        task.id
+                    );
+
+                    let state_clone = state.clone();
+                    let gid = task.id.clone();
+                    // Call cancel_task async but don't delete files (as the file is already gone)
+                    tauri::async_runtime::spawn(async move {
+                        if let Err(err) = state_clone.cancel_task(&gid, false).await {
+                            log::error!("Failed to auto-remove task '{}': {}", gid, err);
+                        }
+                    });
+                }
+
+                // Throttle checking: pause for 50ms between task file checks to prevent I/O spikes
+                tokio::time::sleep(Duration::from_millis(50)).await;
+            }
+        }
+    });
+}
+
