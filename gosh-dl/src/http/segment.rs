@@ -344,7 +344,7 @@ impl SegmentedDownload {
                     }
 
                     // Build request with Range header
-                    let mut request = client.get(&url);
+                    let mut request = crate::http::apply_basic_auth_if_present(client.get(&url), &url);
                     request = request.header("User-Agent", &user_agent);
                     request = request.header("Range", format!("bytes={}-{}", resume_start, end));
 
@@ -883,8 +883,7 @@ pub async fn probe_server(
     cookies: Option<&[String]>,
     referer: Option<&str>,
 ) -> Result<ServerCapabilities> {
-    let mut req = client
-        .head(url)
+    let mut req = crate::http::apply_basic_auth_if_present(client.head(url), url)
         .header("User-Agent", user_agent)
         .header("Accept-Encoding", ACCEPT_ENCODING_IDENTITY);
 
@@ -897,7 +896,7 @@ pub async fn probe_server(
         req = req.header("Referer", ref_val);
     }
     let response = req.send().await;
-
+    let mut head_err = None;
     let mut is_head_success = false;
     let mut resp = match response {
         Ok(r) => {
@@ -905,16 +904,20 @@ pub async fn probe_server(
                 is_head_success = true;
                 Some(r)
             } else {
+                head_err = Some(format!("status {}", r.status()));
                 None
             }
         }
-        Err(_) => None,
+        Err(e) => {
+            head_err = Some(e.to_string());
+            None
+        }
     };
 
     // Fallback to GET with Range: bytes=0-0 if HEAD failed
+    let mut get_err = None;
     if !is_head_success {
-        let mut req = client
-            .get(url)
+        let mut req = crate::http::apply_basic_auth_if_present(client.get(url), url)
             .header("User-Agent", user_agent)
             .header("Accept-Encoding", ACCEPT_ENCODING_IDENTITY)
             .header("Range", "bytes=0-0");
@@ -926,9 +929,16 @@ pub async fn probe_server(
         if let Some(ref_val) = referer {
             req = req.header("Referer", ref_val);
         }
-        if let Ok(r) = req.send().await {
-            if r.status().is_success() || r.status() == reqwest::StatusCode::PARTIAL_CONTENT {
-                resp = Some(r);
+        match req.send().await {
+            Ok(r) => {
+                if r.status().is_success() || r.status() == reqwest::StatusCode::PARTIAL_CONTENT {
+                    resp = Some(r);
+                } else {
+                    get_err = Some(format!("status {}", r.status()));
+                }
+            }
+            Err(e) => {
+                get_err = Some(e.to_string());
             }
         }
     }
@@ -936,7 +946,11 @@ pub async fn probe_server(
     let response = resp.ok_or_else(|| {
         EngineError::network(
             NetworkErrorKind::HttpStatus(400),
-            "Both HEAD and GET Range probes failed".to_string(),
+            format!(
+                "Both HEAD and GET Range probes failed (HEAD: {:?}, GET: {:?})",
+                head_err.as_deref().unwrap_or("unknown"),
+                get_err.as_deref().unwrap_or("unknown")
+            ),
         )
     })?;
 

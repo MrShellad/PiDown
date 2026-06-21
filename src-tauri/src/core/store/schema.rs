@@ -122,6 +122,19 @@ impl super::DbStore {
         )?;
         self.ensure_column(&conn, "backgrounds", "thumbnail", "TEXT")?;
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS webdav_devices (
+                id TEXT PRIMARY KEY,
+                display_name TEXT NOT NULL,
+                server_url TEXT NOT NULL,
+                username TEXT NOT NULL,
+                password_encrypted TEXT NOT NULL,
+                remote_path TEXT NOT NULL,
+                created_at INTEGER NOT NULL
+            );",
+            [],
+        )?;
+
 
         conn.execute_batch(
             "CREATE INDEX IF NOT EXISTS idx_categories_sort_order

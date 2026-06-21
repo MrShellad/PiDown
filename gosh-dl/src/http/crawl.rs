@@ -363,7 +363,7 @@ async fn fetch_discovery_response(
         let headers = headers.clone();
         let cookies = cookies.clone();
         async move {
-            let mut request = client.get(url).header("User-Agent", user_agent);
+            let mut request = crate::http::apply_basic_auth_if_present(client.get(url.clone()), url.as_str()).header("User-Agent", user_agent);
             request = request.header("Accept-Encoding", ACCEPT_ENCODING_IDENTITY);
 
             if let Some(referer) = referer {

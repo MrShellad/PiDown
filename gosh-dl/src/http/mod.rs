@@ -190,7 +190,7 @@ impl HttpDownloader {
     {
         let progress_callback = Arc::new(progress_callback);
         // Build the request
-        let mut request = self.client().get(url);
+        let mut request = apply_basic_auth_if_present(self.client().get(url), url);
 
         // Set user agent
         let ua = user_agent.unwrap_or(&self.config.default_user_agent);
@@ -216,7 +216,7 @@ impl HttpDownloader {
         }
 
         // Send HEAD request first to get metadata
-        let mut head_request = self.client().head(url).header("User-Agent", ua);
+        let mut head_request = apply_basic_auth_if_present(self.client().head(url), url).header("User-Agent", ua);
         if let Some(cookie_list) = cookies {
             if !cookie_list.is_empty() {
                 head_request = head_request.header("Cookie", cookie_list.join("; "));
@@ -956,6 +956,22 @@ fn extract_filename_from_url(url: &str) -> Option<String> {
         })
 }
 
+pub(crate) fn apply_basic_auth_if_present(builder: reqwest::RequestBuilder, url: &str) -> reqwest::RequestBuilder {
+    if let Ok(parsed_url) = reqwest::Url::parse(url) {
+        if !parsed_url.username().is_empty() {
+            let password = parsed_url.password().unwrap_or("");
+            let decoded_user = urlencoding::decode(parsed_url.username())
+                .map(|cow| cow.into_owned())
+                .unwrap_or_else(|_| parsed_url.username().to_string());
+            let decoded_pass = urlencoding::decode(password)
+                .map(|cow| cow.into_owned())
+                .unwrap_or_else(|_| password.to_string());
+            return builder.basic_auth(decoded_user, Some(decoded_pass));
+        }
+    }
+    builder
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -984,5 +1000,14 @@ mod tests {
             extract_filename_from_url("https://example.com/path/to/file%20name.zip"),
             Some("file name.zip".to_string())
         );
+    }
+
+    #[test]
+    fn test_apply_basic_auth_if_present() {
+        let parsed = reqwest::Url::parse("http://user%40gmail.com:pass%23word@example.com/file").unwrap();
+        let decoded_user = urlencoding::decode(parsed.username()).unwrap().into_owned();
+        let decoded_pass = urlencoding::decode(parsed.password().unwrap()).unwrap().into_owned();
+        assert_eq!(decoded_user, "user@gmail.com");
+        assert_eq!(decoded_pass, "pass#word");
     }
 }

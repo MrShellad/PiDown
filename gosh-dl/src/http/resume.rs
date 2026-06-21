@@ -53,8 +53,7 @@ pub async fn check_resume(
     };
 
     // Send HEAD request to check server capabilities
-    let response = client
-        .head(url)
+    let response = crate::http::apply_basic_auth_if_present(client.head(url), url)
         .header("User-Agent", user_agent)
         .header("Accept-Encoding", ACCEPT_ENCODING_IDENTITY)
         .send()
@@ -139,8 +138,7 @@ pub async fn check_resume(
 #[allow(dead_code)]
 pub async fn verify_range_support(client: &Client, url: &str, user_agent: &str) -> Result<bool> {
     // Request just the first byte
-    let response = client
-        .get(url)
+    let response = crate::http::apply_basic_auth_if_present(client.get(url), url)
         .header("User-Agent", user_agent)
         .header("Accept-Encoding", ACCEPT_ENCODING_IDENTITY)
         .header("Range", "bytes=0-0")

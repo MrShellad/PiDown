@@ -102,7 +102,7 @@ pub async fn download_hls_task(
         }
     };
 
-    let res = match client.get(current_url.as_str()).send().await {
+    let res = match super::apply_basic_auth_if_present(client.get(current_url.as_str()), current_url.as_str()).send().await {
         Ok(r) => r,
         Err(e) => {
             update_task_error(&state, &gid, &format!("Failed to fetch playlist: {e}"));
@@ -149,7 +149,7 @@ pub async fn download_hls_task(
     };
 
     let media_playlist_bytes = if media_url != current_url {
-        let res = match client.get(media_url.as_str()).send().await {
+        let res = match super::apply_basic_auth_if_present(client.get(media_url.as_str()), media_url.as_str()).send().await {
             Ok(r) => r,
             Err(e) => {
                 update_task_error(&state, &gid, &format!("Failed to fetch media playlist: {e}"));
@@ -238,7 +238,7 @@ pub async fn download_hls_task(
     let init_path = temp_dir.join("init");
     if let Some(u) = init_url {
         if !init_path.exists() {
-            let res = match client.get(u.as_str()).send().await {
+            let res = match super::apply_basic_auth_if_present(client.get(u.as_str()), u.as_str()).send().await {
                 Ok(r) => r,
                 Err(e) => {
                     update_task_error(&state, &gid, &format!("Failed to fetch init section: {e}"));
@@ -364,7 +364,7 @@ pub async fn download_hls_task(
             let seg_path = temp_dir.join(format!("{}.ts", i));
             let seg_path_tmp = temp_dir.join(format!("{}.ts.tmp", i));
 
-            let request = client.get(seg_url.as_str());
+            let request = super::apply_basic_auth_if_present(client.get(seg_url.as_str()), seg_url.as_str());
             let mut response = match request.send().await {
                 Ok(resp) => resp,
                 Err(e) => {

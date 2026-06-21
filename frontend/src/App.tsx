@@ -14,7 +14,7 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
 import SettingsWindow from "./components/settings/SettingsWindow";
-import DevicesDashboard from "./components/downloader/DevicesDashboard";
+import DevicesDashboard from "./components/downloader/device/DevicesDashboard";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 
 
@@ -73,11 +73,12 @@ export default function App() {
               onFilterChange={setActiveFilter}
               onOpenSettings={() => setSettingsOpen(true)}
             />
-            {visibleFilter === "devices" ? (
+            <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
               <DevicesDashboard />
-            ) : (
+            </div>
+            <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
               <TaskListDashboard activeFilter={visibleFilter} />
-            )}
+            </div>
           </div>
           <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
             <DialogContent

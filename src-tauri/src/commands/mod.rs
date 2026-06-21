@@ -7,6 +7,7 @@ pub mod settings;
 pub mod task;
 pub mod window;
 pub mod backgrounds;
+pub mod webdav;
 
 pub use checksum::*;
 pub use clipboard::*;
@@ -16,4 +17,5 @@ pub use settings::*;
 pub use task::*;
 pub use window::*;
 pub use backgrounds::*;
+pub use webdav::*;
 

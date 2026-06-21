@@ -31,6 +31,8 @@ pub struct AppState {
     pub(crate) hls_cancel_tokens: Mutex<HashMap<String, tokio::sync::watch::Sender<bool>>>,
     pub(crate) hls_speeds: Mutex<HashMap<String, u64>>,
     pub(crate) app_handle: Mutex<Option<tauri::AppHandle>>,
+    pub(crate) webdav_status_cache: Mutex<HashMap<String, (String, String, String, Option<f64>)>>,
+    pub(crate) video_cache: Mutex<Option<VideoCache>>,
 }
 
 impl AppState {
@@ -77,6 +79,8 @@ impl AppState {
             hls_cancel_tokens: Mutex::new(HashMap::new()),
             hls_speeds: Mutex::new(HashMap::new()),
             app_handle: Mutex::new(None),
+            webdav_status_cache: Mutex::new(HashMap::new()),
+            video_cache: Mutex::new(None),
         });
 
         state.persist_settings()?;
@@ -126,5 +130,50 @@ fn load_legacy_settings(db: &DbStore) -> AppSettings {
     match db.get_setting(LEGACY_APP_SETTINGS_KEY) {
         Ok(Some(raw)) => serde_json::from_str::<AppSettings>(&raw).unwrap_or_default(),
         Ok(None) | Err(_) => AppSettings::default(),
+    }
+}
+
+pub struct VideoCacheBlock {
+    pub start: u64,
+    pub data: Vec<u8>,
+}
+
+pub struct VideoCache {
+    pub device_id: String,
+    pub path: String,
+    pub blocks: Vec<VideoCacheBlock>,
+    pub total_bytes: usize,
+    pub total_size: Option<u64>,
+    pub content_type: Option<String>,
+    pub duration: Option<f64>,
+}
+
+impl VideoCache {
+    pub fn get_range(&self, start: u64, end: u64) -> Option<Vec<u8>> {
+        for block in &self.blocks {
+            let block_end = block.start + block.data.len() as u64;
+            if start >= block.start && end <= block_end {
+                let offset = (start - block.start) as usize;
+                let length = (end - start) as usize;
+                return Some(block.data[offset..offset + length].to_vec());
+            }
+        }
+        None
+    }
+
+    pub fn insert_block(&mut self, start: u64, data: Vec<u8>, max_bytes: usize) {
+        if let Some(pos) = self.blocks.iter().position(|b| b.start == start) {
+            self.total_bytes -= self.blocks[pos].data.len();
+            self.blocks.remove(pos);
+        }
+
+        let len = data.len();
+        self.blocks.push(VideoCacheBlock { start, data });
+        self.total_bytes += len;
+
+        while self.total_bytes > max_bytes && !self.blocks.is_empty() {
+            let removed = self.blocks.remove(0);
+            self.total_bytes -= removed.data.len();
+        }
     }
 }

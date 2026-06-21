@@ -219,12 +219,12 @@ function PageHeaderToolbar({
             leftActions && "border-r border-border/40"
           )}>
             {typeof title === "string" ? (
-              <h2 className="text-sm font-bold text-foreground tracking-wide truncate leading-5">{title}</h2>
+              <h2 className="text-base font-bold text-foreground tracking-wide truncate leading-6">{title}</h2>
             ) : (
               title
             )}
             {description && (
-              <p className="text-2xs text-muted-foreground truncate leading-4 mt-0.5">{description}</p>
+              <p className="text-xs text-muted-foreground/80 truncate leading-4">{description}</p>
             )}
           </div>
         )}

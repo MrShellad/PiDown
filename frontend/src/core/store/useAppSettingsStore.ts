@@ -15,6 +15,7 @@ export type SettingsSectionId =
   | "extension"
   | "magnet"
   | "appearance"
+  | "player"
   | "about";
 
 interface AppSettingsState {

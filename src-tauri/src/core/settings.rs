@@ -219,6 +219,26 @@ impl Default for BtSettings {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PlayerSettings {
+    pub buffer_time_s: u64,
+    pub auto_play: bool,
+    pub muted: bool,
+    pub default_volume: f64,
+}
+
+impl Default for PlayerSettings {
+    fn default() -> Self {
+        Self {
+            buffer_time_s: 60,
+            auto_play: true,
+            muted: false,
+            default_volume: 1.0,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct AppSettings {
@@ -226,6 +246,7 @@ pub struct AppSettings {
     pub transfer: TransferSettings,
     pub interface: InterfaceSettings,
     pub bt: BtSettings,
+    pub player: PlayerSettings,
 }
 
 impl AppSettings {
@@ -259,6 +280,16 @@ impl AppSettings {
         }
         if self.bt.peer_loop_interval_ms == 0 {
             self.bt.peer_loop_interval_ms = 100;
+        }
+
+        // Normalize PlayerSettings
+        if self.player.default_volume < 0.0 {
+            self.player.default_volume = 0.0;
+        } else if self.player.default_volume > 1.0 {
+            self.player.default_volume = 1.0;
+        }
+        if self.player.buffer_time_s < 5 {
+            self.player.buffer_time_s = 5;
         }
     }
 }

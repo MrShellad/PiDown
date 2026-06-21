@@ -493,9 +493,7 @@ impl WebSeedManager {
         );
 
         // Make HTTP request with Range header
-        let response = self
-            .client
-            .get(&url)
+        let response = crate::http::apply_basic_auth_if_present(self.client.get(&url), &url)
             .header("Accept-Encoding", "identity")
             .header("Range", format!("bytes={}-{}", start, end - 1))
             .send()
@@ -676,9 +674,7 @@ impl WebSeedManager {
                 end_byte
             );
 
-            let response = self
-                .client
-                .get(&url)
+            let response = crate::http::apply_basic_auth_if_present(self.client.get(&url), &url)
                 .header("Accept-Encoding", "identity")
                 .header("Range", format!("bytes={}-{}", file_offset, end_byte))
                 .send()

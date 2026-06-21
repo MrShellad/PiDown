@@ -24,6 +24,11 @@
   inherits: true;
   initial-value: oklch(0.145 0 0);
 }
+@property --card-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: oklch(1 0 0);
+}
 @property --popover {
   syntax: "<color>";
   inherits: true;
@@ -204,6 +209,7 @@
     --color-popover: var(--popover);
     --color-card-foreground: var(--card-foreground);
     --color-card: var(--card);
+    --color-card-hover: var(--card-hover);
     --color-foreground: var(--foreground);
     --color-background: var(--background);
     --color-switch-thumb: var(--switch-thumb);
@@ -243,6 +249,7 @@
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
+    --card-hover: color-mix(in srgb, var(--card), black 4%);
     --toolbar-bg: oklch(1 0 0);
     --table-header-bg: oklch(0.97 0 0 / 0.95);
     --task-row-bg: oklch(1 0 0 / 0.95);
@@ -344,6 +351,7 @@
     --foreground: oklch(0.985 0 0);
     --card: oklch(0.205 0 0);
     --card-foreground: oklch(0.985 0 0);
+    --card-hover: color-mix(in srgb, var(--card), white 8%);
     --popover: oklch(0.205 0 0);
     --popover-foreground: oklch(0.985 0 0);
     --primary: oklch(0.922 0 0);

@@ -5,6 +5,7 @@ mod settings_store;
 mod task_tags;
 mod tasks;
 pub mod backgrounds;
+mod webdav;
 
 #[cfg(test)]
 mod tests;

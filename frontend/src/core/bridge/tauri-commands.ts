@@ -187,6 +187,12 @@ export interface AppSettings {
     tracker_subscribe_url: string;
     tracker_list: string;
   };
+  player: {
+    buffer_time_s: number;
+    auto_play: boolean;
+    muted: boolean;
+    default_volume: number;
+  };
 }
 
 
@@ -494,6 +500,12 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       tracker_subscribe_url: "",
       tracker_list: "",
     },
+    player: {
+      buffer_time_s: 60,
+      auto_play: true,
+      muted: false,
+      default_volume: 1.0,
+    },
   };
 }
 
@@ -597,4 +609,74 @@ export async function exitApp(): Promise<void> {
 
 export async function getCursorScreenPos(): Promise<[number, number]> {
   return invoke<[number, number]>("get_cursor_screen_pos");
+}
+
+export interface WebDavDevice {
+  id: string;
+  name: string;
+  type_name: string;
+  status: "connected" | "disconnected";
+  status_text: string;
+  capacity: string;
+  progress: number | null;
+  server_url: string;
+  username: string;
+  remote_path: string;
+}
+
+export interface SaveWebDavDeviceInput {
+  id?: string;
+  display_name: string;
+  server_url: string;
+  username: string;
+  password?: string;
+  remote_path: string;
+}
+
+export async function getWebDavDevices(): Promise<WebDavDevice[]> {
+  return invoke<WebDavDevice[]>("get_webdav_devices");
+}
+
+export async function refreshWebDavDeviceStatus(id: string): Promise<WebDavDevice> {
+  return invoke<WebDavDevice>("refresh_webdav_device_status", { id });
+}
+
+export async function saveWebDavDevice(input: SaveWebDavDeviceInput): Promise<void> {
+  return invoke<void>("save_webdav_device", { input });
+}
+
+export async function deleteWebDavDevice(id: string): Promise<void> {
+  return invoke<void>("delete_webdav_device", { id });
+}
+
+export async function testWebDavConnection(
+  url: string,
+  username: string,
+  password?: string
+): Promise<string> {
+  return invoke<string>("test_webdav_connection", { url, username, password });
+}
+
+export interface WebDavFile {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size: number;
+  last_modified: string;
+}
+
+export async function listWebDavFiles(deviceId: string, path: string): Promise<WebDavFile[]> {
+  return invoke<WebDavFile[]>("list_webdav_files", { deviceId, path });
+}
+
+export async function setVideoPlayerDuration(deviceId: string, path: string, duration: number): Promise<void> {
+  return invoke<void>("set_video_player_duration", { deviceId, path, duration });
+}
+
+export async function downloadWebDavFile(deviceId: string, path: string, filename: string): Promise<string> {
+  return invoke<string>("download_webdav_file", { deviceId, path, filename });
+}
+
+export async function getWebDavDownloadUrl(deviceId: string, path: string): Promise<string> {
+  return invoke<string>("get_webdav_download_url", { deviceId, path });
 }

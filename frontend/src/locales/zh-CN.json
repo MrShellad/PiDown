@@ -90,6 +90,8 @@
     "navIntegrationDesc": "窗口行为与桌面交互。",
     "navAppearance": "外观与音效",
     "navAppearanceDesc": "主题、背景、字体与提示音效。",
+    "navPlayer": "播放器",
+    "navPlayerDesc": "WebDAV 视频点播预览缓冲及默认播放设置。",
     "groupStorage": "存储",
     "groupBehavior": "行为",
     "groupClassification": "分类与标签",

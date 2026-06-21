@@ -31,7 +31,7 @@ pub async fn fetch_torrent_bytes(
                 tokio::time::sleep(std::time::Duration::from_millis(500 * attempt as u64)).await;
             }
 
-            let mut req_builder = client.get(&target_url);
+            let mut req_builder = super::apply_basic_auth_if_present(client.get(&target_url), &target_url);
             if let Some(ref ref_val) = referer {
                 req_builder = req_builder.header(reqwest::header::REFERER, ref_val);
             }

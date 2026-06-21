@@ -90,6 +90,8 @@
     "navIntegrationDesc": "Window behavior and desktop interaction.",
     "navAppearance": "Appearance & Audio",
     "navAppearanceDesc": "Themes, backgrounds, fonts, and notification sound effects.",
+    "navPlayer": "Player",
+    "navPlayerDesc": "WebDAV video on-demand preview buffer and default playback settings.",
     "groupStorage": "Storage",
     "groupBehavior": "Behavior",
     "groupClassification": "Categories & Tags",
