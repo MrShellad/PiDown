@@ -943,13 +943,41 @@ pub async fn probe_server(
         }
     }
 
+    // Fallback to plain GET without Range or Accept-Encoding: identity if both HEAD and GET Range failed
+    let mut plain_get_err = None;
+    if resp.is_none() {
+        let mut req = crate::http::apply_basic_auth_if_present(client.get(url), url)
+            .header("User-Agent", user_agent);
+        if let Some(cookie_list) = cookies {
+            if !cookie_list.is_empty() {
+                req = req.header("Cookie", cookie_list.join("; "));
+            }
+        }
+        if let Some(ref_val) = referer {
+            req = req.header("Referer", ref_val);
+        }
+        match req.send().await {
+            Ok(r) => {
+                if r.status().is_success() {
+                    resp = Some(r);
+                } else {
+                    plain_get_err = Some(format!("status {}", r.status()));
+                }
+            }
+            Err(e) => {
+                plain_get_err = Some(e.to_string());
+            }
+        }
+    }
+
     let response = resp.ok_or_else(|| {
         EngineError::network(
             NetworkErrorKind::HttpStatus(400),
             format!(
-                "Both HEAD and GET Range probes failed (HEAD: {:?}, GET: {:?})",
+                "All probes failed (HEAD: {:?}, GET Range: {:?}, GET Plain: {:?})",
                 head_err.as_deref().unwrap_or("unknown"),
-                get_err.as_deref().unwrap_or("unknown")
+                get_err.as_deref().unwrap_or("unknown"),
+                plain_get_err.as_deref().unwrap_or("unknown")
             ),
         )
     })?;

@@ -513,6 +513,13 @@ export function useNewTaskModalState({
       }
 
       await useDownloadStore.getState().fetchTasks()
+
+      pushToast({
+        title: "任务创建成功",
+        description: task.filename || "下载任务已添加到队列",
+        variant: "success",
+      })
+
       closeModal()
     } catch (err) {
       console.error("Failed to create download task:", err)
@@ -520,7 +527,7 @@ export function useNewTaskModalState({
     } finally {
       setLoading(false)
     }
-  }, [closeModal])
+  }, [closeModal, pushToast])
 
   const handleCreateTask = useCallback(async () => {
     if (!url.trim()) return

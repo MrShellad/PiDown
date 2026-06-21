@@ -62,7 +62,7 @@ socket2 = { version = "0.6", features = ["all"], optional = true }
 tokio-tungstenite = { version = "0.28", features = ["rustls-tls-webpki-roots"], optional = true }
 
 # Base64 encoding
-base64 = { version = "0.22", optional = true }
+base64 = { version = "0.22" }
 
 # Error handling
 thiserror = "2"
@@ -96,7 +96,7 @@ torrent = [
     "dep:serde_bencode", "dep:bitvec",
     "dep:num-bigint", "dep:num-traits", "dep:num-integer",
     "dep:mainline", "dep:socket2",
-    "dep:tokio-tungstenite", "dep:base64",
+    "dep:tokio-tungstenite",
 ]
 storage = ["dep:rusqlite"]
 full = ["http", "torrent", "storage"]

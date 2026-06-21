@@ -171,6 +171,10 @@ pub fn run() {
             commands::set_video_player_duration,
             commands::download_webdav_file,
             commands::get_webdav_download_url,
+            commands::rename_webdav_item,
+            commands::delete_webdav_items,
+            commands::copy_webdav_item,
+            commands::move_webdav_item,
         ]);
 
     let builder = crate::download::protocols::webdav_stream::register_webdav_protocol(builder);

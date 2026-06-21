@@ -1,6 +1,7 @@
 use crate::core::state::AppState;
 use crate::core::webdav::{
     derive_key, encrypt_password, decrypt_password, check_webdav_status, DbWebDavDevice,
+    create_operator, to_relative_path,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -316,4 +317,132 @@ pub async fn get_webdav_download_url(
         .map_err(|_| "Failed to set password".to_string())?;
 
     Ok(parsed_url.to_string())
+}
+
+#[tauri::command]
+pub async fn rename_webdav_item(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    device_id: String,
+    from_path: String,
+    to_path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let key = derive_key(&app)?;
+    let device = state.db.get_webdav_device(&device_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "未找到指定的 WebDAV 设备".to_string())?;
+    let decrypted_pass = decrypt_password(&device.password_encrypted, &key)?;
+    let op = create_operator(&device.server_url, &device.username, &decrypted_pass)?;
+
+    let mut from_rel = to_relative_path(&device.server_url, &from_path);
+    let mut to_rel = to_relative_path(&device.server_url, &to_path);
+
+    if is_dir {
+        if !from_rel.ends_with('/') {
+            from_rel.push('/');
+        }
+        if !to_rel.ends_with('/') {
+            to_rel.push('/');
+        }
+    }
+
+    op.rename(&from_rel, &to_rel).await
+        .map_err(|e| format!("重命名失败: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn delete_webdav_items(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    device_id: String,
+    items: Vec<(String, bool)>,
+) -> Result<(), String> {
+    let key = derive_key(&app)?;
+    let device = state.db.get_webdav_device(&device_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "未找到指定的 WebDAV 设备".to_string())?;
+    let decrypted_pass = decrypt_password(&device.password_encrypted, &key)?;
+    let op = create_operator(&device.server_url, &device.username, &decrypted_pass)?;
+
+    for (path, is_dir) in items {
+        let mut rel = to_relative_path(&device.server_url, &path);
+        if is_dir && !rel.ends_with('/') {
+            rel.push('/');
+        }
+        op.delete(&rel).await
+            .map_err(|e| format!("删除失败: {e}"))?;
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn copy_webdav_item(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    device_id: String,
+    from_path: String,
+    to_path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let key = derive_key(&app)?;
+    let device = state.db.get_webdav_device(&device_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "未找到指定的 WebDAV 设备".to_string())?;
+    let decrypted_pass = decrypt_password(&device.password_encrypted, &key)?;
+    let op = create_operator(&device.server_url, &device.username, &decrypted_pass)?;
+
+    let mut from_rel = to_relative_path(&device.server_url, &from_path);
+    let mut to_rel = to_relative_path(&device.server_url, &to_path);
+
+    if is_dir {
+        if !from_rel.ends_with('/') {
+            from_rel.push('/');
+        }
+        if !to_rel.ends_with('/') {
+            to_rel.push('/');
+        }
+    }
+
+    op.copy(&from_rel, &to_rel).await
+        .map_err(|e| format!("复制失败: {e}"))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn move_webdav_item(
+    app: tauri::AppHandle,
+    state: State<'_, Arc<AppState>>,
+    device_id: String,
+    from_path: String,
+    to_path: String,
+    is_dir: bool,
+) -> Result<(), String> {
+    let key = derive_key(&app)?;
+    let device = state.db.get_webdav_device(&device_id)
+        .map_err(|e| e.to_string())?
+        .ok_or_else(|| "未找到指定的 WebDAV 设备".to_string())?;
+    let decrypted_pass = decrypt_password(&device.password_encrypted, &key)?;
+    let op = create_operator(&device.server_url, &device.username, &decrypted_pass)?;
+
+    let mut from_rel = to_relative_path(&device.server_url, &from_path);
+    let mut to_rel = to_relative_path(&device.server_url, &to_path);
+
+    if is_dir {
+        if !from_rel.ends_with('/') {
+            from_rel.push('/');
+        }
+        if !to_rel.ends_with('/') {
+            to_rel.push('/');
+        }
+    }
+
+    op.rename(&from_rel, &to_rel).await
+        .map_err(|e| format!("移动失败: {e}"))?;
+
+    Ok(())
 }

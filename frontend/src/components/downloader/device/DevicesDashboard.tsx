@@ -34,12 +34,19 @@ import type { DeviceItem } from "./DeviceCard";
 import WebDavDeviceDialog from "./WebDavDeviceDialog";
 import WebDavFileBrowser from "./WebDavFileBrowser";
 
-export default function DevicesDashboard() {
+interface DevicesDashboardProps {
+  activeBrowsingDevice: WebDavDevice | null;
+  setActiveBrowsingDevice: (device: WebDavDevice | null) => void;
+}
+
+export default function DevicesDashboard({
+  activeBrowsingDevice,
+  setActiveBrowsingDevice,
+}: DevicesDashboardProps) {
   const webDav = useWebDavDevices();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingDevice, setEditingDevice] = useState<WebDavDevice | null>(null);
   const [deviceToDelete, setDeviceToDelete] = useState<DeviceItem | null>(null);
-  const [activeBrowsingDevice, setActiveBrowsingDevice] = useState<WebDavDevice | null>(null);
 
   const handleRefresh = useCallback(async () => {
     await webDav.fetchDevices(true);
@@ -70,7 +77,7 @@ export default function DevicesDashboard() {
     if (dev) {
       setActiveBrowsingDevice(dev);
     }
-  }, [webDav.devices]);
+  }, [webDav.devices, setActiveBrowsingDevice]);
 
   const handleDialogOpenChange = useCallback((open: boolean) => {
     setDialogOpen(open);
@@ -86,7 +93,7 @@ export default function DevicesDashboard() {
     type: d.type_name,
     status: d.status,
     statusText: d.status_text,
-    icon: <Server className="size-7" />,
+    icon: <Server className="size-6" />,
     capacity: d.capacity,
     progress: d.progress ?? undefined,
     isDeletable: true,

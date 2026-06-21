@@ -2,6 +2,7 @@ use tauri::Manager;
 use sha2::{Sha256, Digest};
 use base64::{Engine as _, engine::general_purpose::STANDARD};
 use serde::{Serialize, Deserialize};
+use opendal::{services::Webdav, Operator};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbWebDavDevice {
@@ -124,61 +125,142 @@ pub fn decrypt_password(ciphertext_base64: &str, key: &[u8; 32]) -> Result<Strin
     String::from_utf8(plaintext).map_err(|e| format!("解密结果不是有效的UTF-8: {e}"))
 }
 
+pub fn create_operator(url: &str, username: &str, password_decrypted: &str) -> Result<Operator, String> {
+    let builder = Webdav::default()
+        .endpoint(url)
+        .username(username)
+        .password(password_decrypted);
+    
+    let op = Operator::new(builder)
+        .map_err(|e| format!("初始化 WebDAV 驱动失败: {e}"))?
+        .finish();
+        
+    Ok(op)
+}
+
+/// Format byte count into human-readable string (auto-selects KB/MB/GB/TB)
+fn format_bytes(bytes: u64) -> String {
+    const KB: f64 = 1024.0;
+    const MB: f64 = KB * 1024.0;
+    const GB: f64 = MB * 1024.0;
+    const TB: f64 = GB * 1024.0;
+
+    let b = bytes as f64;
+    if b >= TB {
+        format!("{:.2} TB", b / TB)
+    } else if b >= GB {
+        format!("{:.2} GB", b / GB)
+    } else if b >= MB {
+        format!("{:.2} MB", b / MB)
+    } else if b >= KB {
+        format!("{:.2} KB", b / KB)
+    } else {
+        format!("{} B", bytes)
+    }
+}
+
+/// Extract the text content between a DAV: property tag, handling various namespace prefixes.
+/// Matches patterns like <D:quota-used-bytes>123</D:quota-used-bytes>,
+/// <d:quota-used-bytes>123</d:quota-used-bytes>, <quota-used-bytes>123</quota-used-bytes>, etc.
+fn extract_dav_property(xml: &str, prop_name: &str) -> Option<u64> {
+    // Try common prefix patterns: "D:", "d:", "DAV:", no prefix
+    let prefixes = ["D:", "d:", "DAV:", ""];
+    for prefix in prefixes {
+        let open_tag = format!("<{prefix}{prop_name}>");
+        let close_tag = format!("</{prefix}{prop_name}>");
+        if let Some(start) = xml.find(&open_tag) {
+            let value_start = start + open_tag.len();
+            if let Some(end) = xml[value_start..].find(&close_tag) {
+                let value_str = xml[value_start..value_start + end].trim();
+                if let Ok(val) = value_str.parse::<u64>() {
+                    return Some(val);
+                }
+            }
+        }
+    }
+    None
+}
+
+/// Send a PROPFIND request to the WebDAV server root to query quota properties.
+/// Returns (quota_used_bytes, quota_available_bytes) if the server supports it.
+async fn query_webdav_quota(
+    url: &str,
+    username: &str,
+    password: &str,
+) -> Option<(u64, u64)> {
+    let propfind_body = r#"<?xml version="1.0" encoding="utf-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop>
+    <D:quota-available-bytes/>
+    <D:quota-used-bytes/>
+  </D:prop>
+</D:propfind>"#;
+
+    // Build the PROPFIND target URL (use the server root, not subpath)
+    let parsed = reqwest::Url::parse(url).ok()?;
+    // Use the endpoint URL directly — it should point to the DAV root or relevant collection
+    let target_url = parsed.as_str().trim_end_matches('/').to_string() + "/";
+
+    let client = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(std::time::Duration::from_secs(15))
+        .build()
+        .ok()?;
+
+    let resp = client
+        .request(reqwest::Method::from_bytes(b"PROPFIND").ok()?, &target_url)
+        .header("Depth", "0")
+        .header("Content-Type", "application/xml; charset=utf-8")
+        .basic_auth(username, Some(password))
+        .body(propfind_body)
+        .send()
+        .await
+        .ok()?;
+
+    if !resp.status().is_success() && resp.status().as_u16() != 207 {
+        return None;
+    }
+
+    let body = resp.text().await.ok()?;
+
+    let used = extract_dav_property(&body, "quota-used-bytes")?;
+    let available = extract_dav_property(&body, "quota-available-bytes")?;
+
+    Some((used, available))
+}
+
 /// Check WebDAV server connection and return storage quota
 pub async fn check_webdav_status(
     url: &str,
     username: &str,
     password_decrypted: &str,
 ) -> (String, String, String, Option<f64>) {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(8))
-        .danger_accept_invalid_certs(true) // Accept self-signed certificates
-        .build();
-
-    let client = match client {
-        Ok(c) => c,
-        Err(_) => return ("disconnected".to_string(), "客户端初始化失败".to_string(), "——".to_string(), None),
+    let op = match create_operator(url, username, password_decrypted) {
+        Ok(op) => op,
+        Err(e) => return ("disconnected".to_string(), e, "——".to_string(), None),
     };
 
-    // Construct a PROPFIND request to DAV namespace
-    let res = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), url)
-        .basic_auth(username, Some(password_decrypted))
-        .header("Depth", "0")
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(r#"<?xml version="1.0" encoding="utf-8" ?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop>
-    <d:quota-available-bytes/>
-    <d:quota-used-bytes/>
-  </d:prop>
-</d:propfind>"#)
-        .send()
-        .await;
-
-    match res {
-        Ok(response) => {
-            if response.status().is_success() {
-                let xml = response.text().await.unwrap_or_default();
-                if let Some((available, used)) = parse_quota(&xml) {
+    match op.check().await {
+        Ok(_) => {
+            // Connection OK — now query quota via PROPFIND
+            match query_webdav_quota(url, username, password_decrypted).await {
+                Some((used, available)) => {
                     let total = used + available;
                     let progress = if total > 0 {
                         Some((used as f64 / total as f64) * 100.0)
                     } else {
-                        Some(0.0)
+                        None
                     };
-                    return (
-                        "connected".to_string(),
-                        "已连接".to_string(),
-                        format!("{} / {}", format_size(used), format_size(total)),
-                        progress,
+                    let capacity = format!(
+                        "已用 {} / 共 {}",
+                        format_bytes(used),
+                        format_bytes(total)
                     );
+                    ("connected".to_string(), "已连接".to_string(), capacity, progress)
                 }
-
-                // If quota is not returned, just indicate success
-                ("connected".to_string(), "已连接".to_string(), "未知".to_string(), None)
-            } else {
-                ("disconnected".to_string(), format!("HTTP 错误: {}", response.status().as_u16()), "——".to_string(), None)
+                None => {
+                    ("connected".to_string(), "已连接".to_string(), "配额信息不可用".to_string(), None)
+                }
             }
         }
         Err(e) => {
@@ -187,56 +269,13 @@ pub async fn check_webdav_status(
                 "连接超时"
             } else if err_msg.contains("dns") || err_msg.contains("resolve") {
                 "域名解析失败"
+            } else if err_msg.contains("401") || err_msg.contains("Unauthorized") {
+                "用户名或密码错误"
             } else {
                 "无法访问服务器"
             };
             ("disconnected".to_string(), short_err.to_string(), "——".to_string(), None)
         }
-    }
-}
-
-fn parse_quota(xml: &str) -> Option<(u64, u64)> {
-    let available = extract_tag_value(xml, "quota-available-bytes")?;
-    let used = extract_tag_value(xml, "quota-used-bytes")?;
-    Some((available, used))
-}
-
-fn extract_tag_value(xml: &str, tag_name: &str) -> Option<u64> {
-    let tag_name_lower = tag_name.to_lowercase();
-    let xml_lower = xml.to_lowercase();
-    
-    let tag_pos = xml_lower.find(&tag_name_lower)?;
-    
-    let start_search = &xml_lower[..tag_pos];
-    let open_bracket_idx = start_search.rfind('<')?;
-    
-    let tag_open_content = &xml[open_bracket_idx..];
-    let close_bracket_relative = tag_open_content.find('>')?;
-    let val_start_idx = open_bracket_idx + close_bracket_relative + 1;
-    
-    let val_content = &xml[val_start_idx..];
-    let next_open_bracket = val_content.find('<')?;
-    
-    let val_str = val_content[..next_open_bracket].trim();
-    val_str.parse::<u64>().ok()
-}
-
-fn format_size(bytes: u64) -> String {
-    const KB: u64 = 1024;
-    const MB: u64 = KB * 1024;
-    const GB: u64 = MB * 1024;
-    const TB: u64 = GB * 1024;
-
-    if bytes >= TB {
-        format!("{:.1} TB", bytes as f64 / TB as f64)
-    } else if bytes >= GB {
-        format!("{:.1} GB", bytes as f64 / GB as f64)
-    } else if bytes >= MB {
-        format!("{:.1} MB", bytes as f64 / MB as f64)
-    } else if bytes >= KB {
-        format!("{:.1} KB", bytes as f64 / KB as f64)
-    } else {
-        format!("{} B", bytes)
     }
 }
 
@@ -249,83 +288,67 @@ pub struct WebDavFile {
     pub last_modified: String,
 }
 
+pub fn to_relative_path(endpoint_url: &str, absolute_path: &str) -> String {
+    let endpoint_path = match reqwest::Url::parse(endpoint_url) {
+        Ok(parsed_url) => parsed_url.path().trim_end_matches('/').to_string(),
+        Err(_) => String::new(),
+    };
+
+    let mut rel_path = absolute_path.to_string();
+    if !endpoint_path.is_empty() && rel_path.starts_with(&endpoint_path) {
+        rel_path = rel_path[endpoint_path.len()..].to_string();
+    }
+    rel_path.trim_start_matches('/').to_string()
+}
+
 pub async fn list_webdav_directory(
     url: &str,
     username: &str,
     password_decrypted: &str,
     path: &str,
 ) -> Result<Vec<WebDavFile>, String> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(12))
-        .danger_accept_invalid_certs(true)
-        .build()
-        .map_err(|e| format!("初始化网络客户端失败: {}", e))?;
+    let op = create_operator(url, username, password_decrypted)?;
 
-    let parsed_url = reqwest::Url::parse(url).map_err(|e| format!("解析 URL 失败: {}", e))?;
-    let url_path = parsed_url.path().trim_end_matches('/');
-    let origin = parsed_url.origin().ascii_serialization();
-
-    let absolute_path = if !url_path.is_empty() && path.starts_with(url_path) {
-        path.to_string()
-    } else {
-        format!("{}/{}", url_path, path.trim_start_matches('/'))
+    let endpoint_path = match reqwest::Url::parse(url) {
+        Ok(parsed_url) => parsed_url.path().trim_end_matches('/').to_string(),
+        Err(_) => String::new(),
     };
 
-    let encoded_path: String = absolute_path
-        .split('/')
-        .map(|segment| urlencoding::encode(segment).into_owned())
-        .collect::<Vec<String>>()
-        .join("/");
-
-    let mut request_url = format!("{}{}", origin, encoded_path);
-    if !request_url.ends_with('/') && (path.ends_with('/') || path == "/") {
-        request_url.push('/');
+    let mut rel_path = to_relative_path(url, path);
+    if !rel_path.is_empty() && !rel_path.ends_with('/') {
+        rel_path.push('/');
     }
 
-    let res = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &request_url)
-        .basic_auth(username, Some(password_decrypted))
-        .header("Depth", "1")
-        .header("Content-Type", "application/xml; charset=utf-8")
-        .body(r#"<?xml version="1.0" encoding="utf-8" ?>
-<d:propfind xmlns:d="DAV:">
-  <d:prop>
-    <d:displayname/>
-    <d:getcontentlength/>
-    <d:getlastmodified/>
-    <d:resourcetype/>
-  </d:prop>
-</d:propfind>"#)
-        .send()
-        .await
-        .map_err(|e| format!("请求失败: {}", e))?;
-
-    if !res.status().is_success() {
-        return Err(format!("服务器返回错误状态码: {}", res.status().as_u16()));
-    }
-
-    let xml = res.text().await.map_err(|e| format!("读取响应内容失败: {}", e))?;
-    let files = parse_propfind_response(&xml);
-
-    let req_path_decoded = if let Ok(parsed_url) = reqwest::Url::parse(&request_url) {
-        let p = parsed_url.path();
-        urlencoding::decode(p).ok().map(|s| s.into_owned()).unwrap_or_else(|| p.to_string())
-    } else {
-        String::new()
-    };
-    
-    let clean_req_path = req_path_decoded.trim_end_matches('/');
+    let entries = op.list(&rel_path).await
+        .map_err(|e| format!("列目录失败: {e}"))?;
 
     let mut filtered_files = Vec::new();
-    for file in files {
-        let clean_file_path = file.path.trim_end_matches('/');
-        
-        // Skip current directory itself
-        if clean_file_path == clean_req_path {
+    for entry in entries {
+        let name = entry.name().trim_end_matches('/').to_string();
+        if name.is_empty() {
             continue;
         }
-        
-        filtered_files.push(file);
+
+        let is_dir = entry.metadata().is_dir();
+        let size = entry.metadata().content_length();
+        let last_modified = entry.metadata().last_modified()
+            .map(|dt| dt.to_rfc3339())
+            .unwrap_or_else(|| "——".to_string());
+
+        let entry_path = entry.path().trim_start_matches('/');
+        let full_path = if endpoint_path.is_empty() {
+            format!("/{entry_path}")
+        } else {
+            format!("{endpoint_path}/{entry_path}")
+        };
+
+        filtered_files.push(WebDavFile {
+            name,
+            path: full_path,
+            is_dir,
+            size,
+            last_modified,
+        });
     }
 
     // Sort folders first, then files alphabetically
@@ -340,110 +363,40 @@ pub async fn list_webdav_directory(
     Ok(filtered_files)
 }
 
-pub fn parse_propfind_response(xml: &str) -> Vec<WebDavFile> {
-    let mut files = Vec::new();
-    let mut search_idx = 0;
-    while let Some(start_response) = find_response_start(xml, search_idx) {
-        let end_response = match find_response_end(xml, start_response) {
-            Some(idx) => idx,
-            None => break,
-        };
-        let block = &xml[start_response..end_response];
-        search_idx = end_response;
-        if let Some(file) = parse_single_response(block) {
-            files.push(file);
-        }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_relative_path() {
+        // Case 1: Endpoint has /dav/ path, absolute path matches
+        assert_eq!(
+            to_relative_path("http://localhost:5244/dav/", "/dav/folder/file.txt"),
+            "folder/file.txt"
+        );
+
+        // Case 2: Endpoint has /dav path without trailing slash, absolute path matches
+        assert_eq!(
+            to_relative_path("http://localhost:5244/dav", "/dav/file.txt"),
+            "file.txt"
+        );
+
+        // Case 3: Endpoint has root path /, absolute path matches
+        assert_eq!(
+            to_relative_path("http://localhost:5244/", "/folder/sub/file.txt"),
+            "folder/sub/file.txt"
+        );
+
+        // Case 4: Endpoint has no path, absolute path matches
+        assert_eq!(
+            to_relative_path("http://localhost:5244", "/file.txt"),
+            "file.txt"
+        );
+
+        // Case 5: Fallback when absolute path doesn't match endpoint path prefix
+        assert_eq!(
+            to_relative_path("http://localhost:5244/dav/", "/other/file.txt"),
+            "other/file.txt"
+        );
     }
-    files
-}
-
-fn find_response_start(xml: &str, start_from: usize) -> Option<usize> {
-    let patterns = ["<response", "<d:response", "<D:response"];
-    let mut min_idx = None;
-    for pat in patterns {
-        if let Some(idx) = xml[start_from..].find(pat) {
-            let abs_idx = start_from + idx;
-            match min_idx {
-                None => min_idx = Some(abs_idx),
-                Some(current_min) => {
-                    if abs_idx < current_min {
-                        min_idx = Some(abs_idx);
-                    }
-                }
-            }
-        }
-    }
-    min_idx
-}
-
-fn find_response_end(xml: &str, start_from: usize) -> Option<usize> {
-    let patterns = ["</response>", "</d:response>", "</D:response>"];
-    for pat in patterns {
-        if let Some(idx) = xml[start_from..].find(pat) {
-            return Some(start_from + idx + pat.len());
-        }
-    }
-    None
-}
-
-fn parse_single_response(block: &str) -> Option<WebDavFile> {
-    let href = extract_string_value(block, "href")?;
-    let decoded_href = urlencoding::decode(&href).ok()?.into_owned();
-
-    let is_dir = block.contains("<collection")
-        || block.contains("<d:collection")
-        || block.contains("<D:collection")
-        || decoded_href.ends_with('/');
-
-    let name = if let Some(disp) = extract_string_value(block, "displayname") {
-        disp
-    } else {
-        let cleaned_href = decoded_href.trim_end_matches('/');
-        if let Some(last_seg) = cleaned_href.split('/').last() {
-            last_seg.to_string()
-        } else {
-            "未命名".to_string()
-        }
-    };
-
-    let size = if is_dir {
-        0
-    } else {
-        extract_string_value(block, "getcontentlength")
-            .and_then(|s| s.parse::<u64>().ok())
-            .unwrap_or(0)
-    };
-
-    let last_modified = extract_string_value(block, "getlastmodified")
-        .unwrap_or_else(|| "——".to_string());
-
-    Some(WebDavFile {
-        name,
-        path: decoded_href,
-        is_dir,
-        size,
-        last_modified,
-    })
-}
-
-fn extract_string_value(block: &str, tag_name: &str) -> Option<String> {
-    let start_patterns = [
-        format!("<{}>", tag_name),
-        format!("<d:{}>", tag_name),
-        format!("<D:{}>", tag_name),
-    ];
-    let end_patterns = [
-        format!("</{}>", tag_name),
-        format!("</d:{}>", tag_name),
-        format!("</D:{}>", tag_name),
-    ];
-
-    for (start, end) in start_patterns.iter().zip(end_patterns.iter()) {
-        if let Some(start_idx) = block.find(start) {
-            if let Some(end_idx) = block.find(end) {
-                return Some(block[start_idx + start.len()..end_idx].trim().to_string());
-            }
-        }
-    }
-    None
 }

@@ -14,6 +14,8 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import FloatDisc from "./components/downloader/FloatDisc";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 
+import type { WebDavDevice } from "./core/bridge/tauri-commands";
+
 const TaskListDashboard = lazy(() => import("./components/downloader/TaskListDashboard"));
 const SettingsWindow = lazy(() => import("./components/settings/SettingsWindow"));
 const DevicesDashboard = lazy(() => import("./components/downloader/device/DevicesDashboard"));
@@ -41,14 +43,16 @@ export default function App() {
   const [path] = useState(window.location.pathname);
   const [activeFilter, setActiveFilter] = useState<NavFilter>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeBrowsingDevice, setActiveBrowsingDevice] = useState<WebDavDevice | null>(null);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const visibleFilter = resolveActiveFilter(activeFilter, categories, tags);
   const settings = useAppSettingsStore((state) => state.settings);
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
 
-
-
+  const windowTitle = (visibleFilter === "devices" && activeBrowsingDevice)
+    ? `PiDownloader - [${activeBrowsingDevice.name}]`
+    : "PiDownloader";
 
   if (path === "/float") {
     return (
@@ -67,16 +71,25 @@ export default function App() {
           <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
             <ActiveBackground />
           {!hideBorderAndBg && (
-            <WindowFrame title="PiDownloader" onOpenSettings={() => setSettingsOpen(true)} />
+            <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
           )}
           <div className="flex min-h-0 flex-1 overflow-hidden">
             <NavSidebar
               activeFilter={visibleFilter}
-              onFilterChange={setActiveFilter}
+              onFilterChange={(filter) => {
+                setActiveFilter(filter);
+                // Clear browsing device when navigating away
+                if (filter !== "devices") {
+                  setActiveBrowsingDevice(null);
+                }
+              }}
               onOpenSettings={() => setSettingsOpen(true)}
             />
             <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
-              <DevicesDashboard />
+              <DevicesDashboard
+                activeBrowsingDevice={activeBrowsingDevice}
+                setActiveBrowsingDevice={setActiveBrowsingDevice}
+              />
             </div>
             <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
               <TaskListDashboard activeFilter={visibleFilter} />

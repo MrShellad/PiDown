@@ -46,14 +46,14 @@ export default function DeviceCard({
       <TooltipTrigger asChild>
         <div
           onDoubleClick={() => !isRefreshing && onBrowse && onBrowse(device.id)}
-          className="group relative flex flex-col rounded-xl border border-border bg-card hover:bg-card-hover p-4 hover:border-primary/35 transition-all duration-200 w-[310px] h-[150px] shrink-0 cursor-default"
+          className="group relative flex flex-col rounded-xl border border-border bg-card hover:bg-card-hover p-4 hover:border-primary/35 transition-all duration-200 w-[310px] h-[150px] shrink-0 cursor-pointer"
         >
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
         {/* Device Icon block */}
         <div className="relative shrink-0">
           <div
             className={cn(
-              "flex size-14 items-center justify-center rounded-xl transition-all duration-200",
+              "flex size-12 items-center justify-center rounded-xl transition-all duration-200",
               isRefreshing
                 ? "bg-primary/5 text-primary"
                 : isConnected
@@ -80,10 +80,10 @@ export default function DeviceCard({
         <div className="min-w-0 flex-1 flex items-center justify-between gap-3">
           {/* Text Info */}
           <div className="min-w-0 flex-1 space-y-1 pr-6">
-            <h4 className="truncate text-sm font-bold text-foreground group-hover:text-primary transition-colors">
+            <h4 className="truncate text-base font-bold text-foreground group-hover:text-primary transition-colors">
               {device.name}
             </h4>
-            <p className="text-xs text-muted-foreground font-medium truncate">{device.type}</p>
+            <p className="text-sm text-muted-foreground/65 font-normal truncate">{device.type}</p>
           </div>
 
           {/* Status Badge (Only show when disconnected/error) */}

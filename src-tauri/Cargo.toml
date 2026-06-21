@@ -46,6 +46,7 @@ urlencoding = "2.1"
 libc = "0.2"
 m3u8-rs = "6.0.0"
 async-trait = "0.1"
+opendal = { version = "0.52.0", features = ["services-webdav"] }
 
 
 

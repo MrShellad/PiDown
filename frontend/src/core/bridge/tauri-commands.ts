@@ -680,3 +680,19 @@ export async function downloadWebDavFile(deviceId: string, path: string, filenam
 export async function getWebDavDownloadUrl(deviceId: string, path: string): Promise<string> {
   return invoke<string>("get_webdav_download_url", { deviceId, path });
 }
+
+export async function renameWebDavItem(deviceId: string, fromPath: string, toPath: string, isDir: boolean): Promise<void> {
+  return invoke<void>("rename_webdav_item", { deviceId, fromPath, toPath, isDir });
+}
+
+export async function deleteWebDavItems(deviceId: string, items: [string, boolean][]): Promise<void> {
+  return invoke<void>("delete_webdav_items", { deviceId, items });
+}
+
+export async function copyWebDavItem(deviceId: string, fromPath: string, toPath: string, isDir: boolean): Promise<void> {
+  return invoke<void>("copy_webdav_item", { deviceId, fromPath, toPath, isDir });
+}
+
+export async function moveWebDavItem(deviceId: string, fromPath: string, toPath: string, isDir: boolean): Promise<void> {
+  return invoke<void>("move_webdav_item", { deviceId, fromPath, toPath, isDir });
+}

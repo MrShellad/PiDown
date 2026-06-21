@@ -3826,3 +3826,296 @@ async fn test_with_storage_file_storage_resume_across_engines() {
 
     engine.shutdown().await.ok();
 }
+
+#[tokio::test]
+async fn test_webdav_400_probe_fallback() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let mock_server = MockServer::start().await;
+
+    let content = b"WebDAV plain GET fallback works!".to_vec();
+
+    Mock::given(method("HEAD"))
+        .and(path("/webdav-file.txt"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/webdav-file.txt"))
+        .and(header("Range", "bytes=0-0"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/webdav-file.txt"))
+        .and(MissingHeaderMatcher("Range"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Length", content.len().to_string())
+                .set_body_bytes(content.clone()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let engine = create_test_engine(&temp_dir).await;
+    let mut events = engine.subscribe();
+
+    let url = format!("{}/webdav-file.txt", mock_server.uri());
+    let id = engine
+        .add_http(&url, DownloadOptions::default())
+        .await
+        .expect("Failed to add download");
+
+    let completed = wait_for_event(
+        &mut events,
+        |e| matches!(e, DownloadEvent::Completed { id: eid } if *eid == id),
+        Duration::from_secs(10),
+    )
+    .await;
+
+    assert!(
+        completed.is_some(),
+        "Download should succeed by falling back to plain GET"
+    );
+
+    let status = engine.status(id).expect("Should have status");
+    assert_eq!(status.state, DownloadState::Completed);
+
+    let downloaded_path = temp_dir.path().join("webdav-file.txt");
+    let downloaded_content = std::fs::read(downloaded_path).expect("Failed to read downloaded file");
+    assert_eq!(downloaded_content, content);
+
+    engine.shutdown().await.ok();
+}
+
+#[tokio::test]
+async fn test_webdav_400_probe_fallback_boundary_credentials() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let mock_server = MockServer::start().await;
+
+    let content = b"WebDAV boundary credentials work!".to_vec();
+
+    // 1. URL encoded credentials with special characters: "user:name" and "pass@word"
+    // username: "user:name" -> "user%3Aname"
+    // password: "pass@word" -> "pass%40word"
+    // Base64 of "user:name:pass@word" is "dXNlcjpuYW1lOnBhc3NAd29yZA=="
+    Mock::given(method("HEAD"))
+        .and(path("/boundary-file.txt"))
+        .and(header("Authorization", "Basic dXNlcjpuYW1lOnBhc3NAd29yZA=="))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/boundary-file.txt"))
+        .and(header("Range", "bytes=0-0"))
+        .and(header("Authorization", "Basic dXNlcjpuYW1lOnBhc3NAd29yZA=="))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/boundary-file.txt"))
+        .and(MissingHeaderMatcher("Range"))
+        .and(header("Authorization", "Basic dXNlcjpuYW1lOnBhc3NAd29yZA=="))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Length", content.len().to_string())
+                .set_body_bytes(content.clone()),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let engine = create_test_engine(&temp_dir).await;
+    let mut events = engine.subscribe();
+
+    // Setup URL with credentials
+    let server_uri = mock_server.uri();
+    let url_without_scheme = server_uri.strip_prefix("http://").unwrap();
+    let url = format!("http://user%3Aname:pass%40word@{}/boundary-file.txt", url_without_scheme);
+
+    let id = engine
+        .add_http(&url, DownloadOptions::default())
+        .await
+        .expect("Failed to add download");
+
+    let completed = wait_for_event(
+        &mut events,
+        |e| matches!(e, DownloadEvent::Completed { id: eid } if *eid == id),
+        Duration::from_secs(10),
+    )
+    .await;
+
+    let status = engine.status(id).expect("Should have status");
+    if completed.is_none() {
+        panic!("Download failed. Current state: {:?}", status.state);
+    }
+    assert_eq!(status.state, DownloadState::Completed);
+
+    let downloaded_path = temp_dir.path().join("boundary-file.txt");
+    let downloaded_content = std::fs::read(downloaded_path).expect("Failed to read downloaded file");
+    assert_eq!(downloaded_content, content);
+
+    engine.shutdown().await.ok();
+}
+
+#[tokio::test]
+async fn test_webdav_400_probe_all_fail() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let mock_server = MockServer::start().await;
+
+    Mock::given(method("HEAD"))
+        .and(path("/fail-file.txt"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/fail-file.txt"))
+        .and(header("Range", "bytes=0-0"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/fail-file.txt"))
+        .and(MissingHeaderMatcher("Range"))
+        .respond_with(ResponseTemplate::new(400))
+        .mount(&mock_server)
+        .await;
+
+    let engine = create_test_engine(&temp_dir).await;
+    let mut events = engine.subscribe();
+
+    let url = format!("{}/fail-file.txt", mock_server.uri());
+    let id = engine
+        .add_http(&url, DownloadOptions::default())
+        .await
+        .expect("Failed to add download");
+
+    let failed = wait_for_event(
+        &mut events,
+        |e| matches!(e, DownloadEvent::Failed { id: eid, .. } if *eid == id),
+        Duration::from_secs(10),
+    )
+    .await;
+
+    assert!(failed.is_some(), "Download should fail when all probes fail");
+
+    let status = engine.status(id).expect("Should have status");
+    if let DownloadState::Error { message, .. } = &status.state {
+        assert!(
+            message.contains("Both HEAD and GET Range probes failed") || message.contains("All probes failed"),
+            "Error message should detail failures. Actual message: {}",
+            message
+        );
+    } else {
+        panic!("Download should be in Error state, but is {:?}", status.state);
+    }
+
+    engine.shutdown().await.ok();
+}
+
+#[tokio::test]
+async fn test_webdav_redirect_same_origin_auth_propagation() {
+    let temp_dir = TempDir::new().expect("Failed to create temp dir");
+    let mock_server = MockServer::start().await;
+
+    let content: Vec<u8> = (0..2048).map(|i| (i % 251) as u8).collect();
+    let first_half = content[..1024].to_vec();
+    let second_half = content[1024..].to_vec();
+
+    // 1. HEAD request to /original-file.txt -> Redirect to /redirected-file.txt
+    Mock::given(method("HEAD"))
+        .and(path("/original-file.txt"))
+        .and(header("Authorization", "Basic dXNlcjpwYXNz"))
+        .respond_with(
+            ResponseTemplate::new(302)
+                .insert_header("Location", "/redirected-file.txt")
+        )
+        .mount(&mock_server)
+        .await;
+
+    // 2. HEAD request to /redirected-file.txt -> 200 OK with content-length
+    Mock::given(method("HEAD"))
+        .and(path("/redirected-file.txt"))
+        .and(header("Authorization", "Basic dXNlcjpwYXNz"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .insert_header("Content-Length", content.len().to_string())
+                .insert_header("Accept-Ranges", "bytes"),
+        )
+        .mount(&mock_server)
+        .await;
+
+    // 3. GET request to /redirected-file.txt (Range: 0-1023)
+    Mock::given(method("GET"))
+        .and(path("/redirected-file.txt"))
+        .and(header("Range", "bytes=0-1023"))
+        .and(header("Authorization", "Basic dXNlcjpwYXNz"))
+        .respond_with(
+            ResponseTemplate::new(206)
+                .insert_header("Content-Length", first_half.len().to_string())
+                .insert_header("Content-Range", "bytes 0-1023/2048")
+                .set_body_bytes(first_half),
+        )
+        .mount(&mock_server)
+        .await;
+
+    // 4. GET request to /redirected-file.txt (Range: 1024-2047)
+    Mock::given(method("GET"))
+        .and(path("/redirected-file.txt"))
+        .and(header("Range", "bytes=1024-2047"))
+        .and(header("Authorization", "Basic dXNlcjpwYXNz"))
+        .respond_with(
+            ResponseTemplate::new(206)
+                .insert_header("Content-Length", second_half.len().to_string())
+                .insert_header("Content-Range", "bytes 1024-2047/2048")
+                .set_body_bytes(second_half),
+        )
+        .mount(&mock_server)
+        .await;
+
+    let config = EngineConfig {
+        download_dir: temp_dir.path().to_path_buf(),
+        max_connections_per_download: 2,
+        min_segment_size: 512,
+        ..Default::default()
+    };
+    let engine = DownloadEngine::new(config)
+        .await
+        .expect("Failed to create engine");
+    let mut events = engine.subscribe();
+
+    // Construct URL with basic auth credentials
+    let server_uri = mock_server.uri();
+    let url_without_scheme = server_uri.strip_prefix("http://").unwrap();
+    let url = format!("http://user:pass@{}/original-file.txt", url_without_scheme);
+
+    let id = engine
+        .add_http(&url, DownloadOptions::default())
+        .await
+        .expect("Failed to add download");
+
+    let completed = wait_for_event(
+        &mut events,
+        |e| matches!(e, DownloadEvent::Completed { id: eid } if *eid == id),
+        Duration::from_secs(10),
+    )
+    .await;
+
+    assert!(
+        completed.is_some(),
+        "Download should succeed since auth credentials are correctly propagated to final_url"
+    );
+
+    let status = engine.status(id).expect("Should have status");
+    assert_eq!(status.state, DownloadState::Completed);
+
+    let downloaded_path = temp_dir.path().join("original-file.txt");
+    let downloaded_content = std::fs::read(downloaded_path).expect("Failed to read downloaded file");
+    assert_eq!(downloaded_content, content);
+
+    engine.shutdown().await.ok();
+}

@@ -780,9 +780,20 @@ impl HttpDownloader {
         if use_segmented {
             let total_size = capabilities.content_length.unwrap();
 
+            let mut final_url = capabilities.final_url.clone();
+            if let (Ok(orig), Ok(mut f_url)) = (reqwest::Url::parse(url), reqwest::Url::parse(&final_url)) {
+                if !orig.username().is_empty() && orig.origin() == f_url.origin() {
+                    let _ = f_url.set_username(orig.username());
+                    if let Some(pass) = orig.password() {
+                        let _ = f_url.set_password(Some(pass));
+                    }
+                    final_url = f_url.to_string();
+                }
+            }
+
             // Create segmented download
             let mut download = SegmentedDownload::new(
-                capabilities.final_url.clone(),
+                final_url,
                 total_size,
                 save_path.clone(),
                 true,
@@ -956,7 +967,7 @@ fn extract_filename_from_url(url: &str) -> Option<String> {
         })
 }
 
-pub(crate) fn apply_basic_auth_if_present(builder: reqwest::RequestBuilder, url: &str) -> reqwest::RequestBuilder {
+pub(crate) fn apply_basic_auth_if_present(mut builder: reqwest::RequestBuilder, url: &str) -> reqwest::RequestBuilder {
     if let Ok(parsed_url) = reqwest::Url::parse(url) {
         if !parsed_url.username().is_empty() {
             let password = parsed_url.password().unwrap_or("");
@@ -966,7 +977,16 @@ pub(crate) fn apply_basic_auth_if_present(builder: reqwest::RequestBuilder, url:
             let decoded_pass = urlencoding::decode(password)
                 .map(|cow| cow.into_owned())
                 .unwrap_or_else(|_| password.to_string());
-            return builder.basic_auth(decoded_user, Some(decoded_pass));
+            
+            use base64::engine::general_purpose::STANDARD as BASE64;
+            use base64::Engine;
+            let auth_str = format!("{}:{}", decoded_user, decoded_pass);
+            let header_val = format!("Basic {}", BASE64.encode(auth_str.as_bytes()));
+            if let Ok(header_value) = reqwest::header::HeaderValue::from_str(&header_val) {
+                let mut headers = reqwest::header::HeaderMap::new();
+                headers.insert(reqwest::header::AUTHORIZATION, header_value);
+                builder = builder.headers(headers);
+            }
         }
     }
     builder
@@ -1009,5 +1029,16 @@ mod tests {
         let decoded_pass = urlencoding::decode(parsed.password().unwrap()).unwrap().into_owned();
         assert_eq!(decoded_user, "user@gmail.com");
         assert_eq!(decoded_pass, "pass#word");
+    }
+
+    #[test]
+    fn test_apply_basic_auth_header() {
+        let client = reqwest::Client::new();
+        let url = "http://user%3Aname:pass%40word@example.com/file";
+        let req = client.get(url);
+        let req = apply_basic_auth_if_present(req, url);
+        let request = req.build().unwrap();
+        let auth = request.headers().get("Authorization").unwrap().to_str().unwrap();
+        assert_eq!(auth, "Basic dXNlcjpuYW1lOnBhc3NAd29yZA==");
     }
 }
