@@ -57,126 +57,98 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                 state.reconcile_download_tasks();
             }
 
-            let active_downloads = state.engine.active();
-            let mut active_count = active_downloads.len();
+            let active_tasks: Vec<crate::core::models::DbTask> = state
+                .task_cache
+                .read()
+                .unwrap()
+                .values()
+                .filter(|t| matches!(t.status.as_str(), "Downloading" | "Pending" | "Seeding"))
+                .cloned()
+                .collect();
+
             let speed_display_unit = state.get_settings().transfer.speed_display_unit;
 
             let mut tasks = Vec::new();
             let mut total_download_speed = 0;
             let mut total_upload_speed = 0;
             let mut active_gids = HashSet::new();
+            let mut active_count = 0;
 
-            for download in active_downloads {
-                let gid = download.gid();
+            for db_task in active_tasks {
+                let gid = db_task.id.clone();
+                let provider_name = if db_task.protocol == "hls" { "hls" } else { "gosh" };
+                let provider = match state.providers.get(provider_name) {
+                    Some(p) => p,
+                    None => continue,
+                };
+                let ref_id = db_task.engine_id.as_deref().unwrap_or(&gid);
+
+                let info = match provider.query_status(ref_id).await {
+                    Ok(Some(info)) => info,
+                    _ => continue,
+                };
+
+                active_count += 1;
                 active_gids.insert(gid.clone());
 
-                let completed_size = download.progress.completed_size;
-                let download_speed = match speed_samples.get(&gid).copied() {
-                    Some(sample) if completed_size < sample.completed_bytes => {
-                        speed_samples.insert(
-                            gid.clone(),
-                            SpeedSample {
-                                completed_bytes: completed_size,
-                                sampled_at: now,
-                                speed_bytes_per_sec: 0,
-                            },
-                        );
-                        0
-                    }
-                    Some(sample)
-                        if now.duration_since(sample.sampled_at) >= SPEED_SAMPLE_INTERVAL =>
-                    {
-                        let elapsed = now.duration_since(sample.sampled_at).as_secs_f64();
-                        let delta = completed_size.saturating_sub(sample.completed_bytes);
-                        let speed = if elapsed > 0.0 {
-                            (delta as f64 / elapsed) as u64
-                        } else {
+                let completed_size = info.completed_size;
+                let total_size = info.total_size;
+
+                let download_speed = if info.download_speed > 0 {
+                    info.download_speed
+                } else {
+                    match speed_samples.get(&gid).copied() {
+                        Some(sample) if completed_size < sample.completed_bytes => {
+                            speed_samples.insert(
+                                gid.clone(),
+                                SpeedSample {
+                                    completed_bytes: completed_size,
+                                    sampled_at: now,
+                                    speed_bytes_per_sec: 0,
+                                },
+                            );
                             0
-                        };
-                        speed_samples.insert(
-                            gid.clone(),
-                            SpeedSample {
-                                completed_bytes: completed_size,
-                                sampled_at: now,
-                                speed_bytes_per_sec: speed,
-                            },
-                        );
-                        speed
-                    }
-                    Some(sample) => sample.speed_bytes_per_sec,
-                    None => {
-                        speed_samples.insert(
-                            gid.clone(),
-                            SpeedSample {
-                                completed_bytes: completed_size,
-                                sampled_at: now,
-                                speed_bytes_per_sec: 0,
-                            },
-                        );
-                        0
+                        }
+                        Some(sample)
+                            if now.duration_since(sample.sampled_at) >= SPEED_SAMPLE_INTERVAL =>
+                        {
+                            let elapsed = now.duration_since(sample.sampled_at).as_secs_f64();
+                            let delta = completed_size.saturating_sub(sample.completed_bytes);
+                            let speed = if elapsed > 0.0 {
+                                (delta as f64 / elapsed) as u64
+                            } else {
+                                0
+                            };
+                            speed_samples.insert(
+                                gid.clone(),
+                                SpeedSample {
+                                    completed_bytes: completed_size,
+                                    sampled_at: now,
+                                    speed_bytes_per_sec: speed,
+                                },
+                            );
+                            speed
+                        }
+                        Some(sample) => sample.speed_bytes_per_sec,
+                        None => {
+                            speed_samples.insert(
+                                gid.clone(),
+                                SpeedSample {
+                                    completed_bytes: completed_size,
+                                    sampled_at: now,
+                                    speed_bytes_per_sec: 0,
+                                },
+                            );
+                            0
+                        }
                     }
                 };
-                let upload_speed = download.progress.upload_speed;
+
+                let upload_speed = info.upload_speed;
                 total_download_speed += download_speed;
                 total_upload_speed += upload_speed;
-                let total_size = download.progress.total_size.unwrap_or(0);
                 let eta_seconds = if download_speed > 0 && total_size > completed_size {
                     Some((total_size - completed_size) / download_speed)
-                } else {
-                    None
-                };
-
-                tasks.push(TaskProgressPayload {
-                    gid,
-                    speed: format_speed(download_speed, &speed_display_unit),
-                    progress: download.progress.percentage(),
-                    eta: format_eta(eta_seconds),
-                    downloaded_bytes: completed_size,
-                    total_bytes: total_size,
-                    connections: download.progress.connections,
-                    speed_bps: download_speed,
-                    eta_seconds,
-                    upload_speed: format_speed(upload_speed, &speed_display_unit),
-                    status: match &download.state {
-                        DownloadState::Queued => "Pending".to_string(),
-                        DownloadState::Connecting | DownloadState::Downloading => "Downloading".to_string(),
-                        DownloadState::Seeding => "Seeding".to_string(),
-                        DownloadState::Paused => "Paused".to_string(),
-                        DownloadState::Completed => "Completed".to_string(),
-                        DownloadState::Error { .. } => "Failed".to_string(),
-                    },
-                });
-            }
-
-            // Fetch active HLS tasks from task cache
-            let hls_tasks: Vec<crate::core::models::DbTask> = state
-                .task_cache
-                .read()
-                .unwrap()
-                .values()
-                .filter(|t| t.protocol == "hls" && t.status == "Downloading")
-                .cloned()
-                .collect();
-
-            active_count += hls_tasks.len();
-
-            for task in hls_tasks {
-                let gid = task.id.clone();
-                active_gids.insert(gid.clone());
-
-                let completed_size = task.completed_size;
-                let total_size = task.total_size;
-                let hls_speed = state
-                    .hls_speeds
-                    .lock()
-                    .unwrap()
-                    .get(&gid)
-                    .copied()
-                    .unwrap_or(0);
-
-                total_download_speed += hls_speed;
-                let eta_seconds = if hls_speed > 0 && total_size > completed_size {
-                    Some((total_size - completed_size) / hls_speed)
                 } else {
                     None
                 };
@@ -189,16 +161,16 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
 
                 tasks.push(TaskProgressPayload {
                     gid,
-                    speed: format_speed(hls_speed, &speed_display_unit),
+                    speed: format_speed(download_speed, &speed_display_unit),
                     progress,
                     eta: format_eta(eta_seconds),
                     downloaded_bytes: completed_size,
                     total_bytes: total_size,
-                    connections: 5, // Concurrent connections count limit
-                    speed_bps: hls_speed,
+                    connections: info.connections,
+                    speed_bps: download_speed,
                     eta_seconds,
-                    upload_speed: "0 B/s".to_string(),
-                    status: "Downloading".to_string(),
+                    upload_speed: format_speed(upload_speed, &speed_display_unit),
+                    status: info.status,
                 });
             }
 

@@ -1,5 +1,5 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
 import WindowFrame from "./components/layout/WindowFrame";
@@ -11,11 +11,12 @@ import { UI_TEXT } from "./core/locale";
 import { UI_TOKENS } from "./core/ui-tokens";
 import { parseNavFilter, type NavFilter } from "./core/taskFilters";
 import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
-import TaskListDashboard from "./components/downloader/TaskListDashboard";
 import FloatDisc from "./components/downloader/FloatDisc";
-import SettingsWindow from "./components/settings/SettingsWindow";
-import DevicesDashboard from "./components/downloader/device/DevicesDashboard";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
+
+const TaskListDashboard = lazy(() => import("./components/downloader/TaskListDashboard"));
+const SettingsWindow = lazy(() => import("./components/settings/SettingsWindow"));
+const DevicesDashboard = lazy(() => import("./components/downloader/device/DevicesDashboard"));
 
 
 function resolveActiveFilter(
@@ -62,8 +63,9 @@ export default function App() {
   return (
     <ThemeProvider taskRuntime>
       <TooltipProvider>
-        <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
-          <ActiveBackground />
+        <Suspense fallback={null}>
+          <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
+            <ActiveBackground />
           {!hideBorderAndBg && (
             <WindowFrame title="PiDownloader" onOpenSettings={() => setSettingsOpen(true)} />
           )}
@@ -102,6 +104,7 @@ export default function App() {
           </Dialog>
           <ThemeEditorDialog />
         </div>
+        </Suspense>
       </TooltipProvider>
     </ThemeProvider>
   );

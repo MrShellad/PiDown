@@ -48,7 +48,7 @@ fn legacy_default_sort_order(name: &str) -> Option<i32> {
 #[allow(dead_code)]
 impl super::DbStore {
     pub fn get_categories(&self) -> Result<Vec<DbCategory>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, name, icon, color, sort_order, rules_json, save_path FROM categories ORDER BY sort_order ASC",
         )?;
@@ -200,7 +200,7 @@ impl super::DbStore {
     }
 
     pub fn get_tags(&self) -> Result<Vec<DbTag>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, category_id, name, icon, color, rules_json, save_path FROM tags ORDER BY id ASC",
         )?;

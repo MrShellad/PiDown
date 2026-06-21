@@ -1,34 +1,17 @@
 import { create } from "zustand";
-import {
-  pauseTask,
-  resumeTask,
-  cancelTask,
-  clearCompletedTasks,
-  openTaskFile,
-  openTaskFolder,
-  restartTask,
-  getActiveTasks,
-  getCategories,
-  getTags,
-  createCategory,
-  updateCategory as updateCategoryConfig,
-  deleteCategory,
-  updateTaskCategory,
-  addTaskTag,
-  removeTaskTag,
-  createTag,
-  updateTag as updateTagConfig,
-  deleteTag,
-  type DbCategory,
-  type DbTag,
-  type TaskOverview,
-  type CategoryInput,
-  type MatchRules,
-  type TagInput,
+import type {
+  DbCategory,
+  DbTag,
+  TaskOverview,
+  CategoryInput,
+  MatchRules,
+  TagInput,
 } from "../bridge/tauri-commands";
 import { useToastStore } from "./useToastStore";
 import { useAppSettingsStore } from "./useAppSettingsStore";
 import { sendNativeNotification } from "../notification";
+import type { DownloadApiService } from "../api/DownloadApiService";
+import { tauriDownloadApiService } from "../api/TauriDownloadApiService";
 
 export interface Task {
   gid: string;
@@ -121,6 +104,8 @@ interface DownloadState {
   activeTasksCount: number;
   categoryTreeLoaded: boolean;
   categoryTreeLoading: boolean;
+  apiService: DownloadApiService;
+  setApiService: (service: DownloadApiService) => void;
   
   // Actions
   addTask: (gid: string, url: string, name: string) => void;
@@ -210,6 +195,8 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
       activeTasksCount: 0,
       categoryTreeLoaded: false,
       categoryTreeLoading: false,
+      apiService: tauriDownloadApiService,
+      setApiService: (service) => set({ apiService: service }),
 
       addTask: (gid, url, name) => {
         set((state) => {
@@ -348,7 +335,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         if (!task) return;
 
         if (task.status === "Downloading") {
-          await pauseTask(gid);
+          await get().apiService.pauseTask(gid);
           set((state) => {
             const nextActive = new Set(state.activeDownloadingGids);
             nextActive.delete(gid);
@@ -366,7 +353,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
             };
           });
         } else if (task.status === "Paused" || task.status === "Failed") {
-          await resumeTask(gid);
+          await get().apiService.resumeTask(gid);
           set((state) => {
             const nextActive = new Set(state.activeDownloadingGids);
             nextActive.add(gid);
@@ -386,7 +373,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       removeTask: async (gid, deleteFiles = false) => {
         try {
-          await cancelTask(gid, deleteFiles);
+          await get().apiService.cancelTask(gid, deleteFiles);
         } catch (e) {
           useToastStore.getState().pushToast({
             title: "删除任务失败",
@@ -407,7 +394,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       openTaskFile: async (gid) => {
         try {
-          await openTaskFile(gid);
+          await get().apiService.openTaskFile(gid);
         } catch (e) {
           useToastStore.getState().pushToast({
             title: "无法打开文件",
@@ -419,7 +406,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       openTaskFolder: async (gid) => {
         try {
-          await openTaskFolder(gid);
+          await get().apiService.openTaskFolder(gid);
         } catch (e) {
           useToastStore.getState().pushToast({
             title: "无法打开文件夹",
@@ -431,7 +418,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       restartTask: async (gid) => {
         try {
-          const nextGid = await restartTask(gid);
+          const nextGid = await get().apiService.restartTask(gid);
           const task = get().tasks[gid];
 
           set((state) => {
@@ -473,7 +460,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       clearCompleted: async () => {
         try {
-          await clearCompletedTasks(false);
+          await get().apiService.clearCompletedTasks(false);
           await get().fetchTasks();
         } catch (e) {
           useToastStore.getState().pushToast({
@@ -486,7 +473,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       fetchTasks: async () => {
         try {
-          const backendTasks = await getActiveTasks();
+          const backendTasks = await get().apiService.getActiveTasks();
           const mappedTasks: Record<string, Task> = {};
           const newActiveGids = new Set<string>();
           backendTasks.forEach((task) => {
@@ -503,7 +490,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       fetchCategories: async () => {
         try {
-          const cats = await getCategories();
+          const cats = await get().apiService.getCategories();
           set({ categories: cats.map(mapCategory) });
         } catch (e) {
           console.error("Failed to fetch categories", e);
@@ -513,7 +500,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       fetchTags: async () => {
         try {
-          const tgs = await getTags();
+          const tgs = await get().apiService.getTags();
           set({ tags: tgs.map(mapTag) });
         } catch (e) {
           console.error("Failed to fetch tags", e);
@@ -537,7 +524,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       updateTaskCategory: async (gid, categoryId) => {
         try {
-          await updateTaskCategory(gid, categoryId);
+          await get().apiService.updateTaskCategory(gid, categoryId);
           set((state) => {
             const task = state.tasks[gid];
             if (!task) return {};
@@ -558,7 +545,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       createCategory: async (input) => {
         try {
-          await createCategory({ ...input, rules: normalizeRules(input.rules) });
+          await get().apiService.createCategory({ ...input, rules: normalizeRules(input.rules) });
           const store = get();
           await store.fetchCategoryTree(true);
         } catch (e) {
@@ -568,7 +555,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       updateCategoryConfig: async (categoryId, input) => {
         try {
-          await updateCategoryConfig(categoryId, { ...input, rules: normalizeRules(input.rules) });
+          await get().apiService.updateCategory(categoryId, { ...input, rules: normalizeRules(input.rules) });
           const store = get();
           await store.fetchCategoryTree(true);
           await store.fetchTasks();
@@ -579,7 +566,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       deleteCategory: async (categoryId) => {
         try {
-          await deleteCategory(categoryId);
+          await get().apiService.deleteCategory(categoryId);
           const store = get();
           await store.fetchCategoryTree(true);
           await store.fetchTasks();
@@ -614,7 +601,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
                 rules: c.rules,
                 save_path: c.savePath,
               };
-              return updateCategoryConfig(c.id, input);
+              return get().apiService.updateCategory(c.id, input);
             })
           );
           await get().fetchCategoryTree(true);
@@ -626,7 +613,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       addTaskTag: async (gid, tagId) => {
         try {
-          await addTaskTag(gid, tagId);
+          await get().apiService.addTaskTag(gid, tagId);
           const store = get();
           await store.fetchTasks();
         } catch (e) {
@@ -636,7 +623,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       removeTaskTag: async (gid, tagId) => {
         try {
-          await removeTaskTag(gid, tagId);
+          await get().apiService.removeTaskTag(gid, tagId);
           const store = get();
           await store.fetchTasks();
         } catch (e) {
@@ -646,7 +633,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       createTag: async (input) => {
         try {
-          await createTag({ ...input, rules: normalizeRules(input.rules) });
+          await get().apiService.createTag({ ...input, rules: normalizeRules(input.rules) });
           const store = get();
           await store.fetchCategoryTree(true);
         } catch (e) {
@@ -656,7 +643,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       updateTagConfig: async (tagId, input) => {
         try {
-          await updateTagConfig(tagId, { ...input, rules: normalizeRules(input.rules) });
+          await get().apiService.updateTag(tagId, { ...input, rules: normalizeRules(input.rules) });
           const store = get();
           await store.fetchCategoryTree(true);
           await store.fetchTasks();
@@ -667,7 +654,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       deleteTag: async (tagId) => {
         try {
-          await deleteTag(tagId);
+          await get().apiService.deleteTag(tagId);
           const store = get();
           await store.fetchCategoryTree(true);
           await store.fetchTasks();

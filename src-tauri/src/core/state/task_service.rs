@@ -339,6 +339,10 @@ impl super::AppState {
             }
         };
 
+        let provider_name = if is_hls { "hls" } else { "gosh" };
+        let provider = self.providers.get(provider_name)
+            .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
+
         let inferred_name = final_url
             .split('/')
             .last()
@@ -376,134 +380,25 @@ impl super::AppState {
 
         std::fs::create_dir_all(&save_dir).map_err(|e| e.to_string())?;
 
-        let (gid, engine_id, initial_status, db_protocol) = if is_hls {
-            let hls_gid = uuid::Uuid::new_v4().to_string();
-            let initial_status = if settings.download.auto_start_downloads {
-                "Downloading"
-            } else {
-                "Paused"
-            };
-            (hls_gid, None, initial_status, "hls".to_string())
+        let gid = uuid::Uuid::new_v4().to_string();
+        let initial_status = if settings.download.auto_start_downloads {
+            "Downloading"
         } else {
-            let id = match protocol {
-                DownloadProtocol::Http | DownloadProtocol::Https => {
-                    let max_connections = task_options
-                        .max_connections
-                        .unwrap_or(settings.transfer.task_thread_count)
-                        .clamp(1, crate::core::settings::MAX_TASK_THREAD_COUNT)
-                        as usize;
-
-                    self.engine
-                        .add_http(
-                            &final_url,
-                            Path::new(&save_dir),
-                            Some(name.clone()),
-                            HttpTaskOptions {
-                                max_connections,
-                                max_download_speed: speed_limit_kib_to_bps(
-                                    task_options.max_download_speed_kib,
-                                ),
-                                user_agent,
-                                referer: normalize_optional_header_value(task_options.referer.clone()),
-                                cookies: final_cookies.clone(),
-                            },
-                        )
-                        .await?
-                }
-                DownloadProtocol::Magnet => {
-                    let mut magnet_url = url.to_string();
-                    let trackers: Vec<String> = settings.bt.tracker_list
-                        .lines()
-                        .map(|line| line.trim().to_string())
-                        .filter(|line| !line.is_empty())
-                        .collect();
-
-                    for tracker in trackers {
-                        let encoded_tracker = urlencoding::encode(&tracker);
-                        magnet_url.push_str(&format!("&tr={}", encoded_tracker));
-                    }
-
-                    self.engine
-                        .add_magnet(
-                            &magnet_url,
-                            Path::new(&save_dir),
-                            task_options.selected_files.clone(),
-                            task_options.sequential,
-                            speed_limit_kib_to_bps(task_options.max_download_speed_kib),
-                            speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
-                        )
-                        .await?
-                }
-                DownloadProtocol::Torrent => {
-                    let ignore_ssl = settings.transfer.ignore_ssl_certificate;
-                    let ua = resolve_user_agent(task_options.user_agent.clone(), &settings.download.global_user_agent);
-                    let cookies_norm = normalize_cookies(task_options.cookies.clone());
-                    let referer_norm = normalize_optional_header_value(task_options.referer.clone());
-                    let max_retries = settings.transfer.max_download_retries as usize;
-
-                    let mut bytes = crate::download::bt::fetch_torrent_bytes(
-                        url,
-                        ignore_ssl,
-                        ua,
-                        referer_norm,
-                        cookies_norm,
-                        max_retries,
-                    ).await?;
-
-                    let trackers: Vec<String> = settings.bt.tracker_list
-                        .lines()
-                        .map(|line| line.trim().to_string())
-                        .filter(|line| !line.is_empty())
-                        .collect();
-
-                    if !trackers.is_empty() {
-                        match crate::download::bt::append_trackers_to_torrent(&bytes, &trackers) {
-                            Ok(modified_bytes) => {
-                                bytes = modified_bytes;
-                            }
-                            Err(e) => {
-                                log::warn!("Failed to append default trackers to torrent: {}", e);
-                            }
-                        }
-                    }
-
-                    self.engine
-                        .add_torrent(
-                            &bytes,
-                            Path::new(&save_dir),
-                            task_options.selected_files.clone(),
-                            task_options.sequential,
-                            speed_limit_kib_to_bps(task_options.max_download_speed_kib),
-                            speed_limit_kib_to_bps(task_options.max_upload_speed_kib),
-                        )
-                        .await?
-                }
-                _ => return Err("Unsupported or invalid protocol".to_string()),
-            };
-
-            let initial_status = if settings.download.auto_start_downloads {
-                "Downloading"
-            } else {
-                self.engine.pause(id).await?;
-                "Paused"
-            };
-
-            (id.to_gid(), Some(id.as_uuid().to_string()), initial_status, protocol.as_str().to_string())
+            "Paused"
         };
+        let db_protocol = if is_hls { "hls".to_string() } else { protocol.as_str().to_string() };
 
-        let category_id = preview.category.as_ref().map(|category| category.id);
-
-        let db_task = DbTask {
+        let mut db_task = DbTask {
             id: gid.clone(),
-            engine_id,
+            engine_id: None,
             name,
-            url: url.to_string(),
+            url: final_url.clone(),
             protocol: db_protocol,
-            save_path: save_dir,
+            save_path: save_dir.clone(),
             total_size: total_size.unwrap_or(0),
             completed_size: 0,
             status: initial_status.to_string(),
-            category_id,
+            category_id: preview.category.as_ref().map(|category| category.id),
             created_at: Utc::now().timestamp(),
             started_at: if initial_status == "Downloading" {
                 Some(Utc::now().timestamp())
@@ -517,41 +412,26 @@ impl super::AppState {
             dirty: true,
         };
 
+        let engine_id = provider.create_task(&db_task, task_options.clone(), &settings).await?;
+        db_task.engine_id = Some(engine_id.clone());
+
+        if provider_name == "gosh" {
+            if let Ok(uuid) = uuid::Uuid::parse_str(&engine_id) {
+                let download_id = DownloadId::from_uuid(uuid);
+                self.gid_cache.lock().unwrap().insert(download_id, gid.clone());
+            }
+        }
+
         self.db.insert_task(&db_task).map_err(|e| e.to_string())?;
         self.task_cache.write().unwrap().insert(gid.clone(), db_task.clone());
         for tag in preview.tags {
             let _ = self.db.add_task_tag(&gid, tag.id);
         }
 
-        if is_hls && initial_status == "Downloading" {
-            let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-            self.hls_cancel_tokens.lock().unwrap().insert(gid.clone(), cancel_tx);
-
-            let state_clone = Arc::clone(self);
-            let gid_clone = gid.clone();
-            let url_clone = url.to_string();
-            let save_path_clone = db_task.save_path.clone();
-            let name_clone = db_task.name.clone();
-            let user_agent_clone = task_options.user_agent.clone();
-            let referer_clone = task_options.referer.clone();
-            let cookies_clone = task_options.cookies.clone();
-
-            tauri::async_runtime::spawn(async move {
-                crate::download::hls::download_hls_task(
-                    state_clone,
-                    gid_clone,
-                    url_clone,
-                    save_path_clone,
-                    name_clone,
-                    user_agent_clone,
-                    referer_clone,
-                    cookies_clone,
-                    cancel_rx,
-                ).await;
-            });
-        } else if !is_hls {
-            if let Some(id_parsed) = db_task.engine_id.as_deref().and_then(Self::parse_engine_id) {
-                if let Some(engine_status) = self.engine.status(id_parsed) {
+        if provider_name == "gosh" && initial_status == "Downloading" {
+            if let Ok(uuid) = uuid::Uuid::parse_str(&engine_id) {
+                let download_id = DownloadId::from_uuid(uuid);
+                if let Some(engine_status) = self.engine.status(download_id) {
                     self.sync_task_from_engine_status(&gid, &engine_status, None);
                 }
             }
@@ -664,143 +544,76 @@ impl super::AppState {
     }
 
     pub async fn pause_task(self: &Arc<Self>, gid: &str) -> Result<(), String> {
-        let is_hls = {
+        let (protocol, engine_id) = {
             let cache = self.task_cache.read().unwrap();
-            cache.get(gid).map(|t| t.protocol == "hls").unwrap_or(false)
+            let task = cache.get(gid).ok_or_else(|| "Task not found".to_string())?;
+            (task.protocol.clone(), task.engine_id.clone())
         };
 
-        if is_hls {
-            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
-                let _ = cancel_tx.send(true);
-            }
-            if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
-                task.status = "Paused".to_string();
-                task.dirty = true;
-            }
-            let _ = self.db.update_task_status(gid, "Paused", None);
-            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
-                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-            }
-            return Ok(());
-        }
+        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let provider = self.providers.get(provider_name)
+            .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
-        let id = self.resolve_download_id(gid)?;
-        self.engine.pause(id).await?;
-        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
-            task.status = "Paused".to_string();
-            task.dirty = true;
-        }
-        let _ = self.db.update_task_status(gid, "Paused", None);
+        let ref_id = engine_id.as_deref().unwrap_or(gid);
+        provider.pause_task(ref_id).await?;
         Ok(())
     }
 
     pub async fn resume_task(self: &Arc<Self>, gid: &str) -> Result<(), String> {
-        let (is_hls, task_opt) = {
+        let (protocol, engine_id) = {
             let cache = self.task_cache.read().unwrap();
-            let task = cache.get(gid).cloned();
-            (task.as_ref().map(|t| t.protocol == "hls").unwrap_or(false), task)
+            let task = cache.get(gid).ok_or_else(|| "Task not found".to_string())?;
+            (task.protocol.clone(), task.engine_id.clone())
         };
 
-        if is_hls {
-            if let Some(task) = task_opt {
-                let mut tokens = self.hls_cancel_tokens.lock().unwrap();
-                if !tokens.contains_key(gid) {
-                    let (cancel_tx, cancel_rx) = tokio::sync::watch::channel(false);
-                    tokens.insert(gid.to_string(), cancel_tx);
+        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let provider = self.providers.get(provider_name)
+            .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
-                    if let Some(t) = self.task_cache.write().unwrap().get_mut(gid) {
-                        t.status = "Downloading".to_string();
-                        if t.started_at.is_none() {
-                            t.started_at = Some(Utc::now().timestamp());
-                        }
-                        t.dirty = true;
-                    }
-                    let _ = self.db.update_task_status(gid, "Downloading", None);
-
-                    let state_clone = Arc::clone(self);
-                    let gid_clone = gid.to_string();
-                    let url_clone = task.url.clone();
-                    let save_path_clone = task.save_path.clone();
-                    let name_clone = task.name.clone();
-
-                    tauri::async_runtime::spawn(async move {
-                        crate::download::hls::download_hls_task(
-                            state_clone,
-                            gid_clone,
-                            url_clone,
-                            save_path_clone,
-                            name_clone,
-                            None,
-                            None,
-                            Vec::new(),
-                            cancel_rx,
-                        ).await;
-                    });
-                }
-            }
-            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
-                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-            }
-            return Ok(());
-        }
-
-        let id = self.resolve_download_id(gid)?;
-        self.engine.resume(id).await?;
-        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
-            task.status = "Downloading".to_string();
-            if task.started_at.is_none() {
-                task.started_at = Some(Utc::now().timestamp());
-            }
-            task.dirty = true;
-        }
-        let _ = self.db.update_task_status(gid, "Downloading", None);
+        let ref_id = engine_id.as_deref().unwrap_or(gid);
+        provider.resume_task(ref_id).await?;
         Ok(())
     }
 
     pub async fn cancel_task(self: &Arc<Self>, gid: &str, delete_files: bool) -> Result<(), String> {
-        let is_hls = {
+        let (protocol, engine_id) = {
             let cache = self.task_cache.read().unwrap();
-            cache.get(gid).map(|t| t.protocol == "hls").unwrap_or(false)
+            let task = cache.get(gid).ok_or_else(|| "Task not found".to_string())?;
+            (task.protocol.clone(), task.engine_id.clone())
         };
 
-        if is_hls {
-            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
-                let _ = cancel_tx.send(true);
-            }
-            self.hls_speeds.lock().unwrap().remove(gid);
-            self.progress_throttle.lock().unwrap().remove(gid);
+        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let provider = self.providers.get(provider_name)
+            .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
-            self.task_cache.write().unwrap().remove(gid);
-            let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
-            if let Some(task) = task {
-                if delete_files {
-                    cleanup_task_files(&task);
-                }
-            }
-            self.db.delete_task(gid).map_err(|e| e.to_string())?;
-            if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
-                let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-            }
-            return Ok(());
-        }
+        let ref_id = engine_id.as_deref().unwrap_or(gid);
+        let _ = provider.cancel_task(ref_id, delete_files).await;
 
         self.task_cache.write().unwrap().remove(gid);
-        let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
-
-        if let Ok(id) = self.resolve_download_id(gid) {
-            let _ = self.engine.cancel(id, delete_files).await;
-            self.gid_cache.lock().unwrap().remove(&id);
-        }
         self.progress_throttle.lock().unwrap().remove(gid);
 
-        let Some(task) = task else {
-            return Err("Task not found".to_string());
-        };
-
         if delete_files {
-            cleanup_task_files(&task);
+            let task = self.db.get_task(gid).map_err(|e| e.to_string())?;
+            if let Some(t) = task {
+                cleanup_task_files(&t);
+            }
         }
+
         self.db.delete_task(gid).map_err(|e| e.to_string())?;
+
+        if provider_name == "gosh" {
+            if let Some(ref_id_str) = &engine_id {
+                if let Ok(uuid) = uuid::Uuid::parse_str(ref_id_str) {
+                    let download_id = DownloadId::from_uuid(uuid);
+                    self.gid_cache.lock().unwrap().remove(&download_id);
+                }
+            }
+        }
+
+        if let Some(ref app_handle) = *self.app_handle.lock().unwrap() {
+            let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+        }
+
         Ok(())
     }
 
@@ -842,18 +655,8 @@ impl super::AppState {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Task not found".to_string())?;
 
-        let is_hls = task.protocol == "hls";
-        if is_hls {
-            if let Some(cancel_tx) = self.hls_cancel_tokens.lock().unwrap().remove(gid) {
-                let _ = cancel_tx.send(true);
-            }
-            self.hls_speeds.lock().unwrap().remove(gid);
-            self.progress_throttle.lock().unwrap().remove(gid);
-        } else if let Ok(id) = self.resolve_download_id(gid) {
-            let _ = self.engine.cancel(id, true).await;
-        }
+        let _ = self.cancel_task(gid, true).await;
 
-        cleanup_task_files(&task);
         let new_gid = self
             .add_task(
                 &task.url,
@@ -869,40 +672,8 @@ impl super::AppState {
                 },
             )
             .await?;
-        self.task_cache.write().unwrap().remove(gid);
-        self.db.delete_task(gid).map_err(|e| e.to_string())?;
 
         Ok(new_gid)
-    }
-
-    pub fn sync_hls_progress(&self, gid: &str, completed_size: u64, total_size: u64) {
-        let should_update = {
-            let mut throttle = self.progress_throttle.lock().unwrap();
-            if let Some((last_size, last_time)) = throttle.get(gid).copied() {
-                let now = std::time::Instant::now();
-                let size_delta = completed_size.saturating_sub(last_size);
-                let time_delta = now.duration_since(last_time);
-                let is_completed = completed_size >= total_size;
-
-                if size_delta >= 1024 * 1024 || time_delta >= std::time::Duration::from_secs(1) || is_completed {
-                    throttle.insert(gid.to_string(), (completed_size, now));
-                    true
-                } else {
-                    false
-                }
-            } else {
-                throttle.insert(gid.to_string(), (completed_size, std::time::Instant::now()));
-                true
-            }
-        };
-
-        if should_update {
-            if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
-                task.completed_size = completed_size;
-                task.total_size = total_size;
-                task.dirty = true;
-            }
-        }
     }
 
     pub fn validate_completed_task_file(&self, gid: &str) -> Result<(), String> {
@@ -964,6 +735,17 @@ impl super::AppState {
         let engine_list = self.engine.list();
         use std::collections::HashMap;
 
+        // Fetch all task-tag relationships and tags in bulk
+        let all_mappings = self.db.get_all_task_tags_mappings().unwrap_or_default();
+        let all_tags = self.db.get_tags().unwrap_or_default();
+        let tags_map: HashMap<i64, crate::core::models::DbTag> = all_tags.into_iter().map(|tag| (tag.id, tag)).collect();
+        let mut task_tags_map: HashMap<String, Vec<crate::core::models::DbTag>> = HashMap::new();
+        for (task_id, tag_id) in all_mappings {
+            if let Some(tag) = tags_map.get(&tag_id) {
+                task_tags_map.entry(task_id).or_default().push(tag.clone());
+            }
+        }
+
         let mut engine_tasks = HashMap::with_capacity(engine_list.len() * 2);
         for status in engine_list {
             let uuid_str = status.id.as_uuid().to_string();
@@ -1017,7 +799,7 @@ impl super::AppState {
                 progress = 100.0;
             }
 
-            let tags = self.db.get_task_tags(&gid).unwrap_or_default();
+            let tags = task_tags_map.remove(&gid).unwrap_or_default();
 
             tasks.push(TaskOverview {
                 gid,

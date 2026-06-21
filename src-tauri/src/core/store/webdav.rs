@@ -4,7 +4,7 @@ use rusqlite::params;
 
 impl DbStore {
     pub fn get_webdav_devices(&self) -> Result<Vec<DbWebDavDevice>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, display_name, server_url, username, password_encrypted, remote_path, created_at FROM webdav_devices ORDER BY created_at DESC"
         )?;
@@ -28,7 +28,7 @@ impl DbStore {
     }
 
     pub fn get_webdav_device(&self, id: &str) -> Result<Option<DbWebDavDevice>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, display_name, server_url, username, password_encrypted, remote_path, created_at FROM webdav_devices WHERE id = ?1"
         )?;

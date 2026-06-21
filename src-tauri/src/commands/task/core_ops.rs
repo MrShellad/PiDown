@@ -108,5 +108,8 @@ pub async fn restart_task(state: State<'_, Arc<AppState>>, gid: String) -> Resul
 pub async fn get_active_tasks(
     state: State<'_, Arc<AppState>>,
 ) -> Result<Vec<TaskOverview>, String> {
-    state.list_tasks()
+    let state = state.inner().clone();
+    tokio::task::spawn_blocking(move || state.list_tasks())
+        .await
+        .map_err(|e| format!("Spawn blocking failed: {e}"))?
 }

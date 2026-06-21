@@ -15,7 +15,7 @@ pub struct DbBackground {
 
 impl DbStore {
     pub fn get_backgrounds(&self) -> Result<Vec<DbBackground>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, path, type, is_online, created_at, thumbnail FROM backgrounds ORDER BY created_at DESC"
         )?;
@@ -40,7 +40,7 @@ impl DbStore {
 
     #[allow(dead_code)]
     pub fn get_background(&self, id: i64) -> Result<Option<DbBackground>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, path, type, is_online, created_at, thumbnail FROM backgrounds WHERE id = ?1"
         )?;

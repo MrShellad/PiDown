@@ -18,8 +18,8 @@ pub async fn list_system_fonts() -> Result<Vec<String>, String> {
             }
 
             for path in files {
-                if let Ok(data) = fs::read(&path) {
-                    for name in parse_font_family_names(&data) {
+                if let Ok(font_names) = parse_font_family_names_file(&path) {
+                    for name in font_names {
                         names.insert(name);
                     }
                 }
@@ -321,4 +321,73 @@ pub async fn save_theme_font(
         .map_err(|e| format!("Failed to write font file: {e}"))?;
 
     Ok(file_path.to_string_lossy().to_string())
+}
+
+use std::io::{Seek, SeekFrom, Read};
+
+fn read_file_u16(file: &mut fs::File, offset: u64) -> Option<u16> {
+    let mut buf = [0u8; 2];
+    file.seek(SeekFrom::Start(offset)).ok()?;
+    file.read_exact(&mut buf).ok()?;
+    Some(u16::from_be_bytes(buf))
+}
+
+fn read_file_u32(file: &mut fs::File, offset: u64) -> Option<u32> {
+    let mut buf = [0u8; 4];
+    file.seek(SeekFrom::Start(offset)).ok()?;
+    file.read_exact(&mut buf).ok()?;
+    Some(u32::from_be_bytes(buf))
+}
+
+fn parse_font_family_names_file(path: &Path) -> Result<Vec<String>, std::io::Error> {
+    let mut file = fs::File::open(path)?;
+    let mut magic = [0u8; 4];
+    file.read_exact(&mut magic)?;
+    
+    if &magic == b"ttcf" {
+        let num_fonts = read_file_u32(&mut file, 8).map(|v| v.min(1024)).unwrap_or(0);
+        let mut names = Vec::new();
+        for index in 0..num_fonts as usize {
+            if let Some(offset) = read_file_u32(&mut file, (12 + index * 4) as u64).map(|v| v as u64) {
+                if let Some(font_names) = parse_sfnt_names_file(&mut file, offset) {
+                    names.extend(font_names);
+                }
+            }
+        }
+        return Ok(names);
+    }
+    
+    if let Some(names) = parse_sfnt_names_file(&mut file, 0) {
+        return Ok(names);
+    }
+    
+    Ok(Vec::new())
+}
+
+fn parse_sfnt_names_file(file: &mut fs::File, base: u64) -> Option<Vec<String>> {
+    let num_tables = read_file_u16(file, base + 4)? as usize;
+    for index in 0..num_tables {
+        let record_offset = base + 12 + (index * 16) as u64;
+        let mut tag = [0u8; 4];
+        file.seek(SeekFrom::Start(record_offset)).ok()?;
+        file.read_exact(&mut tag).ok()?;
+        if &tag != b"name" {
+            continue;
+        }
+        
+        let table_offset = read_file_u32(file, record_offset + 8)? as u64;
+        let table_length = read_file_u32(file, record_offset + 12)? as usize;
+        
+        // table_length sanity check
+        if table_length > 5 * 1024 * 1024 {
+            return None;
+        }
+        
+        let mut table_data = vec![0u8; table_length];
+        file.seek(SeekFrom::Start(table_offset)).ok()?;
+        file.read_exact(&mut table_data).ok()?;
+        
+        return Some(parse_name_table(&table_data, 0, table_length));
+    }
+    None
 }

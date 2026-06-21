@@ -150,8 +150,8 @@ pub async fn save_webdav_device(
         remote_path: input.remote_path,
         created_at: chrono::Utc::now().timestamp(),
     };
-
     state.db.save_webdav_device(&db_device).map_err(|e| e.to_string())?;
+    state.webdav_decrypt_cache.lock().unwrap().remove(&db_device.id);
     Ok(())
 }
 
@@ -161,6 +161,7 @@ pub async fn delete_webdav_device(
     id: String,
 ) -> Result<(), String> {
     state.db.delete_webdav_device(&id).map_err(|e| e.to_string())?;
+    state.webdav_decrypt_cache.lock().unwrap().remove(&id);
     Ok(())
 }
 

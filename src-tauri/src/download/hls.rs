@@ -1,4 +1,3 @@
-use crate::core::state::AppState;
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -6,48 +5,33 @@ use std::path::{Path, PathBuf};
 use reqwest::header::{HeaderMap, HeaderValue, COOKIE, USER_AGENT, REFERER};
 use reqwest::Url;
 use m3u8_rs::Playlist;
-use tauri::Emitter;
 
-fn update_task_error(state: &AppState, gid: &str, error_msg: &str) {
-    log::error!("HLS download error for task {}: {}", gid, error_msg);
-    if let Some(task) = state.task_cache.write().unwrap().get_mut(gid) {
-        task.status = "Failed".to_string();
-        task.error_message = Some(error_msg.to_string());
-        task.completed_at = Some(chrono::Utc::now().timestamp());
-        task.dirty = true;
-    }
-    let _ = state.db.update_task_status(gid, "Failed", Some(chrono::Utc::now().timestamp()));
-    let _ = state.db.update_task_error(gid, Some(error_msg));
-
-    state.hls_speeds.lock().unwrap().remove(gid);
-    state.hls_cancel_tokens.lock().unwrap().remove(gid);
-
-    if let Some(ref app_handle) = *state.app_handle.lock().unwrap() {
-        let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-        let _ = app_handle.emit("play-sound", "warning");
-    }
+#[derive(Debug, Clone)]
+pub struct HlsDownloadConfig {
+    pub ignore_ssl_certificate: bool,
+    pub proxy_url: Option<String>,
+    pub task_thread_count: usize,
 }
 
-fn update_task_completed(state: &AppState, gid: &str) {
-    log::info!("HLS download completed successfully for task {}", gid);
-    if let Some(task) = state.task_cache.write().unwrap().get_mut(gid) {
-        task.status = "Completed".to_string();
-        task.completed_at = Some(chrono::Utc::now().timestamp());
-        task.dirty = true;
-    }
-    let _ = state.db.update_task_status(gid, "Completed", Some(chrono::Utc::now().timestamp()));
-
-    state.hls_speeds.lock().unwrap().remove(gid);
-    state.hls_cancel_tokens.lock().unwrap().remove(gid);
-
-    if let Some(ref app_handle) = *state.app_handle.lock().unwrap() {
-        let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-        let _ = app_handle.emit("play-sound", "success");
-    }
+#[derive(Debug, Clone)]
+pub enum HlsDownloadEvent {
+    Progress {
+        completed_bytes: u64,
+        estimated_total_bytes: u64,
+        speed: u64,
+    },
+    NameUpdated {
+        filename: String,
+    },
+    Completed {
+        final_bytes: u64,
+    },
+    Failed {
+        error_message: String,
+    },
 }
 
 pub async fn download_hls_task(
-    state: Arc<AppState>,
     gid: String,
     url: String,
     save_path: String,
@@ -56,6 +40,8 @@ pub async fn download_hls_task(
     referer: Option<String>,
     cookies: Vec<String>,
     cancel_rx: tokio::sync::watch::Receiver<bool>,
+    config: HlsDownloadConfig,
+    event_tx: tokio::sync::mpsc::UnboundedSender<HlsDownloadEvent>,
 ) {
     let mut headers = HeaderMap::new();
     if let Some(ua) = user_agent {
@@ -75,12 +61,11 @@ pub async fn download_hls_task(
         }
     }
 
-    let settings = state.get_settings();
     let mut client_builder = reqwest::Client::builder()
         .default_headers(headers)
-        .danger_accept_invalid_certs(settings.transfer.ignore_ssl_certificate);
+        .danger_accept_invalid_certs(config.ignore_ssl_certificate);
 
-    if let Some(proxy_str) = settings.transfer.proxy_url.as_ref().filter(|s| !s.trim().is_empty()) {
+    if let Some(proxy_str) = config.proxy_url.as_ref().filter(|s| !s.trim().is_empty()) {
         if let Ok(proxy) = reqwest::Proxy::all(proxy_str) {
             client_builder = client_builder.proxy(proxy);
         }
@@ -89,7 +74,9 @@ pub async fn download_hls_task(
     let client = match client_builder.build() {
         Ok(c) => c,
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Failed to build HTTP client: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Failed to build HTTP client: {e}"),
+            });
             return;
         }
     };
@@ -97,15 +84,19 @@ pub async fn download_hls_task(
     let current_url = match Url::parse(&url) {
         Ok(u) => u,
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Invalid URL: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Invalid URL: {e}"),
+            });
             return;
         }
     };
 
-    let res = match super::apply_basic_auth_if_present(client.get(current_url.as_str()), current_url.as_str()).send().await {
+    let res = match crate::download::apply_basic_auth_if_present(client.get(current_url.as_str()), current_url.as_str()).send().await {
         Ok(r) => r,
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Failed to fetch playlist: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Failed to fetch playlist: {e}"),
+            });
             return;
         }
     };
@@ -113,7 +104,9 @@ pub async fn download_hls_task(
     let playlist_bytes = match res.bytes().await {
         Ok(b) => b,
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Failed to read playlist bytes: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Failed to read playlist bytes: {e}"),
+            });
             return;
         }
     };
@@ -121,7 +114,9 @@ pub async fn download_hls_task(
     let playlist = match m3u8_rs::parse_playlist(&playlist_bytes) {
         Ok((_, p)) => p,
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Failed to parse playlist: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Failed to parse playlist: {e}"),
+            });
             return;
         }
     };
@@ -134,13 +129,17 @@ pub async fn download_hls_task(
                     match current_url.join(&variant.uri) {
                         Ok(u) => u,
                         Err(e) => {
-                            update_task_error(&state, &gid, &format!("Failed to resolve variant URL: {e}"));
+                            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                                error_message: format!("Failed to resolve variant URL: {e}"),
+                            });
                             return;
                         }
                     }
                 }
                 None => {
-                    update_task_error(&state, &gid, "Master playlist contains no variants");
+                    let _ = event_tx.send(HlsDownloadEvent::Failed {
+                        error_message: "Master playlist contains no variants".to_string(),
+                    });
                     return;
                 }
             }
@@ -149,17 +148,21 @@ pub async fn download_hls_task(
     };
 
     let media_playlist_bytes = if media_url != current_url {
-        let res = match super::apply_basic_auth_if_present(client.get(media_url.as_str()), media_url.as_str()).send().await {
+        let res = match crate::download::apply_basic_auth_if_present(client.get(media_url.as_str()), media_url.as_str()).send().await {
             Ok(r) => r,
             Err(e) => {
-                update_task_error(&state, &gid, &format!("Failed to fetch media playlist: {e}"));
+                let _ = event_tx.send(HlsDownloadEvent::Failed {
+                    error_message: format!("Failed to fetch media playlist: {e}"),
+                });
                 return;
             }
         };
         match res.bytes().await {
             Ok(b) => b,
             Err(e) => {
-                update_task_error(&state, &gid, &format!("Failed to read media playlist: {e}"));
+                let _ = event_tx.send(HlsDownloadEvent::Failed {
+                    error_message: format!("Failed to read media playlist: {e}"),
+                });
                 return;
             }
         }
@@ -170,11 +173,15 @@ pub async fn download_hls_task(
     let media_playlist = match m3u8_rs::parse_playlist(&media_playlist_bytes) {
         Ok((_, Playlist::MediaPlaylist(media))) => media,
         Ok((_, Playlist::MasterPlaylist(_))) => {
-            update_task_error(&state, &gid, "Expected media playlist but got master playlist");
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: "Expected media playlist but got master playlist".to_string(),
+            });
             return;
         }
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Failed to parse media playlist: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Failed to parse media playlist: {e}"),
+            });
             return;
         }
     };
@@ -193,15 +200,15 @@ pub async fn download_hls_task(
                     actual_filename.push_str(".mp4");
                 }
 
-                // Update name in cache
-                if let Some(task) = state.task_cache.write().unwrap().get_mut(&gid) {
-                    task.name = actual_filename.clone();
-                }
-                // Update name in DB
-                let _ = state.db.update_task_name(&gid, &actual_filename);
+                // Notify outer system of the filename update
+                let _ = event_tx.send(HlsDownloadEvent::NameUpdated {
+                    filename: actual_filename.clone(),
+                });
             }
             Err(e) => {
-                update_task_error(&state, &gid, &format!("Failed to resolve init section URL: {e}"));
+                let _ = event_tx.send(HlsDownloadEvent::Failed {
+                    error_message: format!("Failed to resolve init section URL: {e}"),
+                });
                 return;
             }
         }
@@ -212,14 +219,18 @@ pub async fn download_hls_task(
         match media_url.join(&seg.uri) {
             Ok(u) => segments.push(u),
             Err(e) => {
-                update_task_error(&state, &gid, &format!("Failed to resolve segment URL: {e}"));
+                let _ = event_tx.send(HlsDownloadEvent::Failed {
+                    error_message: format!("Failed to resolve segment URL: {e}"),
+                });
                 return;
             }
         }
     }
 
     if segments.is_empty() {
-        update_task_error(&state, &gid, "No download segments found in playlist");
+        let _ = event_tx.send(HlsDownloadEvent::Failed {
+            error_message: "No download segments found in playlist".to_string(),
+        });
         return;
     }
 
@@ -228,7 +239,9 @@ pub async fn download_hls_task(
     let temp_dir = PathBuf::from(format!("{}.pidown_tmp", original_final_file_path.to_string_lossy()));
 
     if let Err(e) = std::fs::create_dir_all(&temp_dir) {
-        update_task_error(&state, &gid, &format!("Failed to create temporary directory: {e}"));
+        let _ = event_tx.send(HlsDownloadEvent::Failed {
+            error_message: format!("Failed to create temporary directory: {e}"),
+        });
         return;
     }
 
@@ -238,22 +251,28 @@ pub async fn download_hls_task(
     let init_path = temp_dir.join("init");
     if let Some(u) = init_url {
         if !init_path.exists() {
-            let res = match super::apply_basic_auth_if_present(client.get(u.as_str()), u.as_str()).send().await {
+            let res = match crate::download::apply_basic_auth_if_present(client.get(u.as_str()), u.as_str()).send().await {
                 Ok(r) => r,
                 Err(e) => {
-                    update_task_error(&state, &gid, &format!("Failed to fetch init section: {e}"));
+                    let _ = event_tx.send(HlsDownloadEvent::Failed {
+                        error_message: format!("Failed to fetch init section: {e}"),
+                    });
                     return;
                 }
             };
             let init_bytes = match res.bytes().await {
                 Ok(b) => b,
                 Err(e) => {
-                    update_task_error(&state, &gid, &format!("Failed to read init section bytes: {e}"));
+                    let _ = event_tx.send(HlsDownloadEvent::Failed {
+                        error_message: format!("Failed to read init section bytes: {e}"),
+                    });
                     return;
                 }
             };
             if let Err(e) = std::fs::write(&init_path, &init_bytes) {
-                update_task_error(&state, &gid, &format!("Failed to write init section: {e}"));
+                let _ = event_tx.send(HlsDownloadEvent::Failed {
+                    error_message: format!("Failed to write init section: {e}"),
+                });
                 return;
             }
         }
@@ -286,14 +305,19 @@ pub async fn download_hls_task(
         total_segments as u64 * 1_000_000
     };
 
-    state.sync_hls_progress(&gid, initial_completed_bytes, estimated_total_bytes);
+    // Emit initial progress
+    let _ = event_tx.send(HlsDownloadEvent::Progress {
+        completed_bytes: initial_completed_bytes,
+        estimated_total_bytes,
+        speed: 0,
+    });
 
     let completed_segments_counter = Arc::new(std::sync::atomic::AtomicUsize::new(completed_segments_count));
     let last_emit_time = Arc::new(Mutex::new(std::time::Instant::now() - std::time::Duration::from_secs(10)));
 
     let completed_bytes_clone = Arc::clone(&completed_bytes);
-    let state_clone = Arc::clone(&state);
-    let gid_clone = gid.clone();
+    let event_tx_clone = event_tx.clone();
+    let completed_segments_counter_clone = Arc::clone(&completed_segments_counter);
     let monitor_handle = tokio::spawn(async move {
         let mut last_bytes = completed_bytes_clone.load(Ordering::Relaxed);
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(1));
@@ -302,29 +326,34 @@ pub async fn download_hls_task(
             let current_bytes = completed_bytes_clone.load(Ordering::Relaxed);
             let speed = current_bytes.saturating_sub(last_bytes);
             last_bytes = current_bytes;
-            state_clone.hls_speeds.lock().unwrap().insert(gid_clone.clone(), speed);
+            
+            // Periodically emit progress and speed
+            let done = completed_segments_counter_clone.load(Ordering::Relaxed);
+            let total = total_segments;
+            let est = if done > 0 {
+                (current_bytes as f64 / done as f64 * total as f64) as u64
+            } else {
+                total as u64 * 1_000_000
+            };
+            let _ = event_tx_clone.send(HlsDownloadEvent::Progress {
+                completed_bytes: current_bytes,
+                estimated_total_bytes: est,
+                speed,
+            });
         }
     });
 
-    struct CleanupGuard {
-        state: Arc<AppState>,
-        gid: String,
-        monitor_handle: tokio::task::JoinHandle<()>,
+    struct MonitorGuard {
+        handle: tokio::task::JoinHandle<()>,
     }
-    impl Drop for CleanupGuard {
+    impl Drop for MonitorGuard {
         fn drop(&mut self) {
-            self.monitor_handle.abort();
-            self.state.hls_speeds.lock().unwrap().remove(&self.gid);
-            self.state.hls_cancel_tokens.lock().unwrap().remove(&self.gid);
+            self.handle.abort();
         }
     }
-    let _cleanup_guard = CleanupGuard {
-        state: Arc::clone(&state),
-        gid: gid.clone(),
-        monitor_handle,
-    };
+    let _monitor_guard = MonitorGuard { handle: monitor_handle };
 
-    let max_connections = state.get_settings().transfer.task_thread_count.clamp(1, 16) as usize;
+    let max_connections = config.task_thread_count.clamp(1, 16);
     let semaphore = Arc::new(tokio::sync::Semaphore::new(max_connections));
     let download_error = Arc::new(Mutex::new(None));
     let mut join_set = tokio::task::JoinSet::new();
@@ -341,8 +370,7 @@ pub async fn download_hls_task(
         let cancel_rx = cancel_rx.clone();
         let completed_bytes = Arc::clone(&completed_bytes);
         let download_error = Arc::clone(&download_error);
-        let state = Arc::clone(&state);
-        let gid = gid.clone();
+        let event_tx = event_tx.clone();
         let total_segments = total_segments;
         let completed_segments_counter = Arc::clone(&completed_segments_counter);
         let last_emit_time = Arc::clone(&last_emit_time);
@@ -364,7 +392,7 @@ pub async fn download_hls_task(
             let seg_path = temp_dir.join(format!("{}.ts", i));
             let seg_path_tmp = temp_dir.join(format!("{}.ts.tmp", i));
 
-            let request = super::apply_basic_auth_if_present(client.get(seg_url.as_str()), seg_url.as_str());
+            let request = crate::download::apply_basic_auth_if_present(client.get(seg_url.as_str()), seg_url.as_str());
             let mut response = match request.send().await {
                 Ok(resp) => resp,
                 Err(e) => {
@@ -437,8 +465,6 @@ pub async fn download_hls_task(
             let cur_bytes = completed_bytes.load(Ordering::Relaxed);
             let estimated_total = (cur_bytes as f64 / done_count as f64 * total_segments as f64) as u64;
 
-            state.sync_hls_progress(&gid, cur_bytes, estimated_total);
-
             let should_emit = {
                 let mut last = last_emit_time.lock().unwrap();
                 let now = std::time::Instant::now();
@@ -451,9 +477,11 @@ pub async fn download_hls_task(
             };
 
             if should_emit {
-                if let Some(ref app_handle) = *state.app_handle.lock().unwrap() {
-                    let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
-                }
+                let _ = event_tx.send(HlsDownloadEvent::Progress {
+                    completed_bytes: cur_bytes,
+                    estimated_total_bytes: estimated_total,
+                    speed: 0, // let monitor handle speed, or compute
+                });
             }
         });
     }
@@ -473,7 +501,9 @@ pub async fn download_hls_task(
     }
 
     if let Some(err_msg) = download_error.lock().unwrap().clone() {
-        update_task_error(&state, &gid, &err_msg);
+        let _ = event_tx.send(HlsDownloadEvent::Failed {
+            error_message: err_msg,
+        });
         return;
     }
 
@@ -531,14 +561,17 @@ pub async fn download_hls_task(
         Ok(Ok(())) => {
             let _ = std::fs::remove_dir_all(&temp_dir);
             let final_bytes = completed_bytes.load(Ordering::Relaxed);
-            state.sync_hls_progress(&gid, final_bytes, final_bytes);
-            update_task_completed(&state, &gid);
+            let _ = event_tx.send(HlsDownloadEvent::Completed { final_bytes });
         }
         Ok(Err(e)) => {
-            update_task_error(&state, &gid, &e);
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: e,
+            });
         }
         Err(e) => {
-            update_task_error(&state, &gid, &format!("Merge thread panicked: {e}"));
+            let _ = event_tx.send(HlsDownloadEvent::Failed {
+                error_message: format!("Merge thread panicked: {e}"),
+            });
         }
     }
 }

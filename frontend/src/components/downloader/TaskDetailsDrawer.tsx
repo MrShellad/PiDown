@@ -24,7 +24,7 @@ import {
 import { UI_TEXT } from "@/core/locale"
 import { formatDateTime } from "@/core/datetime"
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
-import type { Category, Task } from "@/core/store/useDownloadStore"
+import type { Task } from "@/core/store/useDownloadStore"
 import { useDownloadStore } from "@/core/store/useDownloadStore"
 import { useToastStore } from "@/core/store/useToastStore"
 import { cn } from "@/lib/utils"
@@ -33,8 +33,7 @@ import TaskRestartConfirmDialog from "./TaskRestartConfirmDialog"
 
 interface TaskDetailsDrawerProps {
   open: boolean
-  task?: Task | null
-  category?: Category | null
+  gid?: string | null
   selectedTaskCount?: number
   onOpenChange: (open: boolean) => void
   onDeleteClick?: (gid: string) => void
@@ -102,8 +101,7 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 export default function TaskDetailsDrawer({
   open,
-  task,
-  category,
+  gid,
   selectedTaskCount = 0,
   onOpenChange,
   onDeleteClick,
@@ -111,6 +109,12 @@ export default function TaskDetailsDrawer({
   const [activeTab, setActiveTab] = useState(0)
   const datetimeFormat = useAppSettingsStore((state) => state.settings?.interface?.datetime_format)
   const drawerRef = useRef<HTMLElement | null>(null)
+
+  const task = useDownloadStore((state) => gid ? state.tasks[gid] : null)
+  const category = useDownloadStore((state) => {
+    if (!task || task.categoryId == null) return null
+    return state.categories.find((c) => c.id === task.categoryId) ?? null
+  })
 
   useEffect(() => {
     if (!open) return

@@ -116,7 +116,7 @@ impl super::DbStore {
     }
 
     pub fn get_task(&self, id: &str) -> Result<Option<DbTask>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks
@@ -153,7 +153,7 @@ impl super::DbStore {
         &self,
         engine_id: &str,
     ) -> Result<Option<DbTask>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks
@@ -187,7 +187,7 @@ impl super::DbStore {
     }
 
     pub fn get_all_tasks(&self) -> Result<Vec<DbTask>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, engine_id, name, url, protocol, save_path, total_size, completed_size, status, category_id, created_at, started_at, completed_at, error_message, max_download_speed_kib, max_upload_speed_kib
              FROM tasks

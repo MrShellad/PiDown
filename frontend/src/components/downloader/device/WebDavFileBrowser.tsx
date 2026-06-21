@@ -65,6 +65,7 @@ import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { MediaPlayer, MediaProvider } from "@vidstack/react";
 import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
 import { listen } from "@tauri-apps/api/event";
+import { motion } from "motion/react";
 
 interface WebDavFileBrowserProps {
   device: WebDavDevice;
@@ -74,6 +75,38 @@ interface WebDavFileBrowserProps {
 type ViewMode = "grid" | "list";
 
 const columnHelper = createColumnHelper<WebDavFile>();
+
+function WebDavContextMenuTitle({ name, isDir }: { name: string; isDir: boolean }) {
+  const shouldScroll = name.length > 20;
+
+  return (
+    <div className="mx-1 mb-1 rounded-md bg-muted/80 px-3 py-2 shadow-surface-inset select-none">
+      <span className="mb-0.5 block text-[10px] font-bold tracking-wide text-muted-foreground">
+        {isDir ? "当前文件夹" : "当前文件"}
+      </span>
+      <div className="relative overflow-hidden w-full">
+        {shouldScroll ? (
+          <motion.div
+            className="flex w-max gap-8 whitespace-nowrap text-xs font-semibold leading-5 text-foreground"
+            animate={{ x: ["0%", "-50%"] }}
+            transition={{
+              duration: Math.min(15, Math.max(6, name.length * 0.22)),
+              ease: "linear",
+              repeat: Infinity,
+            }}
+          >
+            <span>{name}</span>
+            <span aria-hidden="true">{name}</span>
+          </motion.div>
+        ) : (
+          <span className="block truncate text-xs font-semibold leading-5 text-foreground">
+            {name}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserProps) {
   const baseSubpath = useMemo(() => {
@@ -119,6 +152,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   // Video player state
   const [playOpen, setPlayOpen] = useState(false);
   const [playUrl, setPlayUrl] = useState("");
+  const [contextMenuPath, setContextMenuPath] = useState<string | null>(null);
   const [playTitle, setPlayTitle] = useState("");
   const [previewMode, setPreviewMode] = useState<"none" | "dialog" | "page">("none");
   const [currentPlayingFile, setCurrentPlayingFile] = useState<WebDavFile | null>(null);
@@ -960,12 +994,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                       if (!row) return null;
                       const isSelected = selectedPaths.has(row.original.path);
                       return (
-                        <ContextMenu key={row.id}>
+                        <ContextMenu key={row.id} onOpenChange={(open) => setContextMenuPath(open ? row.original.path : null)}>
                           <ContextMenuTrigger asChild>
                             <TableRow
                               className={cn(
-                                "hover:bg-muted cursor-default transition-colors border-b border-border/40 last:border-b-0 h-12",
-                                (row.original.is_dir || isVideoFile(row.original.name)) ? "cursor-pointer text-foreground hover:text-primary" : ""
+                                "hover:bg-muted/70 cursor-default transition-colors border-b border-border/40 last:border-b-0 h-12 relative z-0",
+                                (row.original.is_dir || isVideoFile(row.original.name)) ? "cursor-pointer text-foreground hover:text-primary" : "",
+                                contextMenuPath === row.original.path && "bg-primary/10 text-primary border-y border-primary/25 z-10 relative"
                               )}
                               onClick={() => {
                                 if (row.original.is_dir) {
@@ -982,10 +1017,10 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                                   <TableCell
                                     key={cell.id}
                                     className={cn(
-                                      "py-3 px-3 border-r border-border/20 last:border-r-0 transition-colors",
+                                      "py-3 px-3 border-r border-border/35 last:border-r-0 transition-colors",
                                       isName ? "w-auto text-left pl-6" : "text-center",
                                       isName ? "" : isSize ? "w-32" : "w-48",
-                                      isSelected ? "bg-muted" : ""
+                                      isSelected && contextMenuPath !== row.original.path ? "bg-primary/8 text-primary font-medium" : ""
                                     )}
                                   >
                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -995,6 +1030,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                             </TableRow>
                           </ContextMenuTrigger>
                           <ContextMenuContent className="w-52">
+                            <WebDavContextMenuTitle name={row.original.name} isDir={row.original.is_dir} />
+                            <ContextMenuSeparator />
                             {!row.original.is_dir && (
                               <ContextMenuItem
                                 onSelect={() => handleDownloadFile(row.original)}
@@ -1034,7 +1071,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
               ) : (
                 <div className="flex flex-wrap gap-4 justify-start p-4">
                   {files.map((file) => (
-                    <ContextMenu key={file.path}>
+                    <ContextMenu key={file.path} onOpenChange={(open) => setContextMenuPath(open ? file.path : null)}>
                       <ContextMenuTrigger asChild>
                         <div
                           onClick={() => {
@@ -1046,7 +1083,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                           }}
                           className={cn(
                             "flex flex-col items-center justify-center p-3 rounded-xl border border-border bg-background w-24 h-24 hover:border-primary hover:bg-muted transition-all select-none text-center cursor-default group",
-                            (file.is_dir || isVideoFile(file.name)) ? "cursor-pointer hover:text-primary" : ""
+                            (file.is_dir || isVideoFile(file.name)) ? "cursor-pointer hover:text-primary" : "",
+                            contextMenuPath === file.path && "bg-primary/10 border-primary text-primary shadow-sm scale-[1.01]"
                           )}
                         >
                           <div className="mb-2 shrink-0">
@@ -1064,6 +1102,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                         </div>
                       </ContextMenuTrigger>
                       <ContextMenuContent className="w-52">
+                        <WebDavContextMenuTitle name={file.name} isDir={file.is_dir} />
+                        <ContextMenuSeparator />
                         {!file.is_dir && (
                           <ContextMenuItem
                             onSelect={() => handleDownloadFile(file)}

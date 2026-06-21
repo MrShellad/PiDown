@@ -25,7 +25,7 @@ function ContextMenuContent({
       <ContextMenuPrimitive.Content
         data-slot="context-menu-content"
         className={cn(
-          "z-[200] min-w-60 overflow-hidden rounded-lg bg-popover p-1.5 text-popover-foreground shadow-surface-strong data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1",
+          "z-[200] min-w-60 overflow-hidden rounded-lg border border-border/90 bg-popover/98 backdrop-blur-md p-1.5 text-popover-foreground shadow-2xl ring-1 ring-black/8 dark:ring-white/12 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[side=bottom]:slide-in-from-top-1 data-[side=top]:slide-in-from-bottom-1",
           className
         )}
         {...props}
@@ -46,7 +46,7 @@ function ContextMenuItem({
       data-slot="context-menu-item"
       data-variant={variant}
       className={cn(
-        "group/context-menu-item relative flex h-10 cursor-default select-none items-center gap-3 rounded-md px-3 text-sm leading-5 outline-none transition-colors focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10",
+        "group/context-menu-item relative flex h-10 cursor-default select-none items-center gap-3 rounded-md px-3 text-sm leading-5 outline-none transition-colors focus:bg-primary/10 focus:text-primary dark:focus:bg-primary/20 dark:focus:text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-40 data-[variant=destructive]:text-destructive data-[variant=destructive]:focus:bg-destructive/10",
         className
       )}
       {...props}
@@ -61,7 +61,7 @@ function ContextMenuSeparator({
   return (
     <ContextMenuPrimitive.Separator
       data-slot="context-menu-separator"
-      className={cn("-mx-1 my-1 h-px bg-border/70", className)}
+      className={cn("-mx-1 my-1 h-px bg-border dark:bg-border/25", className)}
       {...props}
     />
   )
@@ -93,7 +93,7 @@ function ContextMenuSubTrigger({
     <ContextMenuPrimitive.SubTrigger
       data-slot="context-menu-sub-trigger"
       className={cn(
-        "flex h-10 cursor-default select-none items-center gap-3 rounded-md px-3 text-sm leading-5 outline-none transition-colors focus:bg-muted data-[state=open]:bg-muted",
+        "flex h-10 cursor-default select-none items-center gap-3 rounded-md px-3 text-sm leading-5 outline-none transition-colors focus:bg-primary/10 focus:text-primary dark:focus:bg-primary/20 dark:focus:text-primary data-[state=open]:bg-primary/10 data-[state=open]:text-primary dark:data-[state=open]:bg-primary/20 dark:data-[state=open]:text-primary",
         className
       )}
       {...props}
@@ -113,7 +113,7 @@ function ContextMenuSubContent({
       <ContextMenuPrimitive.SubContent
         data-slot="context-menu-sub-content"
         className={cn(
-          "z-[200] min-w-52 overflow-hidden rounded-lg bg-popover p-1.5 text-popover-foreground shadow-surface-strong data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
+          "z-[200] min-w-52 overflow-hidden rounded-lg border border-border/90 bg-popover/98 backdrop-blur-md p-1.5 text-popover-foreground shadow-2xl ring-1 ring-black/8 dark:ring-white/12 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0",
           className
         )}
         {...props}
@@ -135,7 +135,7 @@ function ContextMenuRadioItem({
     <ContextMenuPrimitive.RadioItem
       data-slot="context-menu-radio-item"
       className={cn(
-        "relative flex h-10 cursor-default select-none items-center rounded-md pr-3 pl-8 text-sm leading-5 outline-none transition-colors focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+        "relative flex h-10 cursor-default select-none items-center rounded-md pr-3 pl-8 text-sm leading-5 outline-none transition-colors focus:bg-primary/10 focus:text-primary dark:focus:bg-primary/20 dark:focus:text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
         className
       )}
       {...props}
@@ -173,7 +173,7 @@ function ContextMenuCheckboxItem({
     <ContextMenuPrimitive.CheckboxItem
       data-slot="context-menu-checkbox-item"
       className={cn(
-        "relative flex h-10 cursor-default select-none items-center rounded-md pr-3 pl-8 text-sm leading-5 outline-none transition-colors focus:bg-muted data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
+        "relative flex h-10 cursor-default select-none items-center rounded-md pr-3 pl-8 text-sm leading-5 outline-none transition-colors focus:bg-primary/10 focus:text-primary dark:focus:bg-primary/20 dark:focus:text-primary data-[disabled]:pointer-events-none data-[disabled]:opacity-40",
         className
       )}
       checked={checked}

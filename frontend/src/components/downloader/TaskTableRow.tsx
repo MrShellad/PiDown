@@ -16,14 +16,12 @@ import { IconPreview } from "@/components/ui/icon-picker"
 import { formatDateTime } from "@/core/datetime"
 import { useTaskSpeed } from "@/core/hooks/useTaskSpeed"
 import { UI_TEXT } from "@/core/locale"
-import { useAppSettingsStore } from "@/core/store/useAppSettingsStore"
 import { useDownloadStore, type Category, type Task } from "@/core/store/useDownloadStore"
 import {
   type TaskTableColumnId,
-  useTaskTableStore,
+  type TaskTableColumnState,
 } from "@/core/store/useTaskTableStore"
 import {
-  getTaskTableWidth,
   TASK_TABLE_SELECT_COLUMN_WIDTH,
   TASK_TABLE_SETTINGS_COLUMN_WIDTH,
 } from "@/core/taskTableLayout"
@@ -35,8 +33,8 @@ import TaskRestartConfirmDialog from "./TaskRestartConfirmDialog"
 
 interface TaskTableRowProps {
   gid: string
+  exitingTask?: Task | null
   animateEntry?: boolean
-  taskSnapshot?: Task
   selected?: boolean
   detailsOpen?: boolean
   onSelect?: (gid: string) => void
@@ -44,6 +42,15 @@ interface TaskTableRowProps {
   onOpenDetails?: (gid: string) => void
   selectionMode?: boolean
   table: Table<Task>
+  categories: Category[]
+  toggleTask: (gid: string) => Promise<void>
+  removeTask: (gid: string, deleteFiles?: boolean) => Promise<void>
+  openTaskFile: (gid: string) => Promise<void>
+  openTaskFolder: (gid: string) => Promise<void>
+  restartTask: (gid: string) => Promise<void>
+  columns: TaskTableColumnState[]
+  tableWidth: number
+  datetimeFormat?: string
 }
 
 function statusText(status: Task["status"]) {
@@ -319,8 +326,8 @@ function Cell({
 
 const TaskTableRow = memo(function TaskTableRow({
   gid,
+  exitingTask = null,
   animateEntry = false,
-  taskSnapshot,
   selected = false,
   detailsOpen = false,
   onSelect,
@@ -328,24 +335,25 @@ const TaskTableRow = memo(function TaskTableRow({
   onOpenDetails,
   selectionMode = false,
   table,
+  categories,
+  toggleTask,
+  removeTask,
+  openTaskFile,
+  openTaskFolder,
+  restartTask,
+  columns,
+  tableWidth,
+  datetimeFormat,
 }: TaskTableRowProps) {
   const [contextMenuOpen, setContextMenuOpen] = useState(false)
   const [checksumOpen, setChecksumOpen] = useState(false)
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [restartConfirmOpen, setRestartConfirmOpen] = useState(false)
+  
   const storeTask = useDownloadStore((state) => state.tasks[gid])
-  const categories = useDownloadStore((state) => state.categories)
-  const toggleTask = useDownloadStore((state) => state.toggleTask)
-  const removeTask = useDownloadStore((state) => state.removeTask)
-  const openTaskFile = useDownloadStore((state) => state.openTaskFile)
-  const openTaskFolder = useDownloadStore((state) => state.openTaskFolder)
-  const restartTask = useDownloadStore((state) => state.restartTask)
-  const columns = useTaskTableStore((state) => state.columns)
+  const task = storeTask ?? exitingTask
   const { speedStr, progress, etaStr, downloadedStr, totalStr } = useTaskSpeed(gid)
-  const tableWidth = getTaskTableWidth(columns)
-  const datetimeFormat = useAppSettingsStore((state) => state.settings?.interface?.datetime_format)
 
-  const task = storeTask ?? taskSnapshot
   if (!task) return null
 
   const category = categories.find((item) => item.id === task.categoryId)
@@ -388,7 +396,7 @@ const TaskTableRow = memo(function TaskTableRow({
           onContextMenu={() => onContextSelect?.(gid)}
           className={cn(
             "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-task-row text-sm leading-5 transition-colors hover:bg-task-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
-            contextMenuOpen && "bg-task-row-hover"
+            contextMenuOpen && "bg-primary/8 ring-1.5 ring-primary/30 z-20"
           )}
           style={{ width: `${tableWidth}px` }}
         >

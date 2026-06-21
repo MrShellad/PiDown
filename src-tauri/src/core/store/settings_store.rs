@@ -3,7 +3,7 @@ use rusqlite::params;
 #[allow(dead_code)]
 impl super::DbStore {
     pub fn get_setting(&self, key: &str) -> Result<Option<String>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare("SELECT value FROM settings WHERE key = ?1")?;
         let mut rows = stmt.query(params![key])?;
 

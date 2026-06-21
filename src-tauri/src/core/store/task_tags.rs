@@ -23,7 +23,7 @@ impl super::DbStore {
     }
 
     pub fn get_task_tags(&self, task_id: &str) -> Result<Vec<DbTag>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT t.id, t.category_id, t.name, t.icon, t.color, t.rules_json, t.save_path
              FROM tags t
@@ -50,7 +50,7 @@ impl super::DbStore {
     }
 
     pub fn get_all_task_tags_mappings(&self) -> Result<Vec<(String, i64)>, rusqlite::Error> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare("SELECT task_id, tag_id FROM task_tags")?;
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))

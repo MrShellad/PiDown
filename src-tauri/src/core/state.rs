@@ -19,8 +19,8 @@ use std::time::Instant;
 use gosh_dl::DownloadId;
 
 pub struct AppState {
-    pub engine: EngineWrapper,
-    pub db: DbStore,
+    pub engine: Arc<EngineWrapper>,
+    pub db: Arc<dyn crate::core::store::repository::TaskRepository>,
     settings: RwLock<AppSettings>,
     settings_file: PathBuf,
     settings_created_at: RwLock<i64>,
@@ -32,19 +32,22 @@ pub struct AppState {
     pub(crate) hls_speeds: Mutex<HashMap<String, u64>>,
     pub(crate) app_handle: Mutex<Option<tauri::AppHandle>>,
     pub(crate) webdav_status_cache: Mutex<HashMap<String, (String, String, String, Option<f64>)>>,
+    pub(crate) webdav_decrypt_cache: Mutex<HashMap<String, (String, [u8; 32])>>,
     pub(crate) video_cache: Mutex<Option<VideoCache>>,
+    pub(crate) http_client: reqwest::Client,
+    pub(crate) providers: HashMap<String, Arc<dyn crate::download::provider::DownloadProvider>>,
 }
 
 impl AppState {
     pub async fn new(app_data_dir: &Path, default_save_dir: &Path) -> Result<Arc<Self>, String> {
         let db_path = app_data_dir.join("pidown.db");
-        let db = DbStore::new(&db_path).map_err(|e| format!("Database error: {e}"))?;
+        let db_concrete = DbStore::new(&db_path).map_err(|e| format!("Database error: {e}"))?;
         let settings_file = app_data_dir.join(APP_SETTINGS_FILE_NAME);
 
         let mut settings_doc = match std::fs::read_to_string(&settings_file) {
             Ok(raw) => serde_json::from_str::<AppSettingsDocument>(&raw)
-                .unwrap_or_else(|_| AppSettingsDocument::new(load_legacy_settings(&db))),
-            Err(_) => AppSettingsDocument::new(load_legacy_settings(&db)),
+                .unwrap_or_else(|_| AppSettingsDocument::new(load_legacy_settings(&db_concrete))),
+            Err(_) => AppSettingsDocument::new(load_legacy_settings(&db_concrete)),
         };
         settings_doc.normalize(default_save_dir);
         let settings = settings_doc.settings.clone();
@@ -55,32 +58,51 @@ impl AppState {
             proxy_url: settings.transfer.proxy_url.clone(),
             user_agent: settings.download.global_user_agent.clone(),
         };
-        let engine = EngineWrapper::new(Some(app_data_dir), Some(engine_http_config)).await?;
+        let engine = Arc::new(EngineWrapper::new(Some(app_data_dir), Some(engine_http_config)).await?);
+        let http_client = reqwest::Client::builder()
+            .danger_accept_invalid_certs(true)
+            .build()
+            .map_err(|e| format!("Failed to build HTTP client: {e}"))?;
 
         // Load tasks from database into cache
-        let db_tasks = db.get_all_tasks().map_err(|e| e.to_string())?;
+        let db_tasks = db_concrete.get_all_tasks().map_err(|e| e.to_string())?;
         let mut cache = HashMap::new();
         for task in db_tasks {
             cache.insert(task.id.clone(), task);
         }
 
         let settings_created_at = settings_doc.created_at;
+        let db = Arc::new(db_concrete) as Arc<dyn crate::core::store::repository::TaskRepository>;
 
-        let state = Arc::new(Self {
-            engine,
-            db,
-            settings: RwLock::new(settings),
-            settings_file: settings_file.to_path_buf(),
-            settings_created_at: RwLock::new(settings_created_at),
-            gid_cache: Mutex::new(HashMap::new()),
-            progress_throttle: Mutex::new(HashMap::new()),
-            task_cache: RwLock::new(cache),
-            config_mutex: tokio::sync::Mutex::new(()),
-            hls_cancel_tokens: Mutex::new(HashMap::new()),
-            hls_speeds: Mutex::new(HashMap::new()),
-            app_handle: Mutex::new(None),
-            webdav_status_cache: Mutex::new(HashMap::new()),
-            video_cache: Mutex::new(None),
+        let state = Arc::new_cyclic(|me| {
+            let gosh_provider = Arc::new(crate::download::gosh_provider::GoshDownloadProvider::new(engine.clone()))
+                as Arc<dyn crate::download::provider::DownloadProvider>;
+            let hls_provider = Arc::new(crate::download::hls_provider::HlsDownloadProvider::new(me.clone()))
+                as Arc<dyn crate::download::provider::DownloadProvider>;
+
+            let mut providers = HashMap::new();
+            providers.insert("gosh".to_string(), gosh_provider);
+            providers.insert("hls".to_string(), hls_provider);
+
+            Self {
+                engine,
+                db,
+                settings: RwLock::new(settings),
+                settings_file: settings_file.to_path_buf(),
+                settings_created_at: RwLock::new(settings_created_at),
+                gid_cache: Mutex::new(HashMap::new()),
+                progress_throttle: Mutex::new(HashMap::new()),
+                task_cache: RwLock::new(cache),
+                config_mutex: tokio::sync::Mutex::new(()),
+                hls_cancel_tokens: Mutex::new(HashMap::new()),
+                hls_speeds: Mutex::new(HashMap::new()),
+                app_handle: Mutex::new(None),
+                webdav_status_cache: Mutex::new(HashMap::new()),
+                webdav_decrypt_cache: Mutex::new(HashMap::new()),
+                video_cache: Mutex::new(None),
+                http_client,
+                providers,
+            }
         });
 
         state.persist_settings()?;
@@ -126,7 +148,7 @@ impl AppState {
     }
 }
 
-fn load_legacy_settings(db: &DbStore) -> AppSettings {
+fn load_legacy_settings(db: &dyn crate::core::store::repository::TaskRepository) -> AppSettings {
     match db.get_setting(LEGACY_APP_SETTINGS_KEY) {
         Ok(Some(raw)) => serde_json::from_str::<AppSettings>(&raw).unwrap_or_default(),
         Ok(None) | Err(_) => AppSettings::default(),
@@ -154,7 +176,7 @@ impl VideoCache {
             let block_end = block.start + block.data.len() as u64;
             if start >= block.start && end <= block_end {
                 let offset = (start - block.start) as usize;
-                let length = (end - start) as usize;
+                let length = (end - start + 1) as usize;
                 return Some(block.data[offset..offset + length].to_vec());
             }
         }

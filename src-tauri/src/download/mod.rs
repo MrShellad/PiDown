@@ -3,6 +3,10 @@ pub mod engine;
 pub mod manager;
 pub mod protocol;
 pub mod hls;
+pub mod provider;
+pub mod gosh_provider;
+pub mod hls_provider;
+pub mod protocols;
 
 pub use engine::{DownloadInspection, EngineHttpConfig, EngineWrapper, HttpTaskOptions, TorrentFileInspection};
 #[allow(unused_imports)]

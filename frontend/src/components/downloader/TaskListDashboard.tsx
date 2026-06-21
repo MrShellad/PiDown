@@ -8,9 +8,11 @@ import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 import { filterTaskIds, parseNavFilter, type NavFilter } from "@/core/taskFilters";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
+import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
 import { useReactTable, getCoreRowModel, type ColumnDef } from "@tanstack/react-table";
+import { useShallow } from "zustand/react/shallow";
 import { IconPreview } from "@/components/ui/icon-picker";
 import {
   getTaskTableWidth,
@@ -303,19 +305,34 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     canScrollLeft: false,
     canScrollRight: false,
   });
+  const previousGidsRef = useRef<string[]>([]);
   const previousTasksRef = useRef<Record<string, Task>>({});
   const previousFilteredGidsRef = useRef<string[]>([]);
   const animationTimeoutsRef = useRef<number[]>([]);
 
-  const tasks = useDownloadStore((state) => state.tasks);
+  const taskGids = useDownloadStore(useShallow((state) => Object.keys(state.tasks)));
+  const taskFilterKeys = useDownloadStore(
+    useShallow((state) =>
+      Object.keys(state.tasks)
+        .sort()
+        .map((gid) => {
+          const task = state.tasks[gid];
+          return `${task.gid}_${task.status}_${task.categoryId}_${task.tags?.map((t) => t.id).join(",")}_${task.name}_${task.url}_${task.totalBytes}_${task.createdAt}`;
+        })
+    )
+  );
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
   const toggleTask = useDownloadStore((state) => state.toggleTask);
   const removeTask = useDownloadStore((state) => state.removeTask);
+  const openTaskFile = useDownloadStore((state) => state.openTaskFile);
+  const openTaskFolder = useDownloadStore((state) => state.openTaskFolder);
+  const restartTask = useDownloadStore((state) => state.restartTask);
   const columns = useTaskTableStore((state) => state.columns);
   const sort = useTaskTableStore((state) => state.sort);
   const pageSize = useTaskTableStore((state) => state.pageSize);
   const setPageSize = useTaskTableStore((state) => state.setPageSize);
+  const datetimeFormat = useAppSettingsStore((state) => state.settings?.interface?.datetime_format);
 
 
   const filterContext = useMemo(() => ({ categories, tags }), [categories, tags]);
@@ -324,12 +341,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
 
   const filteredGids = useMemo(
     () => {
-      let gids = filterTaskIds(tasks, activeFilter, filterContext);
+      const currentTasks = useDownloadStore.getState().tasks;
+      let gids = filterTaskIds(currentTasks, activeFilter, filterContext);
 
       if (searchQuery.trim()) {
         const query = searchQuery.trim().toLowerCase();
         gids = gids.filter((gid) => {
-          const task = tasks[gid];
+          const task = currentTasks[gid];
           return task && (
             task.name.toLowerCase().includes(query) ||
             (task.url && task.url.toLowerCase().includes(query))
@@ -342,8 +360,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       return gids
         .map((gid, index) => ({ gid, index }))
         .sort((a, b) => {
-          const taskA = tasks[a.gid];
-          const taskB = tasks[b.gid];
+          const taskA = currentTasks[a.gid];
+          const taskB = currentTasks[b.gid];
           if (!taskA || !taskB) return a.index - b.index;
 
           const result = compareTaskByColumn(taskA, taskB, sort.id);
@@ -352,7 +370,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         })
         .map((item) => item.gid);
     },
-    [tasks, activeFilter, filterContext, sort, searchQuery]
+    [taskFilterKeys, activeFilter, filterContext, sort, searchQuery]
   );
 
   const totalPages = Math.max(1, Math.ceil(filteredGids.length / pageSize));
@@ -380,8 +398,9 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   ], []);
 
   const tableData = useMemo(() => {
-    return paginatedFilteredGids.map((gid) => tasks[gid]).filter((t): t is Task => Boolean(t));
-  }, [paginatedFilteredGids, tasks]);
+    const currentTasks = useDownloadStore.getState().tasks;
+    return paginatedFilteredGids.map((gid) => currentTasks[gid]).filter((t): t is Task => Boolean(t));
+  }, [paginatedFilteredGids]);
 
   const columnVisibility = useMemo(() => {
     const visibility: Record<string, boolean> = {};
@@ -519,17 +538,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       : renderedGids.length * TASK_ROW_HEIGHT + Math.max(0, renderedGids.length - 1) * TASK_ROW_GAP;
   const virtualTopSpacer = visibleRange.startIndex * TASK_ROW_STRIDE;
   const primarySelectedGid = useMemo(() => {
-    if (activeDetailsGid && tasks[activeDetailsGid]) return activeDetailsGid;
+    const currentTasks = useDownloadStore.getState().tasks;
+    if (activeDetailsGid && currentTasks[activeDetailsGid]) return activeDetailsGid;
     for (const gid of selectedTaskIds) {
-      if (tasks[gid]) return gid;
+      if (currentTasks[gid]) return gid;
     }
-    return filteredGids.find((gid) => tasks[gid]) ?? null;
-  }, [filteredGids, selectedTaskIds, tasks, activeDetailsGid]);
-  const detailsTask = primarySelectedGid ? tasks[primarySelectedGid] : null;
-  const detailsCategory =
-    detailsTask?.categoryId == null
-      ? null
-      : categories.find((category) => category.id === detailsTask.categoryId) ?? null;
+    return filteredGids.find((gid) => currentTasks[gid]) ?? null;
+  }, [filteredGids, selectedTaskIds, activeDetailsGid]);
 
   useEffect(() => {
     let disposed = false;
@@ -579,11 +594,11 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   }, [virtualHeight, viewportHeight]);
 
   useEffect(() => {
-    const previousTasks = previousTasksRef.current;
-    const previousTaskIds = new Set(Object.keys(previousTasks));
-    const nextTaskIds = new Set(Object.keys(tasks));
-    const createdTaskIds = [...nextTaskIds].filter((gid) => !previousTaskIds.has(gid));
-    const deletedTaskIds = [...previousTaskIds].filter((gid) => !nextTaskIds.has(gid));
+    const previousGids = previousGidsRef.current;
+    const previousGidSet = new Set(previousGids);
+    const nextGidSet = new Set(taskGids);
+    const createdTaskIds = taskGids.filter((gid) => !previousGidSet.has(gid));
+    const deletedTaskIds = previousGids.filter((gid) => !nextGidSet.has(gid));
 
     if (createdTaskIds.length > 0) {
       setAnimatedTaskIds((current) => {
@@ -608,8 +623,9 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       const nextSnapshots: Record<string, Task> = {};
       const nextPositions: Record<string, number> = {};
 
+      const currentTasks = useDownloadStore.getState().tasks;
       for (const gid of deletedTaskIds) {
-        const snapshot = previousTasks[gid];
+        const snapshot = previousTasksRef.current[gid] || currentTasks[gid];
         const previousIndex = previousFilteredGids.indexOf(gid);
         if (!snapshot || previousIndex < 0) continue;
 
@@ -657,8 +673,9 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       }
     }
 
-    previousTasksRef.current = tasks;
-  }, [tasks]);
+    previousGidsRef.current = taskGids;
+    previousTasksRef.current = useDownloadStore.getState().tasks;
+  }, [taskGids]);
 
   useEffect(() => {
     previousFilteredGidsRef.current = filteredGids;
@@ -719,19 +736,29 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   const singleTaskName = useMemo(() => {
     if (selectedTaskIds.size === 1) {
       const gid = [...selectedTaskIds][0];
-      return tasks[gid]?.name;
+      return useDownloadStore.getState().tasks[gid]?.name;
     }
     return undefined;
-  }, [selectedTaskIds, tasks]);
-  const selectedTasks = [...selectedTaskIds]
-    .map((gid) => tasks[gid])
-    .filter((task): task is Task => Boolean(task));
-  const selectedDownloadableGids = selectedTasks
-    .filter((task) => task.status === "Downloading" || task.status === "Seeding")
-    .map((task) => task.gid);
-  const selectedResumableGids = selectedTasks
-    .filter((task) => task.status === "Paused" || task.status === "Failed")
-    .map((task) => task.gid);
+  }, [selectedTaskIds]);
+
+  const selectedTasks = useMemo(() => {
+    const currentTasks = useDownloadStore.getState().tasks;
+    return [...selectedTaskIds]
+      .map((gid) => currentTasks[gid])
+      .filter((task): task is Task => Boolean(task));
+  }, [selectedTaskIds, taskFilterKeys]);
+
+  const selectedDownloadableGids = useMemo(() => {
+    return selectedTasks
+      .filter((task) => task.status === "Downloading" || task.status === "Seeding")
+      .map((task) => task.gid);
+  }, [selectedTasks]);
+
+  const selectedResumableGids = useMemo(() => {
+    return selectedTasks
+      .filter((task) => task.status === "Paused" || task.status === "Failed")
+      .map((task) => task.gid);
+  }, [selectedTasks]);
 
   const pauseSelectedTasks = () => {
     void Promise.all(selectedDownloadableGids.map((gid) => toggleTask(gid)));
@@ -896,7 +923,6 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                            {visibleGids.map((gid) => {
                              const shouldAnimate = animatedTaskIds.has(gid);
                              const isExiting = exitingTaskIds.has(gid);
-                             const taskSnapshot = exitingTaskSnapshots[gid];
  
                              return (
                                <Reorder.Item
@@ -948,8 +974,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                               >
                                 <TaskTableRow
                                   gid={gid}
+                                  exitingTask={exitingTaskSnapshots[gid]}
                                   animateEntry={shouldAnimate}
-                                  taskSnapshot={taskSnapshot}
                                   selected={!isExiting && selectedTaskIds.has(gid)}
                                   detailsOpen={detailsOpen && primarySelectedGid === gid}
                                   onSelect={isExiting ? undefined : toggleTaskSelection}
@@ -957,6 +983,15 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                   onOpenDetails={isExiting ? undefined : toggleTaskDetails}
                                   selectionMode={selectedTaskIds.size > 0}
                                   table={table}
+                                  categories={categories}
+                                  toggleTask={toggleTask}
+                                  removeTask={removeTask}
+                                  openTaskFile={openTaskFile}
+                                  openTaskFolder={openTaskFolder}
+                                  restartTask={restartTask}
+                                  columns={columns}
+                                  tableWidth={tableWidth}
+                                  datetimeFormat={datetimeFormat}
                                 />
                               </Reorder.Item>
                             );
@@ -1116,9 +1151,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         onConfirm={deleteSelectedTasks}
       />
       <TaskDetailsDrawer
-        open={detailsOpen && Boolean(detailsTask)}
-        task={detailsTask}
-        category={detailsCategory}
+        open={detailsOpen && Boolean(primarySelectedGid)}
+        gid={primarySelectedGid}
         selectedTaskCount={selectedTaskCount}
         onOpenChange={(open) => {
           setDetailsOpen(open);
