@@ -56,6 +56,8 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
           releaseName: 'PiDownloader v__VERSION__'
@@ -64,3 +66,47 @@ jobs:
           prerelease: false
           tauriScript: node frontend/node_modules/@tauri-apps/cli/tauri.js
           args: ${{ matrix.args }}
+
+  create-update-json:
+    needs: publish-tauri
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate update.json from latest.json
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Read version from tauri.conf.json
+          VERSION=$(jq -r '.version' src-tauri/tauri.conf.json)
+          TAG_NAME="v$VERSION"
+          echo "Target tag: $TAG_NAME"
+
+          # Get the release ID for the tag (which includes drafts)
+          RELEASE_ID=$(gh api repos/${{ github.repository }}/releases | jq -r --arg tag "$TAG_NAME" '.[] | select(.tag_name == $tag) | .id')
+          echo "Release ID: $RELEASE_ID"
+
+          if [ -z "$RELEASE_ID" ] || [ "$RELEASE_ID" = "null" ]; then
+            echo "Error: Release for tag $TAG_NAME not found."
+            exit 1
+          fi
+
+          # Get the asset ID for latest.json in that release
+          ASSET_ID=$(gh api repos/${{ github.repository }}/releases/$RELEASE_ID/assets | jq -r '.[] | select(.name == "latest.json") | .id')
+          echo "Asset ID: $ASSET_ID"
+
+          if [ -z "$ASSET_ID" ] || [ "$ASSET_ID" = "null" ]; then
+            echo "Error: latest.json asset not found in release."
+            exit 1
+          fi
+
+          # Download the asset content
+          gh api repos/${{ github.repository }}/releases/assets/$ASSET_ID -H "Accept: application/octet-stream" > latest.json
+
+          # Copy to update.json
+          cp latest.json update.json
+
+          # Upload update.json to the release
+          gh release upload $TAG_NAME update.json --clobber --repo ${{ github.repository }}
