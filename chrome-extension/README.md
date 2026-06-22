@@ -92,8 +92,6 @@ Chrome 扩展 → HTTP POST → 127.0.0.1:<port>/native-bridge → PiDownloader 
 | `notifications` | 在下载接管成功或失败时显示桌面通知 |
 | `storage` | 存储用户设置（启用状态、过滤规则、通信配置等） |
 | `webRequest` | 拦截 Twitter/X、TikTok 等平台的媒体请求，嗅探视频流 |
-| `scripting` | 支持内容脚本注入 |
-| `declarativeNetRequest` | 网络请求声明式处理 |
 | `<all_urls>`（host） | 读取任意 URL 的 Cookie，确保各站点的鉴权下载正常工作 |
 
 ## 安全说明

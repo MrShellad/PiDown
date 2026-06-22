@@ -1,5 +1,6 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
 import { useState, lazy, Suspense } from "react";
+import { LoaderCircle } from "lucide-react";
 import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
 import WindowFrame from "./components/layout/WindowFrame";
@@ -70,53 +71,71 @@ export default function App() {
         <Suspense fallback={null}>
           <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
             <ActiveBackground />
-          {!hideBorderAndBg && (
-            <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
-          )}
-          <div className="flex min-h-0 flex-1 overflow-hidden">
-            <NavSidebar
-              activeFilter={visibleFilter}
-              onFilterChange={(filter) => {
-                setActiveFilter(filter);
-                // Clear browsing device when navigating away
-                if (filter !== "devices") {
-                  setActiveBrowsingDevice(null);
-                }
-              }}
-              onOpenSettings={() => setSettingsOpen(true)}
-            />
-            <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
-              <DevicesDashboard
-                activeBrowsingDevice={activeBrowsingDevice}
-                setActiveBrowsingDevice={setActiveBrowsingDevice}
+            {!hideBorderAndBg && (
+              <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
+            )}
+            <div className="flex min-h-0 flex-1 overflow-hidden">
+              <NavSidebar
+                activeFilter={visibleFilter}
+                onFilterChange={(filter) => {
+                  setActiveFilter(filter);
+                  // Clear browsing device when navigating away
+                  if (filter !== "devices") {
+                    setActiveBrowsingDevice(null);
+                  }
+                }}
+                onOpenSettings={() => setSettingsOpen(true)}
               />
-            </div>
-            <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
-              <TaskListDashboard activeFilter={visibleFilter} />
-            </div>
-          </div>
-          <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <DialogContent
-              size="full"
-              showCloseButton={false}
-              className="border border-border bg-card p-0 shadow-surface-strong"
-              overlayClassName="bg-black/45 backdrop-blur-none"
-              style={{
-                width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
-                height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
-                top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
-                maxWidth: UI_TOKENS.settingsDialog.maxWidth,
-                maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
-              }}
-            >
-              <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
-                <SettingsWindow onClose={() => setSettingsOpen(false)} />
+              <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
+                <Suspense fallback={
+                  <div className="flex h-full w-full items-center justify-center">
+                    <LoaderCircle className="size-6 animate-spin text-primary" />
+                  </div>
+                }>
+                  <DevicesDashboard
+                    activeBrowsingDevice={activeBrowsingDevice}
+                    setActiveBrowsingDevice={setActiveBrowsingDevice}
+                  />
+                </Suspense>
               </div>
-            </DialogContent>
-          </Dialog>
-          <ThemeEditorDialog />
-        </div>
+              <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
+                <Suspense fallback={
+                  <div className="flex h-full w-full items-center justify-center">
+                    <LoaderCircle className="size-6 animate-spin text-primary" />
+                  </div>
+                }>
+                  <TaskListDashboard activeFilter={visibleFilter} />
+                </Suspense>
+              </div>
+            </div>
+            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <DialogContent
+                size="full"
+                showCloseButton={false}
+                className="border border-border bg-card p-0 shadow-surface-strong"
+                overlayClassName="bg-black/45 backdrop-blur-none"
+                style={{
+                  width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
+                  height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
+                  top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
+                  maxWidth: UI_TOKENS.settingsDialog.maxWidth,
+                  maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
+                }}
+              >
+                <div className="flex h-full min-h-0 flex-col overflow-hidden">
+                  <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
+                  <Suspense fallback={
+                    <div className="flex h-full w-full items-center justify-center bg-card">
+                      <LoaderCircle className="size-6 animate-spin text-primary" />
+                    </div>
+                  }>
+                    <SettingsWindow onClose={() => setSettingsOpen(false)} />
+                  </Suspense>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <ThemeEditorDialog />
+          </div>
         </Suspense>
       </TooltipProvider>
     </ThemeProvider>

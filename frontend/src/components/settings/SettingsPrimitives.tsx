@@ -31,7 +31,7 @@ export function SettingsSectionCard({
   return (
     <section
       className={cn(
-        "p-6",
+        "px-6 pt-3 pb-6",
         className
       )}
     >

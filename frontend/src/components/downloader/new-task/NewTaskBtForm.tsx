@@ -437,7 +437,7 @@ export function NewTaskBtForm({
   const allSelected = !!(files && files.length > 0 && selectedFiles.length === files.length)
   const someSelected = selectedFiles.length > 0 && selectedFiles.length < (files?.length || 0)
 
-  return (
+  const formContent = (
     <div className="space-y-4">
       {/* Torrent Header Info */}
       <div className="flex items-center gap-3 bg-secondary/20 p-3.5 rounded-xl border border-border/60">
@@ -619,19 +619,27 @@ export function NewTaskBtForm({
             document.body
           )}
         </div>
-        {formConflict && formConflict.exists && (
-          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-1.5 text-left">
+      </div>
+    </div>
+  )
+
+  if (formConflict && formConflict.exists) {
+    return (
+      <div className="grid items-start gap-5 sm:grid-cols-[minmax(0,1fr)_13.5rem]">
+        {formContent}
+        <div className="space-y-3 w-full">
+          <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive flex flex-col gap-2 mt-0 text-left">
             <div className="flex items-center gap-1.5 font-semibold">
               <span>{UI_TEXT.newTask.conflict.warning}</span>
             </div>
             <div className="font-mono break-all text-muted-foreground/80">
               {UI_TEXT.newTask.conflict.suggestedName}<span className="text-foreground font-semibold">{formConflict.suggested_filename}</span>
             </div>
-            <div className="flex items-center gap-4 mt-1">
+            <div className="flex flex-col gap-2 mt-1">
               {onFilenameChange && (
                 <button
                   type="button"
-                  className="px-2.5 py-1 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors"
+                  className="w-full py-1.5 rounded bg-destructive/10 hover:bg-destructive/20 text-destructive font-semibold transition-colors text-center"
                   onClick={() => onFilenameChange(formConflict.suggested_filename)}
                 >
                   {UI_TEXT.newTask.conflict.useSuggested}
@@ -646,8 +654,10 @@ export function NewTaskBtForm({
               </label>
             </div>
           </div>
-        )}
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
+
+  return formContent
 }

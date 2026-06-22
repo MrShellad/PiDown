@@ -86,6 +86,8 @@ import {
 } from "./SettingsPrimitives";
 import DownloadRulesManager from "./DownloadRulesManager";
 import { playSoundEffect } from "@/core/audio";
+import { getVersion } from "@tauri-apps/api/app";
+import { check } from "@tauri-apps/plugin-updater";
 
 
 
@@ -183,30 +185,116 @@ function ResetSettingsButton({ onClick, onClose }: { onClick: () => void; onClos
   );
 }
 
-function CheckForUpdatesButton() {
+function CheckForUpdatesButton({ currentVersion }: { currentVersion: string }) {
   const [checking, setChecking] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<any>(null);
+  const [updating, setUpdating] = useState(false);
 
-  const handleCheck = () => {
+  const handleCheck = async () => {
     setChecking(true);
-    setTimeout(() => {
+    try {
+      const update = await check();
       setChecking(false);
+      if (update) {
+        setUpdateInfo(update);
+      } else {
+        useToastStore.getState().pushToast({
+          title: "已是最新版本",
+          description: `当前版本 v${currentVersion} 已是最新版本。`,
+          variant: "success",
+        });
+      }
+    } catch (error) {
+      setChecking(false);
+      console.error("Failed to check for updates:", error);
       useToastStore.getState().pushToast({
-        title: "已是最新版本",
-        description: "当前版本 v0.0.3 已是最新版本。",
-        variant: "success",
+        title: "检查更新失败",
+        description: "未检测到有效的更新源或网络错误。请确保在 tauri.conf.json 中正确配置了 updater 的 json 地址和公钥。",
+        variant: "destructive",
       });
-    }, 1200);
+    }
+  };
+
+  const handleInstallUpdate = async () => {
+    if (!updateInfo) return;
+    setUpdating(true);
+    try {
+      await updateInfo.downloadAndInstall();
+    } catch (err: any) {
+      console.error("Failed to install update:", err);
+      setUpdating(false);
+      useToastStore.getState().pushToast({
+        title: "更新失败",
+        description: err?.message || "下载或安装更新包时出错，请稍后重试。",
+        variant: "destructive",
+      });
+      setUpdateInfo(null);
+    }
   };
 
   return (
-    <Button
-      onClick={handleCheck}
-      loading={checking}
-      loadingText="正在检查更新..."
-      className="px-6"
-    >
-      检查更新
-    </Button>
+    <>
+      <Button
+        onClick={handleCheck}
+        loading={checking}
+        loadingText="正在检查更新..."
+        className="px-6"
+      >
+        检查更新
+      </Button>
+
+      <Dialog open={!!updateInfo} onOpenChange={() => !updating && setUpdateInfo(null)}>
+        <DialogContent size="sm" variant="modal">
+          <DialogHeader>
+            <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Sparkles className="size-5" />
+            </div>
+            <DialogTitle>发现新版本</DialogTitle>
+          </DialogHeader>
+          <DialogBody className="space-y-3">
+            <DialogDescription className="text-left text-muted-foreground">
+              有新的客户端版本可用！
+            </DialogDescription>
+            <div className="rounded-lg bg-secondary/20 p-4 text-xs space-y-2 text-left font-mono">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">当前版本:</span>
+                <span className="font-semibold">v{currentVersion}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">最新版本:</span>
+                <span className="font-semibold text-primary font-bold">v{updateInfo?.version}</span>
+              </div>
+              {updateInfo?.date && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">发布日期:</span>
+                  <span>{updateInfo.date}</span>
+                </div>
+              )}
+              {updateInfo?.body && (
+                <div className="mt-2 border-t border-border/40 pt-2">
+                  <div className="text-muted-foreground mb-1">更新日志:</div>
+                  <div className="max-h-32 overflow-y-auto whitespace-pre-wrap font-sans text-muted-foreground text-[11px] leading-relaxed">
+                    {updateInfo.body}
+                  </div>
+                </div>
+              )}
+            </div>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setUpdateInfo(null)} disabled={updating}>
+              暂不更新
+            </Button>
+            <Button
+              loading={updating}
+              loadingText="正在下载并安装..."
+              onClick={handleInstallUpdate}
+            >
+              立即更新并重启
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
@@ -255,6 +343,15 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
   const [fontsLoading, setFontsLoading] = useState(false);
   const [fontLoadError, setFontLoadError] = useState<string | null>(null);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [version, setVersion] = useState("0.0.4");
+
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch((err) => {
+        console.warn("Failed to get version from Tauri, using fallback:", err);
+      });
+  }, []);
 
    const themeScrollRef = useRef<HTMLDivElement>(null);
   const lastSyncedSettingsRef = useRef<AppSettings | null>(null);
@@ -309,6 +406,74 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
     { id: "player", label: UI_TEXT.settings.navPlayer || "播放器", icon: <PlayCircle className="size-4" /> },
     { id: "about", label: "关于", icon: <Info className="size-4" /> },
   ], [draft?.interface?.language]);
+
+  const sectionHeaderInfo = useMemo(() => {
+    if (!draft) return null;
+    switch (activeSection) {
+      case "general":
+        return {
+          icon: <Settings className="size-5" />,
+          title: UI_TEXT.settings.navGeneral,
+          description: UI_TEXT.settings.navGeneralDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "transfer":
+        return {
+          icon: <Cable className="size-5" />,
+          title: UI_TEXT.settings.navTransfer,
+          description: UI_TEXT.settings.navTransferDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "category":
+        return {
+          icon: <FolderTree className="size-5" />,
+          title: UI_TEXT.settings.navCategory,
+          description: UI_TEXT.settings.navCategoryDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "extension":
+        return {
+          icon: <MonitorCog className="size-5" />,
+          title: UI_TEXT.settings.navExtension,
+          description: UI_TEXT.settings.navExtensionDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "magnet":
+        return {
+          icon: <Magnet className="size-5" />,
+          title: UI_TEXT.settings.magnetTitle,
+          description: UI_TEXT.settings.magnetDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "appearance":
+        return {
+          icon: <Paintbrush className="size-5" />,
+          title: UI_TEXT.settings.navAppearance,
+          description: UI_TEXT.settings.navAppearanceDesc,
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "player":
+        return {
+          icon: <PlayCircle className="size-5" />,
+          title: "播放器设置",
+          description: "关于 WebDAV 视频预览播放器的默认设置",
+          action: <ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />,
+        };
+      case "about":
+        return {
+          icon: <Info className="size-5" />,
+          title: "关于",
+          description: "关于 PiDownloader 桌面下载器",
+          action: onClose && (
+            <Button variant="outline" size="sm" onClick={onClose}>
+              关闭
+            </Button>
+          ),
+        };
+      default:
+        return null;
+    }
+  }, [activeSection, draft?.interface?.language, onClose]);
 
   const speedDisplayUnitOptions = useMemo<{ value: SpeedDisplayUnit; label: string }[]>(() => [
     { value: "auto", label: UI_TEXT.settings.speedDisplayUnitAuto },
@@ -1061,8 +1226,19 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
           </ScrollArea>
         </aside>
 
-        <main className="min-w-0 flex-1">
-          <ScrollArea className="h-full" gutter="stable" safePadding viewportClassName="px-6 pt-4 pb-6">
+        <main className="min-w-0 flex-1 flex flex-col h-full overflow-hidden">
+          {sectionHeaderInfo && (
+            <div className="shrink-0 px-6 pt-4 pb-4 border-b border-border/40 bg-card/65 backdrop-blur-md">
+              <SettingsSectionHeader
+                icon={sectionHeaderInfo.icon}
+                title={sectionHeaderInfo.title}
+                description={sectionHeaderInfo.description}
+                action={sectionHeaderInfo.action}
+              />
+            </div>
+          )}
+
+          <ScrollArea className="flex-1 min-h-0" gutter="stable" safePadding viewportClassName="px-6 pt-0 pb-6">
             <div className="flex flex-col gap-6">
               {visibleError ? (
                 <div className="rounded-md border border-border bg-secondary/60 px-3 py-2 text-sm leading-6 text-muted-foreground">
@@ -1081,14 +1257,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                 >
                   {activeSection === "general" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<Settings className="size-5" />}
-                        title={UI_TEXT.settings.navGeneral}
-                        description={UI_TEXT.settings.navGeneralDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                      />
-
-                      <div className="mt-5">
+                      <div className="mt-0">
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                           {UI_TEXT.settings.groupStorage}
                         </div>
@@ -1362,14 +1531,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                   {activeSection === "transfer" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<Cable className="size-5" />}
-                        title={UI_TEXT.settings.navTransfer}
-                        description={UI_TEXT.settings.navTransferDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                      />
-
-                      <div className="mt-5">
+                      <div className="mt-0">
                         {/* Group 1: 并发与队列 */}
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                           {UI_TEXT.settings.groupConcurrency}
@@ -1575,14 +1737,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                   {activeSection === "category" ? (
                     <>
                       <SettingsSectionCard>
-                        <SettingsSectionHeader
-                          icon={<FolderTree className="size-5" />}
-                          title={UI_TEXT.settings.navCategory}
-                          description={UI_TEXT.settings.navCategoryDesc}
-                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                        />
-
-                        <div className="mt-5">
+                        <div className="mt-0">
                           <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                             {UI_TEXT.settings.autoCategory}
                           </div>
@@ -1746,14 +1901,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                   {activeSection === "extension" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<MonitorCog className="size-5" />}
-                        title={UI_TEXT.settings.navExtension}
-                        description={UI_TEXT.settings.navExtensionDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                      />
-
-                      <div className="mt-5">
+                      <div className="mt-0">
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                           {UI_TEXT.settings.groupBehavior}
                         </div>
@@ -1884,14 +2032,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                   {activeSection === "magnet" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<Magnet className="size-5" />}
-                        title={UI_TEXT.settings.magnetTitle}
-                        description={UI_TEXT.settings.magnetDesc}
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                      />
-
-                      <div className="mt-5">
+                      <div className="mt-0">
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                           {UI_TEXT.settings.magnetGroupConnection}
                         </div>
@@ -2134,14 +2275,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                   {activeSection === "appearance" ? (
                     <>
                       <SettingsSectionCard>
-                        <SettingsSectionHeader
-                          icon={<Paintbrush className="size-5" />}
-                          title={UI_TEXT.settings.navAppearance}
-                          description={UI_TEXT.settings.navAppearanceDesc}
-                          action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                        />
-
-                        <div className="mt-5">
+                        <div className="mt-0">
                           <div className="mb-3 mt-5 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                             <span>{UI_TEXT.settings.groupTheme}</span>
                             <div className="flex gap-2">
@@ -2855,14 +2989,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                   {activeSection === "player" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<PlayCircle className="size-5" />}
-                        title="播放器设置"
-                        description="关于 WebDAV 视频预览播放器的默认设置"
-                        action={<ResetSettingsButton onClick={() => setResetOpen(true)} onClose={onClose} />}
-                      />
-
-                      <div className="mt-5">
+                      <div className="mt-0">
                         <div className="mb-3 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
                           播放器配置
                         </div>
@@ -2955,20 +3082,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                   {activeSection === "about" ? (
                     <SettingsSectionCard>
-                      <SettingsSectionHeader
-                        icon={<Info className="size-5" />}
-                        title="关于"
-                        description="关于 PiDownloader 桌面下载器"
-                        action={
-                          onClose && (
-                            <Button variant="outline" size="sm" onClick={onClose}>
-                              关闭
-                            </Button>
-                          )
-                        }
-                      />
-
-                      <div className="mt-8 flex flex-col items-center justify-center text-center">
+                      <div className="mt-4 flex flex-col items-center justify-center text-center">
                         {/* Centered Logo */}
                         <div className="relative flex size-24 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-glow-effect mb-5 select-none">
                           <Download className="size-12 animate-pulse" style={{ animationDuration: "3s" }} />
@@ -2985,7 +3099,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                         <div className="mt-6 w-full max-w-sm rounded-xl border border-border bg-secondary/10 p-5 space-y-3.5 text-sm">
                           <div className="flex justify-between items-center">
                             <span className="text-muted-foreground">客户端版本</span>
-                            <span className="font-semibold text-foreground font-mono">v0.0.3</span>
+                            <span className="font-semibold text-foreground font-mono">v{version}</span>
                           </div>
                           <div className="flex justify-between items-center border-t border-border/40 pt-3">
                             <span className="text-muted-foreground">下载核心引擎</span>
@@ -3010,7 +3124,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
 
                         {/* Action Buttons */}
                         <div className="mt-8">
-                          <CheckForUpdatesButton />
+                          <CheckForUpdatesButton currentVersion={version} />
                         </div>
                       </div>
                     </SettingsSectionCard>

@@ -52,6 +52,14 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGODUwODBFMEUxQzg1M0UKUldRK2hSd09EZ2lGVHh5aGJ4bkcvY21FcVphQTFXUmhYcVBFbDU3OTdmZUYrZWdmakFKT1FGVEcK",
+      "endpoints": [
+        "https://example.com/update.json"
+      ]
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",

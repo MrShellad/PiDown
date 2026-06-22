@@ -10,9 +10,7 @@
     "downloads",
     "notifications",
     "storage",
-    "webRequest",
-    "scripting",
-    "declarativeNetRequest"
+    "webRequest"
   ],
   "host_permissions": [
     "<all_urls>"

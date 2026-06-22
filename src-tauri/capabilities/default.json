@@ -26,6 +26,7 @@
     "core:window:allow-unminimize",
     "core:event:default",
     "notification:default",
-    "autostart:default"
+    "autostart:default",
+    "updater:default"
   ]
 }

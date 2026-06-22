@@ -174,6 +174,19 @@ export function shouldCaptureDownload(downloadItem, options) {
     return { capture: false, retry: false, reason: "incognito" };
   }
 
+  // Only capture active downloads
+  if (downloadItem.state && downloadItem.state !== "in_progress") {
+    return { capture: false, retry: false, reason: "not-in-progress" };
+  }
+
+  // Ignore restored downloads from previous browser sessions on startup
+  if (downloadItem.startTime) {
+    const elapsed = Date.now() - new Date(downloadItem.startTime).getTime();
+    if (elapsed > 10 * 1000) { // 10 seconds
+      return { capture: false, retry: false, reason: "old-download" };
+    }
+  }
+
   const url = downloadItem.finalUrl || downloadItem.url || "";
   if (!/^https?:\/\//i.test(url)) {
     return { capture: false, retry: false, reason: "unsupported-url" };
