@@ -11,9 +11,11 @@ import {
   type AppSettings,
 } from "@/core/bridge/tauri-commands";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
-import { Download, Plus, Play, Pause, Settings2, LogOut, EyeOff } from "lucide-react";
+import { Download, Plus, Play, Pause, Settings2, LogOut, EyeOff, Globe } from "lucide-react";
 import { UI_TEXT } from "@/core/locale";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogBody, DialogFooter } from "@/components/ui/dialog";
 import {
   ContextMenu,
   ContextMenuCheckboxItem,
@@ -29,6 +31,7 @@ import {
 } from "@/components/ui/context-menu";
 import { getCurrentWindow, currentMonitor, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
 import { emitTo, listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
 import NewTaskModal from "./NewTaskModal";
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 
@@ -50,6 +53,7 @@ export default function FloatDisc() {
 
   const [modalOpen, setModalOpen] = useState(false);
   const [externalDownloadRequest, setExternalDownloadRequest] = useState<ExternalDownloadRequest | null>(null);
+  const [pairingRequest, setPairingRequest] = useState<{ pairingId: string; deviceName: string } | null>(null);
 
   const originalPositionRef = useRef<PhysicalPosition | null>(null);
   const originalSizeRef = useRef<PhysicalSize | null>(null);
@@ -67,11 +71,13 @@ export default function FloatDisc() {
       await win.unminimize();
       await win.setFocus();
 
-      const size = await win.outerSize();
-      const pos = await win.outerPosition();
-      originalSizeRef.current = size;
-      originalPositionRef.current = pos;
-      console.log("FloatDisc: Saved original window position:", pos, "size:", size);
+      if (!isModalOpenRef.current && !pairingRequest) {
+        const size = await win.outerSize();
+        const pos = await win.outerPosition();
+        originalSizeRef.current = size;
+        originalPositionRef.current = pos;
+        console.log("FloatDisc: Saved original window position:", pos, "size:", size);
+      }
 
       await win.setIgnoreCursorEvents(false);
       await win.setResizable(true);
@@ -84,7 +90,7 @@ export default function FloatDisc() {
     } catch (e) {
       console.error("Failed to open task modal in float window:", e);
     }
-  }, []);
+  }, [pairingRequest]);
 
   const handleCloseModal = useCallback(async () => {
     console.log("FloatDisc: handleCloseModal triggered");
@@ -109,6 +115,82 @@ export default function FloatDisc() {
       console.error("Failed to restore float window position/size:", e);
     }
   }, []);
+
+  const handleOpenPairing = useCallback(async (req: { pairingId: string; deviceName: string }) => {
+    console.log("FloatDisc: handleOpenPairing triggered with request:", req);
+    try {
+      const win = getCurrentWindow();
+      await win.show();
+      await win.unminimize();
+      await win.setFocus();
+
+      if (!isModalOpenRef.current && !pairingRequest) {
+        const size = await win.outerSize();
+        const pos = await win.outerPosition();
+        originalSizeRef.current = size;
+        originalPositionRef.current = pos;
+        console.log("FloatDisc: Saved original window position:", pos, "size:", size);
+      }
+
+      await win.setIgnoreCursorEvents(false);
+      await win.setResizable(true);
+      await win.setSize(new LogicalSize(420, 240));
+      await win.center();
+      console.log("FloatDisc: Resized window to 420x240 and centered for pairing.");
+
+      setPairingRequest(req);
+      setModalOpen(true);
+    } catch (e) {
+      console.error("Failed to open pairing modal in float window:", e);
+    }
+  }, [pairingRequest]);
+
+  const handleClosePairing = useCallback(async () => {
+    console.log("FloatDisc: handleClosePairing triggered");
+    try {
+      const win = getCurrentWindow();
+      setModalOpen(false);
+      setPairingRequest(null);
+
+      if (originalSizeRef.current) {
+        await win.setSize(originalSizeRef.current);
+      } else {
+        await win.setSize(new LogicalSize(500, 500));
+      }
+
+      await win.setResizable(false);
+
+      if (originalPositionRef.current) {
+        await win.setPosition(originalPositionRef.current);
+      }
+      console.log("FloatDisc: Restored window position and size after pairing.");
+    } catch (e) {
+      console.error("Failed to restore float window position/size after pairing:", e);
+    }
+  }, []);
+
+  const handlePairingResponse = async (approved: boolean) => {
+    if (!pairingRequest) return;
+    try {
+      await invoke("respond_pairing", {
+        pairingId: pairingRequest.pairingId,
+        approved,
+      });
+    } catch (err) {
+      console.error("Failed to respond to pairing:", err);
+    } finally {
+      await handleClosePairing();
+    }
+  };
+
+  useEffect(() => {
+    if (!pairingRequest) return;
+    const timer = setTimeout(() => {
+      console.log("FloatDisc: Pairing request timeout, denying.");
+      handlePairingResponse(false);
+    }, 60000);
+    return () => clearTimeout(timer);
+  }, [pairingRequest]);
 
   useEffect(() => {
     let disposed = false;
@@ -138,6 +220,34 @@ export default function FloatDisc() {
     };
   }, [handleOpenModal]);
 
+  useEffect(() => {
+    let disposed = false;
+    let unlistenPairing: (() => void) | undefined;
+
+    console.log("FloatDisc: Registering listener for browser-pairing-request");
+    listen<{ pairingId: string; deviceName: string }>("browser-pairing-request", (event) => {
+      console.log("FloatDisc: Received browser-pairing-request event:", event);
+      handleOpenPairing(event.payload).catch(console.error);
+    })
+      .then((unlisten) => {
+        if (disposed) {
+          unlisten();
+          return;
+        }
+        unlistenPairing = unlisten;
+        console.log("FloatDisc: Successfully registered pairing event listener");
+      })
+      .catch((error) => {
+        console.error("Failed to listen to browser-pairing-request in float window:", error);
+      });
+
+    return () => {
+      disposed = true;
+      unlistenPairing?.();
+      console.log("FloatDisc: Unregistered pairing event listener");
+    };
+  }, [handleOpenPairing]);
+
   // Dynamically resize window to fit the DialogContent height when modal is open
   useEffect(() => {
     if (!modalOpen) return;
@@ -155,7 +265,8 @@ export default function FloatDisc() {
         if (height > 0) {
           console.log("FloatDisc: Detected dialog height:", height);
           await win.setResizable(true);
-          await win.setSize(new LogicalSize(736, height));
+          const width = pairingRequest ? 420 : 736;
+          await win.setSize(new LogicalSize(width, height));
         }
       } catch (err) {
         console.error("FloatDisc: Failed to resize window to dialog height:", err);
@@ -183,7 +294,7 @@ export default function FloatDisc() {
         observer.disconnect();
       }
     };
-  }, [modalOpen]);
+  }, [modalOpen, pairingRequest]);
 
   // Set html and body backgrounds to transparent for Tauri window transparency
   useEffect(() => {
@@ -774,7 +885,7 @@ export default function FloatDisc() {
       )}
 
       <NewTaskModal
-        open={modalOpen}
+        open={modalOpen && !pairingRequest}
         onOpenChange={(open) => {
           if (!open) {
             handleCloseModal().catch(console.error);
@@ -783,6 +894,62 @@ export default function FloatDisc() {
         initialRequest={externalDownloadRequest}
         onInitialRequestConsumed={() => setExternalDownloadRequest(null)}
       />
+
+      {pairingRequest && (
+        <Dialog
+          open={modalOpen && !!pairingRequest}
+          onOpenChange={(open) => {
+            if (!open) {
+              handlePairingResponse(false).catch(console.error);
+            }
+          }}
+        >
+          <DialogContent className="sm:max-w-[420px] max-h-[85vh] flex flex-col p-5 backdrop-blur-md bg-background/90 border border-border/60 shadow-2xl rounded-2xl overflow-hidden">
+            <DialogHeader className="space-y-2 pb-2 border-b border-border/40 text-center flex flex-col items-center">
+              <div className="p-2.5 bg-primary/10 text-primary rounded-full animate-bounce mb-1">
+                <Globe className="size-6 text-primary" />
+              </div>
+              <DialogTitle className="text-lg font-bold bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+                {UI_TEXT.browserPairing.title}
+              </DialogTitle>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {UI_TEXT.browserPairing.description}
+              </p>
+            </DialogHeader>
+
+            <DialogBody className="space-y-4 py-4 pr-1 text-center select-text">
+              <div className="p-3 bg-muted/40 hover:bg-muted/50 transition-colors border border-border/30 rounded-xl">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+                  {UI_TEXT.browserPairing.deviceName}
+                </div>
+                <div className="font-semibold text-sm text-foreground select-all break-all">
+                  {pairingRequest.deviceName}
+                </div>
+              </div>
+              
+              <p className="text-xs text-foreground font-medium px-2 leading-relaxed">
+                {UI_TEXT.browserPairing.question}
+              </p>
+            </DialogBody>
+
+            <DialogFooter className="flex flex-row items-center gap-3 pt-3 border-t border-border/40 [&_[data-slot=button]]:w-full [&_[data-slot=button]]:h-9">
+              <Button
+                variant="outline"
+                onClick={() => handlePairingResponse(false)}
+                className="font-semibold text-xs border-border/60 hover:bg-muted/50"
+              >
+                {UI_TEXT.browserPairing.btnDeny}
+              </Button>
+              <Button
+                onClick={() => handlePairingResponse(true)}
+                className="font-semibold text-xs bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 text-primary-foreground shadow-md hover:shadow-lg transition-all"
+              >
+                {UI_TEXT.browserPairing.btnApprove}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }

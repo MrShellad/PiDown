@@ -86,6 +86,9 @@
     "navCategoryDesc": "任务归类过滤与自定义文件映射图标。",
     "navExtension": "浏览器扩展",
     "navExtensionDesc": "接管网页下载的集成服务与安全令牌配置。",
+    "chromeExtensionTitle": "获取 Chrome 浏览器扩展",
+    "chromeExtensionDesc": "推荐安装 PiDownloader 浏览器扩展，可在 Chrome 浏览器中自动接管并加速网页下载任务，点击右侧图标前往应用商店下载。",
+    "chromeExtensionInstallBtn": "获取扩展",
     "navIntegration": "系统与集成",
     "navIntegrationDesc": "窗口行为与桌面交互。",
     "navAppearance": "外观与音效",
@@ -501,5 +504,36 @@
       "alwaysOnTop": "窗口置顶",
       "exitApp": "退出应用"
     }
+  },
+  "extensionGuide": {
+    "title": "浏览器插件集成引导",
+    "description": "检测到您是第一次启动应用。强烈建议您安装浏览器嗅探插件，让 PiDownloader 自动接管网页所有下载任务！",
+    "tabOnline": "在线安装 (推荐)",
+    "tabLocal": "本地安装 (开发者模式)",
+    "onlineStep1Title": "第一步：前往应用商店安装",
+    "onlineStep1Desc": "点击下方按钮在 Chrome Web Store 中打开 PiDownloader 扩展页面，并点击「添加至 Chrome」进行安装。",
+    "btnInstallOnline": "前往 Chrome 应用商店安装",
+    "step1Title": "第一步：获取插件离线包",
+    "step1Desc": "应用程序提供了一个本地离线安装包。您可以直接将其导出为 ZIP 文件，或者在开发环境中直接打开其源码目录或复制绝对路径。",
+    "btnDownloadZip": "导出离线包 (ZIP)",
+    "zipSaved": "离线包已成功保存到：%s",
+    "btnOpenDir": "打开插件文件夹",
+    "btnCopyPath": "复制文件夹路径",
+    "pathCopied": "路径已复制到剪贴板！",
+    "step2Title": "第二步：在浏览器中加载",
+    "step2Desc": "1. 导出 ZIP 文件后，将其解压到一个固定目录。\n2. 打开浏览器（如 Chrome 或 Edge），进入扩展管理页面 chrome://extensions/。\n3. 开启右上角的「开发者模式」开关。\n4. 点击「加载已解压的扩展程序」按钮，并在弹出的对话框中选择上述解压出的文件夹。\n（提示：如果您直接打开本地插件文件夹，也可以跳过第1步，直接选择对应的 chrome-extension 目录）",
+    "btnOpenChromeExtensions": "打开浏览器扩展管理页面",
+    "step3Title": "第二步：完成对接" ,
+    "step3Desc": "安装完成后，点击浏览器右上角的扩展图标，它会自动尝试与本应用配对。检测到配对请求时，本应用会弹出配对确认弹窗。",
+    "dontShowAgain": "不再显示此引导",
+    "btnClose": "开启我的下载之旅"
+  },
+  "browserPairing": {
+    "title": "浏览器插件对接提醒",
+    "description": "检测到本地浏览器扩展尝试与客户端进行对接：",
+    "deviceName": "设备名称：",
+    "question": "是否允许该设备获取连接 Token 并管理下载任务？",
+    "btnApprove": "允许连接",
+    "btnDeny": "拒绝"
   }
 }

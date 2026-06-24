@@ -1,8 +1,21 @@
 use crate::core::state::AppState;
 use tauri::Manager;
 use tauri::Emitter;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+
+fn log_stream_debug(app_handle: &tauri::AppHandle, msg: &str) {
+    if let Ok(app_data_dir) = app_handle.path().app_data_dir() {
+        let log_path = app_data_dir.join("webdav_stream_debug.log");
+        if let Ok(mut file) = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(&log_path)
+        {
+            use std::io::Write;
+            let time = chrono::Local::now().to_rfc3339();
+            let _ = writeln!(file, "[{time}] {msg}");
+        }
+    }
+}
 
 pub fn register_webdav_protocol(
     builder: tauri::Builder<tauri::Wry>,
@@ -23,6 +36,8 @@ pub fn register_webdav_protocol(
         };
 
         tauri::async_runtime::spawn(async move {
+            let uri_str = request.uri().to_string();
+            log_stream_debug(&app_handle, &format!("Incoming request: {} URI: {}", request.method(), uri_str));
             if request.method() == tauri::http::Method::OPTIONS {
                 let response = tauri::http::Response::builder()
                     .status(204)
@@ -211,6 +226,7 @@ pub fn register_webdav_protocol(
                 .join("/");
 
             let target_url = format!("{}{}", origin, encoded_path);
+            log_stream_debug(&app_handle, &format!("Target URL: {}", target_url));
 
             log::info!("WebDAV Custom Protocol request: URI={}, Range={:?}", request.uri(), request.headers().get(tauri::http::header::RANGE));
 
@@ -234,6 +250,7 @@ pub fn register_webdav_protocol(
             match req.send().await {
                 Ok(res) => {
                     let status = res.status().as_u16();
+                    log_stream_debug(&app_handle, &format!("Response status: {}", status));
                     log::info!("WebDAV server response: status={}, content-range={:?}, content-length={:?}", status, res.headers().get("content-range"), res.headers().get("content-length"));
                     
                     // Initialize or update metadata in VideoCache
@@ -358,6 +375,7 @@ pub fn register_webdav_protocol(
                         }
                         Err(e) => {
                             log::error!("Read WebDAV body error: {e}");
+                            log_stream_debug(&app_handle, &format!("Read WebDAV body error: {:?}", e));
                             responder.respond(
                                 tauri::http::Response::builder()
                                     .status(502)
@@ -369,6 +387,7 @@ pub fn register_webdav_protocol(
                 }
                 Err(e) => {
                     log::error!("WebDAV request send error: {e}");
+                    log_stream_debug(&app_handle, &format!("WebDAV request send error: {:?}", e));
                     responder.respond(
                         tauri::http::Response::builder()
                             .status(502)

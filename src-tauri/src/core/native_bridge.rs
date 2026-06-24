@@ -220,21 +220,43 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
             }
 
             let device = device_name.unwrap_or_else(|| "浏览器扩展".to_string());
-            let title = "PiDownloader 浏览器扩展配对";
-            let description = format!(
-                "检测到本地设备正在尝试连接桌面客户端：\n设备名称：{}\n\n是否允许该设备获取连接 Token 并管理下载任务？",
-                device
-            );
+            let pairing_id = uuid::Uuid::new_v4().to_string();
+            let (tx, rx) = tokio::sync::oneshot::channel();
 
-            // Pop up OS native confirmation dialog
-            let result = rfd::MessageDialog::new()
-                .set_title(title)
-                .set_description(description)
-                .set_buttons(rfd::MessageButtons::YesNo)
-                .set_level(rfd::MessageLevel::Info)
-                .show();
+            {
+                let mut pairings = state.pending_pairings.lock().unwrap();
+                pairings.insert(pairing_id.clone(), tx);
+            }
 
-            if result == rfd::MessageDialogResult::Yes {
+            #[derive(Serialize, Clone)]
+            struct PairingRequestPayload {
+                #[serde(rename = "pairingId")]
+                pairing_id: String,
+                #[serde(rename = "deviceName")]
+                device_name: String,
+            }
+
+            let _ = app_handle.emit("browser-pairing-request", PairingRequestPayload {
+                pairing_id: pairing_id.clone(),
+                device_name: device,
+            });
+
+            // Show float window so user sees the request immediately in float window
+            if let Some(float_win) = app_handle.get_webview_window("float") {
+                let _ = float_win.show();
+                let _ = float_win.unminimize();
+                let _ = float_win.set_focus();
+            }
+
+            // Wait for user approval in frontend (60s timeout)
+            let approved = match tauri::async_runtime::block_on(async {
+                tokio::time::timeout(Duration::from_secs(60), rx).await
+            }) {
+                Ok(Ok(val)) => val,
+                _ => false,
+            };
+
+            if approved {
                 let token = state.get_settings().download.browser_extension_token.clone();
                 NativeResponse {
                     ok: true,
@@ -243,6 +265,11 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
                     error: None,
                 }
             } else {
+                // Ensure removed from map on timeout/denial
+                {
+                    let mut pairings = state.pending_pairings.lock().unwrap();
+                    pairings.remove(&pairing_id);
+                }
                 NativeResponse::error("用户拒绝了配对请求")
             }
         }

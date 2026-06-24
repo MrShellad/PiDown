@@ -173,6 +173,7 @@ export interface AppSettings {
     language: string;
     datetime_format: string;
     auto_start_on_boot: boolean;
+    show_extension_guide: boolean;
   };
   bt: {
     enable_dht: boolean;
@@ -408,6 +409,11 @@ export async function openDirectory(path: string): Promise<void> {
   return invoke<void>("open_directory", { path });
 }
 
+export async function openUrl(url: string): Promise<void> {
+  return invoke<void>("open_url", { url });
+}
+
+
 export async function getTags(): Promise<DbTag[]> {
   return invoke<DbTag[]>("get_tags");
 }
@@ -486,6 +492,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       language: "auto",
       datetime_format: "YYYY-MM-DD HH:mm:ss",
       auto_start_on_boot: false,
+      show_extension_guide: true,
     },
     bt: {
       enable_dht: true,

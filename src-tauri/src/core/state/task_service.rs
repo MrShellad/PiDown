@@ -2,10 +2,9 @@ use super::file_actions::{cleanup_task_files, task_file_path};
 use super::task_format::{format_eta, format_speed, sanitize_filename};
 use crate::core::categories::{infer_category, infer_tags};
 use crate::core::models::{DbTask, TaskClassificationPreview, TaskOverview};
-use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol, HttpTaskOptions};
+use crate::download::{detect_protocol, DownloadInspection, DownloadProtocol};
 use chrono::Utc;
 use gosh_dl::{DownloadId, DownloadState, DownloadStatus};
-use std::path::Path;
 use std::sync::Arc;
 use tauri::Emitter;
 use uuid::Uuid;
@@ -45,6 +44,7 @@ fn normalize_cookies(cookies: Vec<String>) -> Vec<String> {
         .collect()
 }
 
+#[allow(dead_code)]
 fn speed_limit_kib_to_bps(value: Option<u64>) -> Option<u64> {
     value.and_then(|value| (value > 0).then(|| value.saturating_mul(1024)))
 }
@@ -96,6 +96,7 @@ impl super::AppState {
         matched
     }
 
+    #[allow(dead_code)]
     fn resolve_download_id(&self, gid: &str) -> Result<DownloadId, String> {
         if let Some(task) = self.db.get_task(gid).map_err(|e| e.to_string())? {
             if let Some(engine_id) = task.engine_id.as_deref().and_then(Self::parse_engine_id) {
@@ -314,7 +315,8 @@ impl super::AppState {
         };
 
         let mut final_url = url.to_string();
-        let mut final_cookies = normalize_cookies(task_options.cookies.clone());
+        let mut task_options = task_options;
+        task_options.cookies = normalize_cookies(task_options.cookies);
         let settings = self.settings.read().unwrap().clone();
         let user_agent = resolve_user_agent(
             task_options.user_agent.clone(),
@@ -322,9 +324,9 @@ impl super::AppState {
         );
 
         if parse_google_drive_file_id(&final_url).is_some() {
-            if let Ok((resolved_url, resolved_cookies)) = resolve_google_drive_link(&final_url, user_agent.as_deref(), &final_cookies).await {
+            if let Ok((resolved_url, resolved_cookies)) = resolve_google_drive_link(&final_url, user_agent.as_deref(), &task_options.cookies).await {
                 final_url = resolved_url;
-                final_cookies = resolved_cookies;
+                task_options.cookies = resolved_cookies;
             }
         }
 

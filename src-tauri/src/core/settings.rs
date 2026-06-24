@@ -156,6 +156,7 @@ pub struct InterfaceSettings {
     pub language: String,
     pub datetime_format: String,
     pub auto_start_on_boot: bool,
+    pub show_extension_guide: bool,
 }
 
 impl Default for InterfaceSettings {
@@ -178,6 +179,7 @@ impl Default for InterfaceSettings {
             language: "auto".to_string(),
             datetime_format: "YYYY-MM-DD HH:mm:ss".to_string(),
             auto_start_on_boot: false,
+            show_extension_guide: true,
         }
     }
 }

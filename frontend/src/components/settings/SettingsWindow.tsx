@@ -24,6 +24,7 @@ import {
   RefreshCw,
   Info,
   PlayCircle,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CompoundInput, CompoundInputButton } from "@/components/ui/input";
@@ -55,6 +56,7 @@ import {
   type DbBackground,
   updateTrackersFromSubscription,
   pickDownloadDirectory,
+  openUrl,
 } from "@/core/bridge/tauri-commands";
 import { convertFileSrc } from "@tauri-apps/api/core";
 
@@ -2015,6 +2017,48 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                               </div>
                             </SettingsListItem>
                           )}
+                          <SettingsListItem
+                            title={UI_TEXT.settings.chromeExtensionTitle}
+                            description={UI_TEXT.settings.chromeExtensionDesc}
+                            action={
+                              <a
+                                href="https://chromewebstore.google.com/detail/pidownloader-download-bri/hngdojmldgfhhagakfehglbilofpiapd"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  openUrl("https://chromewebstore.google.com/detail/pidownloader-download-bri/hngdojmldgfhhagakfehglbilofpiapd");
+                                }}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-secondary/10 hover:bg-secondary/30 hover:border-primary/30 transition-all group shrink-0"
+                              >
+                                <svg className="w-5 h-5 select-none transition-transform group-hover:scale-110" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                  <defs>
+                                    <linearGradient id="chrome-red-action" x1="3.2173" y1="15" x2="44.7812" y2="15" gradientUnits="userSpaceOnUse">
+                                      <stop offset="0" stopColor="#d93025" />
+                                      <stop offset="1" stopColor="#ea4335" />
+                                    </linearGradient>
+                                    <linearGradient id="chrome-yellow-action" x1="20.7219" y1="47.6791" x2="41.5039" y2="11.6837" gradientUnits="userSpaceOnUse">
+                                      <stop offset="0" stopColor="#fcc934" />
+                                      <stop offset="1" stopColor="#fbbc04" />
+                                    </linearGradient>
+                                    <linearGradient id="chrome-green-action" x1="26.5981" y1="46.5015" x2="5.8161" y2="10.506" gradientUnits="userSpaceOnUse">
+                                      <stop offset="0" stopColor="#1e8e3e" />
+                                      <stop offset="1" stopColor="#34a853" />
+                                    </linearGradient>
+                                  </defs>
+                                  <circle cx="24" cy="23.9947" r="12" fill="#fff" />
+                                  <path d="M24,12H44.7812a23.9939,23.9939,0,0,0-41.5639.0029L13.6079,30l.0093-.0024A11.9852,11.9852,0,0,1,24,12Z" fill="url(#chrome-red-action)" />
+                                  <path d="M34.3913,30.0029,24.0007,48A23.994,23.994,0,0,0,44.78,12.0031H23.9989l-.0025.0093A11.985,11.985,0,0,1,34.3913,30.0029Z" fill="url(#chrome-yellow-action)" />
+                                  <path d="M13.6087,29.9971,3.2181,12A23.994,23.994,0,0,0,24.0023,47.9948V26.0125l-.0093-.0024A11.985,11.985,0,0,1,13.6087,29.9971Z" fill="url(#chrome-green-action)" />
+                                  <circle cx="24" cy="24" r="9.5" fill="#1a73e8" />
+                                </svg>
+                                <span className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
+                                  {UI_TEXT.settings.chromeExtensionInstallBtn}
+                                </span>
+                                <ExternalLink className="size-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                              </a>
+                            }
+                          />
                         </SettingsList>
 
                         <div className="mb-3 mt-5 text-xs font-semibold uppercase tracking-[0.22em] text-muted-foreground">
@@ -3109,6 +3153,10 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                             <span className="text-muted-foreground">开源项目</span>
                             <a
                               href="https://github.com/MrShellad/PiDown"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                openUrl("https://github.com/MrShellad/PiDown");
+                              }}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-1.5 font-medium text-primary hover:underline"

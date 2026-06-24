@@ -2,6 +2,7 @@ use crate::core::models::{DbTask, DbCategory, DbTag, CategoryInput, TagInput};
 use crate::core::webdav::DbWebDavDevice;
 use crate::core::store::backgrounds::DbBackground;
 
+#[allow(dead_code)]
 pub trait TaskRepository: Send + Sync {
     // Settings
     fn get_setting(&self, key: &str) -> Result<Option<String>, String>;

@@ -1,6 +1,5 @@
 use crate::core::state::task_format::{format_eta, format_speed};
 use crate::core::state::AppState;
-use gosh_dl::DownloadState;
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;

@@ -13,7 +13,7 @@ mod impl_repository;
 mod tests;
 
 use rusqlite::Connection;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Mutex;
 
 pub struct PooledReadConnection<'a> {

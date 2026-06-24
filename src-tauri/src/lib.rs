@@ -7,7 +7,6 @@ use core::app_paths::default_download_dir;
 use core::native_bridge::start_native_bridge_server;
 use core::state::AppState;
 use tauri::Manager;
-use tauri::Emitter;
 
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -133,6 +132,7 @@ pub fn run() {
             commands::open_task_file,
             commands::open_task_folder,
             commands::open_directory,
+            commands::open_url,
             commands::restart_task,
             commands::switch_to_float,
             commands::switch_to_main,
@@ -176,6 +176,10 @@ pub fn run() {
             commands::delete_webdav_items,
             commands::copy_webdav_item,
             commands::move_webdav_item,
+            commands::open_extension_directory,
+            commands::get_extension_directory_path,
+            commands::respond_pairing,
+            commands::save_extension_zip,
         ]);
 
     let builder = crate::download::protocols::webdav_stream::register_webdav_protocol(builder);

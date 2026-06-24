@@ -86,6 +86,9 @@
     "navCategoryDesc": "Task categorization filtering and custom file mapping icons.",
     "navExtension": "Browser Extension",
     "navExtensionDesc": "Browser download integration services and security token settings.",
+    "chromeExtensionTitle": "Get Chrome Browser Extension",
+    "chromeExtensionDesc": "It is recommended to install the PiDownloader browser extension to automatically capture and accelerate web download tasks in Google Chrome. Click the icon to visit the Chrome Web Store.",
+    "chromeExtensionInstallBtn": "Get Extension",
     "navIntegration": "System & Integration",
     "navIntegrationDesc": "Window behavior and desktop interaction.",
     "navAppearance": "Appearance & Audio",
@@ -501,5 +504,36 @@
       "alwaysOnTop": "Keep on Top",
       "exitApp": "Exit"
     }
+  },
+  "extensionGuide": {
+    "title": "Browser Extension Integration Guide",
+    "description": "It looks like this is your first time launching the app. We highly recommend installing the browser extension so PiDownloader can automatically capture and take over downloads from your browser with a single click!",
+    "tabOnline": "Online Install (Recommended)",
+    "tabLocal": "Local Folder (Developer Mode)",
+    "onlineStep1Title": "Step 1: Install from Web Store",
+    "onlineStep1Desc": "Click the button below to open the PiDownloader extension in the Chrome Web Store, then click 'Add to Chrome' to install it.",
+    "btnInstallOnline": "Install from Chrome Web Store",
+    "step1Title": "Step 1: Get Extension Offline Pack",
+    "step1Desc": "The app provides a local offline package. You can export it directly as a ZIP file, or open its source directory in your developer environment or copy its absolute path.",
+    "btnDownloadZip": "Export Offline ZIP",
+    "zipSaved": "Offline package saved successfully to: %s",
+    "btnOpenDir": "Open Extension Folder",
+    "btnCopyPath": "Copy Path",
+    "pathCopied": "Path copied to clipboard!",
+    "step2Title": "Step 2: Load in Browser",
+    "step2Desc": "1. After exporting the ZIP file, extract it to a permanent folder.\n2. Open your browser (Chrome or Edge) and navigate to chrome://extensions/.\n3. Enable 'Developer mode' in the top right corner.\n4. Click 'Load unpacked' and select the extracted folder.\n(Tip: If you open the local extension folder directly, you can skip step 1 and select the chrome-extension directory)",
+    "btnOpenChromeExtensions": "Open Extension Management Page",
+    "step3Title": "Step 2: Pair & Integrate",
+    "step3Desc": "After installing, click the extension icon in your browser toolbar. It will automatically pair with this client. When a pairing request is detected, the app will show a confirmation prompt.",
+    "dontShowAgain": "Don't show this guide again",
+    "btnClose": "Start My Download Journey"
+  },
+  "browserPairing": {
+    "title": "Browser Extension Connection",
+    "description": "A browser extension is trying to connect to this client:",
+    "deviceName": "Device Name: ",
+    "question": "Allow this device to retrieve the connection Token and manage downloads?",
+    "btnApprove": "Allow",
+    "btnDeny": "Deny"
   }
 }

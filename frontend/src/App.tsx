@@ -14,6 +14,7 @@ import { parseNavFilter, type NavFilter } from "./core/taskFilters";
 import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import FloatDisc from "./components/downloader/FloatDisc";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
+import ExtensionGuideDialog from "./components/downloader/ExtensionGuideDialog";
 
 import type { WebDavDevice } from "./core/bridge/tauri-commands";
 
@@ -135,6 +136,7 @@ export default function App() {
               </DialogContent>
             </Dialog>
             <ThemeEditorDialog />
+            <ExtensionGuideDialog />
           </div>
         </Suspense>
       </TooltipProvider>

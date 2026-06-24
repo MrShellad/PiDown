@@ -250,6 +250,7 @@ impl EngineWrapper {
     }
 
     /// Get active tasks currently running
+    #[allow(dead_code)]
     pub fn active(&self) -> Vec<DownloadStatus> {
         self.inner.active()
     }

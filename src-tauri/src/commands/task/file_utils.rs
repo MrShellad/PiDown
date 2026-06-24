@@ -231,6 +231,29 @@ pub fn open_directory(path: String) -> Result<(), String> {
         .map_err(|e| format!("Failed to open folder: {e}"))
 }
 
+#[tauri::command]
+pub fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return Err("Invalid URL protocol".to_string());
+    }
+
+    #[cfg(target_os = "windows")]
+    let result = std::process::Command::new("cmd")
+        .args(["/C", "start", "", &url])
+        .spawn();
+
+    #[cfg(target_os = "macos")]
+    let result = std::process::Command::new("open").arg(&url).spawn();
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+
+    result
+        .map(|_| ())
+        .map_err(|e| format!("Failed to open URL: {e}"))
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

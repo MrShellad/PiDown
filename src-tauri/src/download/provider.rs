@@ -12,6 +12,7 @@ pub struct DownloadProgressInfo {
 }
 
 #[async_trait::async_trait]
+#[allow(dead_code)]
 pub trait DownloadProvider: Send + Sync {
     fn protocol(&self) -> &'static str;
     async fn create_task(&self, task: &DbTask, options: TaskCreateOptions, settings: &crate::core::settings::AppSettings) -> Result<String, String>;

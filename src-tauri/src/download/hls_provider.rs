@@ -1,9 +1,8 @@
 use crate::core::models::DbTask;
 use crate::core::state::{AppState, TaskCreateOptions};
 use crate::download::provider::{DownloadProvider, DownloadProgressInfo};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Weak, RwLock};
+use std::sync::{Arc, Weak};
 use tauri::Emitter;
 
 pub struct HlsDownloadProvider {

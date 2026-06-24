@@ -36,6 +36,7 @@ pub struct AppState {
     pub(crate) video_cache: Mutex<Option<VideoCache>>,
     pub(crate) http_client: reqwest::Client,
     pub(crate) providers: HashMap<String, Arc<dyn crate::download::provider::DownloadProvider>>,
+    pub(crate) pending_pairings: Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
 }
 
 impl AppState {
@@ -102,6 +103,7 @@ impl AppState {
                 video_cache: Mutex::new(None),
                 http_client,
                 providers,
+                pending_pairings: Mutex::new(HashMap::new()),
             }
         });
 

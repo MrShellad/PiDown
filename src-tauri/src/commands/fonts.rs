@@ -104,6 +104,7 @@ fn is_font_file(path: &Path) -> bool {
     )
 }
 
+#[allow(dead_code)]
 fn parse_font_family_names(data: &[u8]) -> Vec<String> {
     if data.get(0..4) == Some(b"ttcf") {
         return parse_font_collection_names(data);
@@ -112,6 +113,7 @@ fn parse_font_family_names(data: &[u8]) -> Vec<String> {
     parse_sfnt_names(data, 0)
 }
 
+#[allow(dead_code)]
 fn parse_font_collection_names(data: &[u8]) -> Vec<String> {
     let Some(num_fonts) = read_u32(data, 8).map(|value| value.min(1024)) else {
         return Vec::new();
@@ -128,6 +130,7 @@ fn parse_font_collection_names(data: &[u8]) -> Vec<String> {
     names
 }
 
+#[allow(dead_code)]
 fn parse_sfnt_names(data: &[u8], base: usize) -> Vec<String> {
     let Some(num_tables) = read_u16(data, base + 4).map(|value| value as usize) else {
         return Vec::new();
@@ -283,11 +286,13 @@ fn sanitize_font_name(name: String) -> Option<String> {
     }
 }
 
+#[allow(dead_code)]
 fn read_u16(data: &[u8], offset: usize) -> Option<u16> {
     let bytes = data.get(offset..offset + 2)?;
     Some(u16::from_be_bytes([bytes[0], bytes[1]]))
 }
 
+#[allow(dead_code)]
 fn read_u32(data: &[u8], offset: usize) -> Option<u32> {
     let bytes = data.get(offset..offset + 4)?;
     Some(u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))

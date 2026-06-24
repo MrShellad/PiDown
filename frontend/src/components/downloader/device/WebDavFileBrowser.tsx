@@ -45,27 +45,14 @@ import {
   Trash2,
   Copy,
   Scissors,
-  Check,
-  AlertTriangle,
-  X,
-  Loader2,
+  FileImage,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import WebDavVideoPlayerDialog, { ZH_CN_TRANSLATIONS } from "./WebDavVideoPlayerDialog";
+import WebDavVideoPlayerDialog from "./WebDavVideoPlayerDialog";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Checkbox } from "@/components/ui/checkbox";
-import { listWebDavFiles, setVideoPlayerDuration, getWebDavDownloadUrl, renameWebDavItem, deleteWebDavItems, copyWebDavItem, moveWebDavItem } from "@/core/bridge/tauri-commands";
+import { listWebDavFiles, getWebDavDownloadUrl, renameWebDavItem, deleteWebDavItems, copyWebDavItem, moveWebDavItem } from "@/core/bridge/tauri-commands";
 import type { WebDavFile, WebDavDevice } from "@/core/bridge/tauri-commands";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
@@ -82,10 +69,16 @@ import {
 import { useToastStore } from "@/core/store/useToastStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { formatDateTime } from "@/core/datetime";
-import { MediaPlayer, MediaProvider } from "@vidstack/react";
-import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
 import { listen } from "@tauri-apps/api/event";
 import { motion } from "motion/react";
+
+import PhotoSwipe from "photoswipe";
+import "photoswipe/style.css";
+
+import WebDavVideoPreview from "./WebDavVideoPreview";
+import WebDavImagePreview from "./WebDavImagePreview";
+import WebDavClipboardDrawer, { type ClipboardItem } from "./WebDavClipboardDrawer";
+import WebDavFileBrowserDialogs from "./WebDavFileBrowserDialogs";
 
 interface WebDavFileBrowserProps {
   device: WebDavDevice;
@@ -94,16 +87,7 @@ interface WebDavFileBrowserProps {
 
 type ViewMode = "grid" | "list";
 
-interface ClipboardItem {
-  name: string;
-  path: string;
-  is_dir: boolean;
-  operation: "copy" | "move";
-  deviceId: string;
-  status: "idle" | "pasting" | "success" | "error";
-  progress: number;
-  errorMsg?: string;
-}
+
 
 const columnHelper = createColumnHelper<WebDavFile>();
 
@@ -195,11 +179,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   const [downloadModalOpen, setDownloadModalOpen] = useState(false);
   const [downloadRequest, setDownloadRequest] = useState<ExternalDownloadRequest | null>(null);
 
-  // Video player settings
-  const settings = useAppSettingsStore((state) => state.settings);
-  const autoPlay = settings?.player?.auto_play ?? true;
-  const defaultMuted = settings?.player?.muted ?? false;
-  const defaultVolume = settings?.player?.default_volume ?? 1.0;
+
 
   // Video player state
   const [playOpen, setPlayOpen] = useState(false);
@@ -214,6 +194,12 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     const videoExtensions = [".mp4", ".mkv", ".avi", ".mov", ".webm", ".flv", ".wmv", ".ts", ".m3u8"];
     const lower = filename.toLowerCase();
     return videoExtensions.some((ext) => lower.endsWith(ext));
+  }, []);
+
+  const isImageFile = useCallback((filename: string): boolean => {
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg", ".ico"];
+    const lower = filename.toLowerCase();
+    return imageExtensions.some((ext) => lower.endsWith(ext));
   }, []);
 
   const getPlayUrl = useCallback((file: WebDavFile) => {
@@ -233,6 +219,105 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
       setPlayOpen(true);
     }
   }, [getPlayUrl]);
+
+  const handlePreviewImage = useCallback((file: WebDavFile, mode: "dialog" | "page" = "dialog") => {
+    if (mode === "dialog") {
+      const imgs = files.filter(f => !f.is_dir && isImageFile(f.name));
+      const initialIndex = imgs.findIndex(f => f.path === file.path);
+      if (initialIndex === -1) return;
+
+      const blobCache = new Map<string, string>();
+      const loadingPromises = new Map<string, Promise<string>>();
+
+      const dataSource = imgs.map(f => {
+        const url = getPlayUrl(f);
+        return {
+          src: url,
+          originalUrl: url,
+          w: 1200,
+          h: 800,
+          alt: f.name,
+        };
+      });
+
+      const pswp = new PhotoSwipe({
+        dataSource,
+        index: initialIndex,
+        bgOpacity: 0.85,
+        closeOnVerticalDrag: true,
+        preload: [0, 5], // Preload 5 next images automatically
+      });
+
+      const preloadAndCacheImage = async (index: number) => {
+        if (index < 0 || index >= dataSource.length) return;
+        const item = dataSource[index];
+        const originalUrl = item.originalUrl;
+
+        if (blobCache.has(originalUrl) || loadingPromises.has(originalUrl)) {
+          return;
+        }
+
+        const promise = (async () => {
+          try {
+            const response = await fetch(originalUrl);
+            const blob = await response.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            blobCache.set(originalUrl, blobUrl);
+            item.src = blobUrl;
+            return blobUrl;
+          } catch (e) {
+            console.error("Failed to preload WebDAV image blob for PhotoSwipe:", e);
+            throw e;
+          } finally {
+            loadingPromises.delete(originalUrl);
+          }
+        })();
+
+        loadingPromises.set(originalUrl, promise);
+      };
+
+      pswp.on("change", () => {
+        const activeIndex = pswp.currIndex;
+        // Prioritize caching the active slide first
+        preloadAndCacheImage(activeIndex);
+        // Preload next 5 slides in the background
+        for (let i = 1; i <= 5; i++) {
+          preloadAndCacheImage(activeIndex + i);
+        }
+      });
+
+      pswp.on("gettingData", (e) => {
+        const { data, index } = e;
+        if (data.src && (data.w === 1200 && data.h === 800)) {
+          const img = new window.Image();
+          img.src = data.src;
+          img.onload = () => {
+            data.w = img.naturalWidth;
+            data.h = img.naturalHeight;
+            pswp.refreshSlideContent(index);
+          };
+        }
+      });
+
+      pswp.on("close", () => {
+        // Clear all Object URLs to avoid memory leaks when closing the PhotoSwipe dialog
+        blobCache.forEach((blobUrl) => {
+          URL.revokeObjectURL(blobUrl);
+        });
+        blobCache.clear();
+        loadingPromises.clear();
+      });
+
+      pswp.init();
+    } else {
+      setCurrentPlayingFile(file);
+      setPreviewMode("page");
+    }
+  }, [files, isImageFile, getPlayUrl]);
+
+  const imageFiles = useMemo(() => {
+    return files.filter(f => !f.is_dir && isImageFile(f.name));
+  }, [files, isImageFile]);
 
   const handleDownloadFile = useCallback(async (file: WebDavFile) => {
     try {
@@ -400,6 +485,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                 <Folder className="size-5 text-primary/70 fill-primary/30 shrink-0" />
               ) : isVideoFile(file.name) ? (
                 <FileVideo className="size-5 text-indigo-500 shrink-0" />
+              ) : isImageFile(file.name) ? (
+                <FileImage className="size-5 text-pink-500 shrink-0" />
               ) : (
                 <File className="size-5 text-muted-foreground/60 shrink-0" />
               )}
@@ -509,7 +596,14 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     }
 
     try {
-      const data = await listWebDavFiles(device.id, path);
+      const rawData = await listWebDavFiles(device.id, path);
+      // Filter out the directory itself from the listing (some WebDAV servers return the directory itself)
+      const normalizedQueryPath = path.replace(/\/+$/, "").toLowerCase();
+      const data = rawData.filter(file => {
+        const normalizedFilePath = file.path.replace(/\/+$/, "").toLowerCase();
+        return normalizedFilePath !== normalizedQueryPath;
+      });
+
       const currentList = directoryCache.current.get(path) || [];
       const hasChanged = currentList.length !== data.length ||
         JSON.stringify(currentList) !== JSON.stringify(data);
@@ -964,104 +1058,32 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   };
 
   if (previewMode === "page" && currentPlayingFile) {
-    const currentVideoUrl = getPlayUrl(currentPlayingFile);
-    return (
-      <div className="flex h-full min-h-0 flex-1 flex-col gap-5 p-6 relative select-none">
-        {/* Combined Solid Toolbar */}
-        <div className="shrink-0 bg-toolbar border border-border rounded-xl p-2.5 flex items-center justify-between gap-4 mx-3 shadow-sm">
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Button
-              variant="secondary"
-              size="default"
-              onClick={() => {
-                setPreviewMode("none");
-                setCurrentPlayingFile(null);
-              }}
-              className="gap-1 font-bold border border-border px-3 shrink-0 h-9 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-            >
-              <ChevronLeft className="size-4.5" />
-              返回文件
-            </Button>
-            <div className="h-5 w-px bg-border shrink-0 mx-0.5" />
-            <span className="text-sm font-semibold truncate text-foreground flex-1">
-              正在播放：{currentPlayingFile.name}
-            </span>
-          </div>
-          {/* Speed Indicator */}
-          {speed > 0 && (
-            <span className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 font-mono animate-pulse shrink-0">
-              <span className="size-1.5 rounded-full bg-emerald-400"></span>
-              {formatSpeed(speed)}
-            </span>
-          )}
-        </div>
-
-        {/* Content Pane */}
-        <div className="flex-1 min-h-0 mx-3 flex gap-4">
-          {/* Player Container */}
-          <div className="flex-1 bg-black rounded-xl overflow-hidden relative border border-border flex items-center justify-center">
-            <MediaPlayer
-              src={currentVideoUrl}
-              viewType="video"
-              streamType="on-demand"
-              logLevel="warn"
-              crossOrigin
-              playsInline
-              autoplay={autoPlay}
-              muted={defaultMuted}
-              volume={defaultVolume}
-              className="w-full h-full object-contain"
-              onDurationChange={(duration) => {
-                if (duration && duration > 0) {
-                  setVideoPlayerDuration(device.id, currentPlayingFile.path, duration).catch(console.error);
-                }
-              }}
-            >
-              <MediaProvider />
-              <DefaultVideoLayout 
-                icons={defaultLayoutIcons} 
-                translations={ZH_CN_TRANSLATIONS}
-              />
-            </MediaPlayer>
-          </div>
-
-          {/* Playlist Sidebar */}
-          <div className="w-80 shrink-0 bg-card border border-border rounded-xl flex flex-col overflow-hidden">
-            <div className="p-4 border-b border-border bg-secondary/30 shrink-0">
-              <h3 className="text-sm font-bold text-foreground">同目录下视频</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">播放列表 ({videoFiles.length})</p>
-            </div>
-            <div className="flex-1 overflow-auto p-2 space-y-1.5">
-              {videoFiles.map((file) => {
-                const isCurrent = file.path === currentPlayingFile.path;
-                return (
-                  <div
-                    key={file.path}
-                    onClick={() => setCurrentPlayingFile(file)}
-                    className={cn(
-                      "flex items-start gap-3 p-3 rounded-lg border cursor-pointer hover:bg-muted transition-all select-none group",
-                      isCurrent
-                        ? "bg-primary/5 border-primary/20 text-primary"
-                        : "bg-background/40 border-border/50 text-foreground"
-                    )}
-                  >
-                    <FileVideo className={cn("size-4.5 shrink-0 mt-0.5", isCurrent ? "text-primary" : "text-muted-foreground group-hover:text-primary")} />
-                    <div className="min-w-0 flex-1">
-                      <div className={cn("text-xs leading-relaxed break-all line-clamp-2", isCurrent ? "font-bold" : "font-medium")}>
-                        {file.name}
-                      </div>
-                      <div className="text-[10px] text-muted-foreground mt-1">
-                        {formatFileSize(file.size)}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    if (isImageFile(currentPlayingFile.name)) {
+      return (
+        <WebDavImagePreview
+          currentPlayingFile={currentPlayingFile}
+          setCurrentPlayingFile={setCurrentPlayingFile}
+          setPreviewMode={setPreviewMode}
+          imageFiles={imageFiles}
+          getPlayUrl={getPlayUrl}
+          formatFileSize={formatFileSize}
+        />
+      );
+    } else {
+      return (
+        <WebDavVideoPreview
+          device={device}
+          currentPlayingFile={currentPlayingFile}
+          setCurrentPlayingFile={setCurrentPlayingFile}
+          setPreviewMode={setPreviewMode}
+          videoFiles={videoFiles}
+          speed={speed}
+          getPlayUrl={getPlayUrl}
+          formatFileSize={formatFileSize}
+          formatSpeed={formatSpeed}
+        />
+      );
+    }
   }
 
   return (
@@ -1393,7 +1415,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                             <TableRow
                               className={cn(
                                 "hover:bg-muted/70 cursor-default transition-colors border-b border-border/40 last:border-b-0 h-12 relative z-0",
-                                (row.original.is_dir || isVideoFile(row.original.name)) ? "cursor-pointer text-foreground hover:text-primary" : "",
+                                (row.original.is_dir || isVideoFile(row.original.name) || isImageFile(row.original.name)) ? "cursor-pointer text-foreground hover:text-primary" : "",
                                 contextMenuPath === row.original.path && "bg-primary/10 text-primary border-y border-primary/25 z-10 relative"
                               )}
                               onClick={() => {
@@ -1401,6 +1423,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                                   navigateTo(row.original.path);
                                 } else if (isVideoFile(row.original.name)) {
                                   handlePlayVideo(row.original, "dialog");
+                                } else if (isImageFile(row.original.name)) {
+                                  handlePreviewImage(row.original, "dialog");
                                 }
                               }}
                             >
@@ -1446,6 +1470,24 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                                 </ContextMenuItem>
                                 <ContextMenuItem
                                   onSelect={() => handlePlayVideo(row.original, "page")}
+                                  className="cursor-pointer gap-3.5 flex items-center"
+                                >
+                                  <ExternalLink className="size-4.5 text-violet-500 shrink-0" />
+                                  <span>新页面预览</span>
+                                </ContextMenuItem>
+                              </>
+                            )}
+                            {isImageFile(row.original.name) && (
+                              <>
+                                <ContextMenuItem
+                                  onSelect={() => handlePreviewImage(row.original, "dialog")}
+                                  className="cursor-pointer gap-3.5 flex items-center"
+                                >
+                                  <FileImage className="size-4.5 text-pink-500 shrink-0" />
+                                  <span>弹窗预览</span>
+                                </ContextMenuItem>
+                                <ContextMenuItem
+                                  onSelect={() => handlePreviewImage(row.original, "page")}
                                   className="cursor-pointer gap-3.5 flex items-center"
                                 >
                                   <ExternalLink className="size-4.5 text-violet-500 shrink-0" />
@@ -1509,11 +1551,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                                 navigateTo(file.path);
                               } else if (isVideoFile(file.name)) {
                                 handlePlayVideo(file, "dialog");
+                              } else if (isImageFile(file.name)) {
+                                handlePreviewImage(file, "dialog");
                               }
                             }}
                             className={cn(
                               "flex flex-col items-center justify-center p-3 rounded-xl border border-border bg-background w-24 h-24 hover:border-primary hover:bg-muted transition-all select-none text-center cursor-default group",
-                              (file.is_dir || isVideoFile(file.name)) ? "cursor-pointer hover:text-primary" : "",
+                              (file.is_dir || isVideoFile(file.name) || isImageFile(file.name)) ? "cursor-pointer hover:text-primary" : "",
                               contextMenuPath === file.path && "bg-primary/10 border-primary text-primary shadow-sm scale-[1.01]"
                             )}
                           >
@@ -1522,6 +1566,8 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                                 <Folder className="size-8 text-primary/70 fill-primary/30 group-hover:scale-105 transition-transform" />
                               ) : isVideoFile(file.name) ? (
                                 <FileVideo className="size-8 text-indigo-500 group-hover:scale-105 transition-transform" />
+                              ) : isImageFile(file.name) ? (
+                                <FileImage className="size-8 text-pink-500 group-hover:scale-105 transition-transform" />
                               ) : (
                                 <File className="size-8 text-muted-foreground/60" />
                               )}
@@ -1554,6 +1600,24 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
                               </ContextMenuItem>
                               <ContextMenuItem
                                     onSelect={() => handlePlayVideo(file, "page")}
+                                className="cursor-pointer gap-3.5 flex items-center"
+                              >
+                                <ExternalLink className="size-4.5 text-violet-500 shrink-0" />
+                                <span>新页面预览</span>
+                              </ContextMenuItem>
+                            </>
+                          )}
+                          {isImageFile(file.name) && (
+                            <>
+                              <ContextMenuItem
+                                    onSelect={() => handlePreviewImage(file, "dialog")}
+                                className="cursor-pointer gap-3.5 flex items-center"
+                              >
+                                <FileImage className="size-4.5 text-pink-500 shrink-0" />
+                                <span>弹窗预览</span>
+                              </ContextMenuItem>
+                              <ContextMenuItem
+                                    onSelect={() => handlePreviewImage(file, "page")}
                                 className="cursor-pointer gap-3.5 flex items-center"
                               >
                                 <ExternalLink className="size-4.5 text-violet-500 shrink-0" />
@@ -1621,244 +1685,27 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
         onInitialRequestConsumed={() => setDownloadRequest(null)}
       />
 
-      {/* Clipboard Drawer */}
-      {clipboardItems.length > 0 && (
-        <div className="absolute right-4 bottom-4 z-45 flex flex-col items-end">
-          {!drawerExpanded ? (
-            <Button
-              onClick={() => setDrawerExpanded(true)}
-              className="shadow-lg rounded-full h-12 px-5 bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 cursor-pointer transition-all duration-300 transform hover:scale-105"
-            >
-              <HardDriveUpload className="size-5 animate-bounce" />
-              <span className="font-bold text-sm">剪贴板 ({clipboardItems.length})</span>
-            </Button>
-          ) : (
-            <div className="w-80 max-h-96 bg-background border border-border shadow-2xl rounded-xl flex flex-col overflow-hidden transition-all duration-300">
-              {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3 bg-secondary/80 border-b border-border select-none">
-                <div className="flex items-center gap-2">
-                  <HardDriveUpload className="size-4 text-primary" />
-                  <span className="font-bold text-sm text-foreground">剪贴板收纳柜</span>
-                  <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-bold">
-                    {clipboardItems.length}
-                  </span>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setDrawerExpanded(false)}
-                  className="size-7 rounded-lg text-muted-foreground hover:text-foreground cursor-pointer"
-                >
-                  <X className="size-4" />
-                </Button>
-              </div>
+      <WebDavClipboardDrawer
+        clipboardItems={clipboardItems}
+        setClipboardItems={setClipboardItems}
+        drawerExpanded={drawerExpanded}
+        setDrawerExpanded={setDrawerExpanded}
+        isPasting={isPasting}
+        handlePaste={handlePaste}
+      />
 
-              {/* Items List */}
-              <div className="flex-1 overflow-auto p-3 space-y-2.5 max-h-60 animate-in fade-in-50 slide-in-from-bottom-5 duration-200">
-                {clipboardItems.map((item) => {
-                  const isCopy = item.operation === 'copy';
-                  const isPastingItem = item.status === 'pasting';
-                  const isSuccessItem = item.status === 'success';
-                  const isErrorItem = item.status === 'error';
-
-                  return (
-                    <div key={item.path} className="flex items-center justify-between gap-3 p-2 bg-muted/30 border border-border/40 hover:border-border/80 rounded-lg transition-colors group">
-                      <div className="relative size-8 shrink-0 flex items-center justify-center bg-background border border-border/50 rounded-lg">
-                        {item.is_dir ? (
-                          <Folder className="size-4 text-primary/70 fill-primary/30" />
-                        ) : (
-                          <File className="size-4 text-muted-foreground/60" />
-                        )}
-
-                        {/* Circular Progress Overlay */}
-                        {isPastingItem && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-background/90 rounded-lg">
-                            <svg className="w-8 h-8 transform -rotate-90">
-                              <circle
-                                cx="16"
-                                cy="16"
-                                r="12"
-                                className="stroke-muted"
-                                strokeWidth="2"
-                                fill="transparent"
-                              />
-                              <circle
-                                cx="16"
-                                cy="16"
-                                r="12"
-                                className="stroke-primary transition-all duration-300"
-                                strokeWidth="2"
-                                fill="transparent"
-                                strokeDasharray={2 * Math.PI * 12}
-                                strokeDashoffset={2 * Math.PI * 12 - (item.progress / 100) * (2 * Math.PI * 12)}
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                            <span className="absolute text-[8px] font-bold">{Math.round(item.progress)}%</span>
-                          </div>
-                        )}
-
-                        {/* Success Overlay */}
-                        {isSuccessItem && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-emerald-500/10 dark:bg-emerald-500/20 border border-emerald-500 rounded-lg animate-in fade-in-50 zoom-in-75">
-                            <Check className="size-4 text-emerald-500 font-bold" />
-                          </div>
-                        )}
-
-                        {/* Error Overlay */}
-                        {isErrorItem && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-rose-500/10 dark:bg-rose-500/20 border border-rose-500 rounded-lg">
-                            <X className="size-4 text-rose-500 font-bold" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* File Name & Path */}
-                      <div className="flex-1 min-w-0 flex flex-col">
-                        <span className="text-xs font-semibold text-foreground truncate">{item.name}</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-[9px] text-muted-foreground/75 truncate mt-0.5 cursor-help">
-                              {item.path}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent className="text-[10px] break-all max-w-[240px]" side="left">
-                            {item.path}
-                          </TooltipContent>
-                        </Tooltip>
-                      </div>
-
-                      {/* Badge / Action */}
-                      <div className="flex items-center gap-1.5 shrink-0 select-none">
-                        <span className={cn(
-                          "text-[9px] px-1.5 py-0.5 rounded font-bold uppercase",
-                          isCopy ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/10" : "bg-indigo-500/15 text-indigo-500 border border-indigo-500/10"
-                        )}>
-                          {isCopy ? "复制" : "移动"}
-                        </span>
-                        
-                        {!isPasting && !isSuccessItem && (
-                          <Button
-                            variant="ghost"
-                            size="icon-xs"
-                            onClick={() => {
-                              setClipboardItems(prev => prev.filter(i => i.path !== item.path));
-                            }}
-                            className="size-6 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md cursor-pointer opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="size-3" />
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Footer Actions */}
-              <div className="px-4 py-3 bg-secondary/30 border-t border-border flex items-center justify-between gap-3">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setClipboardItems([])}
-                  disabled={isPasting}
-                  className="text-xs font-semibold cursor-pointer py-1.5 h-8 bg-transparent"
-                >
-                  清空
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={handlePaste}
-                  disabled={isPasting || clipboardItems.every(i => i.status === 'success')}
-                  className="text-xs font-semibold cursor-pointer py-1.5 h-8 gap-1.5 flex-1 shadow-md font-bold"
-                >
-                  {isPasting ? (
-                    <>
-                      <Loader2 className="size-3.5 animate-spin" />
-                      <span>粘贴中...</span>
-                    </>
-                  ) : (
-                    <>
-                      <HardDriveUpload className="size-3.5" />
-                      <span>开始粘贴</span>
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Rename Dialog */}
-      <Dialog open={renameOpen} onOpenChange={setRenameOpen}>
-        <DialogContent size="sm">
-          <DialogHeader>
-            <div className="flex size-10 items-center justify-center rounded-lg bg-amber-500/10 text-amber-500">
-              <Pencil className="size-5" />
-            </div>
-            <DialogTitle>重命名项目</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <p className="text-sm text-muted-foreground mb-3">
-              请输入新的名称：
-            </p>
-            <Input
-              value={renameNewName}
-              onChange={(e) => setRenameNewName(e.target.value)}
-              placeholder="请输入名称"
-              className="w-full text-foreground bg-background"
-              autoFocus
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && renameNewName.trim() && renameNewName !== renameItem?.name) {
-                  submitRename();
-                }
-              }}
-            />
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRenameOpen(false)}>
-              取消
-            </Button>
-            <Button
-              onClick={submitRename}
-              disabled={!renameNewName.trim() || renameNewName === renameItem?.name}
-            >
-              确定
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-        <DialogContent size="sm" variant="alert">
-          <DialogHeader>
-            <div className="flex size-10 items-center justify-center rounded-lg bg-destructive/10 text-destructive">
-              <AlertTriangle className="size-5" />
-            </div>
-            <DialogTitle className="text-destructive">确认删除</DialogTitle>
-          </DialogHeader>
-          <DialogBody>
-            <DialogDescription>
-              {deleteItems.length === 1
-                ? `确认删除项目“${deleteItems[0].name}”？`
-                : `确认删除选中的 ${deleteItems.length} 个项目？`}
-            </DialogDescription>
-            <p className="text-sm leading-6 text-muted-foreground mt-2">
-              此操作将永久删除 WebDAV 服务器上的文件或文件夹，且无法恢复。
-            </p>
-          </DialogBody>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteConfirmOpen(false)}>
-              取消
-            </Button>
-            <Button variant="destructive" onClick={submitDelete}>
-              删除
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WebDavFileBrowserDialogs
+        renameOpen={renameOpen}
+        setRenameOpen={setRenameOpen}
+        renameItem={renameItem}
+        renameNewName={renameNewName}
+        setRenameNewName={setRenameNewName}
+        submitRename={submitRename}
+        deleteConfirmOpen={deleteConfirmOpen}
+        setDeleteConfirmOpen={setDeleteConfirmOpen}
+        deleteItems={deleteItems}
+        submitDelete={submitDelete}
+      />
     </div>
   );
 }
