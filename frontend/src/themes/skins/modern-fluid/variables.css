@@ -551,5 +551,207 @@ html[data-theme="ubuntu"][data-color-mode="light"] {
     --scrollbar-thumb-active: #94A3B8;
 }
 
+html[data-theme="animal-crossing"] {
+    --background: #1e2f27;
+    --foreground: #e6f2ec;
+    --card: #243b31;
+    --card-foreground: #e6f2ec;
+    --toolbar-bg: #1a2b23;
+    --table-header-bg: rgb(26, 43, 35);
+    --task-row-bg: rgba(36, 59, 49, 0.95);
+    --task-row-hover-bg: #2c473b;
+    --popover: #243b31;
+    --popover-foreground: #e6f2ec;
+
+    --primary: #19c8b9;
+    --primary-foreground: #ffffff;
+
+    --secondary: #1a2b23;
+    --secondary-foreground: #e6f2ec;
+
+    --muted: #2d473a;
+    --muted-foreground: #9fbaab;
+
+    --accent: rgba(25, 200, 185, 0.2);
+    --accent-foreground: #19c8b9;
+
+    --destructive: #e05a5a;
+    --destructive-foreground: #ffffff;
+
+    --border: #355243;
+    --input: #355243;
+    --ring: #19c8b9;
+
+    --radius: 18px;
+
+    /* Sidebar */
+    --sidebar: #13221b;
+    --sidebar-foreground: #9fbaab;
+    --sidebar-primary: #19c8b9;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #243b31;
+    --sidebar-accent-foreground: #19c8b9;
+    --sidebar-border: #1e2f27;
+    --sidebar-ring: #19c8b9;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(25, 200, 185, 0.3);
+    --button-glow: 0 4px 12px rgba(25, 200, 185, 0.4);
+    --surface-shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.3);
+    --surface-shadow-strong: 0 16px 36px rgba(0, 0, 0, 0.4);
+    --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+    --surface-shadow-divider: 0 1px 0 rgba(255, 255, 255, 0.05);
+    --dialog-header-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    --dialog-footer-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+
+    /* Switch */
+    --switch-track-off: #1e2f27;
+    --switch-track-off-hover: #2c473b;
+    --switch-track-on: #6fba2c;
+    --switch-track-on-hover: #85cc45;
+    --switch-thumb: #ffffff;
+    --switch-icon-off: #9fbaab;
+    --switch-press-ring: rgba(25, 200, 185, 0.4);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.3);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+    /* Statuses */
+    --status-success: #6fba2c;
+    --status-warning: #f5c31c;
+    --status-danger: #e05a5a;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(25, 200, 185, 0.25);
+    --task-progress-paused: rgba(245, 195, 28, 0.25);
+    --task-progress-failed: rgba(224, 90, 90, 0.25);
+    --task-selection-overlay: rgba(25, 200, 185, 0.12);
+    --task-selection-ring: #19c8b9;
+    --task-selection-indicator: #19c8b9;
+    --task-selection-control-halo: rgba(25, 200, 185, 0.3);
+
+    /* Float disc */
+    --float-disc-background: rgba(36, 59, 49, 0.9);
+    --float-disc-bg-start: #243b31;
+    --float-disc-bg-end: #1e2f27;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #355243;
+    --float-disc-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    --float-disc-color: #ffffff;
+    --float-disc-drag-border: 1px solid #19c8b9;
+    --float-disc-drag-shadow: 0 4px 14px rgba(25, 200, 185, 0.4);
+    --float-disc-wave-accent: #355243;
+    --float-disc-scanline: #19c8b9;
+    --float-disc-ring-track: #1e2f27;
+    --float-disc-ring-progress: #19c8b9;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #355243;
+    --scrollbar-thumb-hover: #486e5b;
+    --scrollbar-thumb-active: #19c8b9;
+
+    --theme-static-background: #1c3629 url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><polygon points="30,12 45,42 15,42" fill="%23254737" opacity="0.5"/><polygon points="0,42 15,72 -15,72" fill="%23254737" opacity="0.5"/><polygon points="60,42 75,72 45,72" fill="%23254737" opacity="0.5"/></svg>') repeat;
+}
+
+html[data-theme="animal-crossing"][data-color-mode="light"] {
+    --background: #f8f8f0;
+    --foreground: #794f27;
+    --card: #fafaf6;
+    --card-foreground: #794f27;
+    --toolbar-bg: #f0e8d8;
+    --table-header-bg: rgb(240, 232, 216);
+    --task-row-bg: rgba(251, 251, 250, 0.95);
+    --task-row-hover-bg: #f5ecd8;
+    --popover: #fafaf6;
+    --popover-foreground: #794f27;
+
+    --primary: #19c8b9;
+    --primary-foreground: #ffffff;
+
+    --secondary: #f0e8d8;
+    --secondary-foreground: #794f27;
+
+    --muted: #f0ece2;
+    --muted-foreground: #9f927d;
+
+    --accent: rgba(25, 200, 185, 0.12);
+    --accent-foreground: #19c8b9;
+
+    --destructive: #e05a5a;
+    --destructive-foreground: #ffffff;
+
+    --border: #aaa69d;
+    --input: #aaa69d;
+    --ring: #19c8b9;
+
+    --radius: 18px;
+
+    /* Sidebar */
+    --sidebar: #e6f9f6;
+    --sidebar-foreground: #794f27;
+    --sidebar-primary: #19c8b9;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #d5f5f0;
+    --sidebar-accent-foreground: #19c8b9;
+    --sidebar-border: #aaa69d;
+    --sidebar-ring: #19c8b9;
+
+    /* Shadows and buttons */
+    --glow-effect: 0 0 24px rgba(25, 200, 185, 0.15);
+    --button-glow: 0 4px 12px rgba(25, 200, 185, 0.25);
+    --surface-shadow-raised: 0 8px 20px rgba(61, 52, 40, 0.08);
+    --surface-shadow-strong: 0 16px 36px rgba(61, 52, 40, 0.12);
+    --surface-shadow-inset: inset 0 2px 4px rgba(61, 52, 40, 0.04);
+    --surface-shadow-divider: 0 1px 2px rgba(61, 52, 40, 0.04);
+    --dialog-header-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
+    --dialog-footer-shadow: 0 -4px 6px rgba(0, 0, 0, 0.04);
+
+    /* Switch */
+    --switch-track-off: #e6f9f6;
+    --switch-track-off-hover: #d5f5f0;
+    --switch-track-on: #6fba2c;
+    --switch-track-on-hover: #85cc45;
+    --switch-thumb: #ffffff;
+    --switch-icon-off: #aaa69d;
+    --switch-press-ring: rgba(25, 200, 185, 0.25);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.15);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+    /* Statuses */
+    --status-success: #6fba2c;
+    --status-warning: #f5c31c;
+    --status-danger: #e05a5a;
+
+    /* Task progress & Selection */
+    --task-progress-active: rgba(25, 200, 185, 0.15);
+    --task-progress-paused: rgba(245, 195, 28, 0.15);
+    --task-progress-failed: rgba(224, 90, 90, 0.15);
+    --task-selection-overlay: rgba(25, 200, 185, 0.08);
+    --task-selection-ring: #19c8b9;
+    --task-selection-indicator: #19c8b9;
+    --task-selection-control-halo: rgba(25, 200, 185, 0.2);
+
+    /* Float disc */
+    --float-disc-background: rgba(240, 232, 216, 0.95);
+    --float-disc-bg-start: #f0e8d8;
+    --float-disc-bg-end: #f8f8f0;
+    --float-disc-backdrop: blur(12px);
+    --float-disc-border: 1px solid #aaa69d;
+    --float-disc-shadow: 0 10px 30px rgba(61, 52, 40, 0.15);
+    --float-disc-color: #794f27;
+    --float-disc-drag-border: 1px solid #19c8b9;
+    --float-disc-drag-shadow: 0 4px 14px rgba(25, 200, 185, 0.3);
+    --float-disc-wave-accent: #f0ece2;
+    --float-disc-scanline: #19c8b9;
+    --float-disc-ring-track: #f0ece2;
+    --float-disc-ring-progress: #19c8b9;
+
+    /* Scrollbar */
+    --scrollbar-thumb: #e0ece2;
+    --scrollbar-thumb-hover: #aaa69d;
+    --scrollbar-thumb-active: #19c8b9;
+
+    --theme-static-background: #85d38a url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 60 60"><polygon points="30,12 45,42 15,42" fill="%239be4a0" opacity="0.5"/><polygon points="0,42 15,72 -15,72" fill="%239be4a0" opacity="0.5"/><polygon points="60,42 75,72 45,72" fill="%239be4a0" opacity="0.5"/></svg>') repeat;
+}
+
 
 

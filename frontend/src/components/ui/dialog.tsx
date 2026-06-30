@@ -8,6 +8,7 @@ import { Dialog as DialogPrimitive } from "radix-ui"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { useThemeStore } from "@/core/store/useThemeStore"
 
 type DialogSurfaceVariant = "modal" | "alert"
 
@@ -251,6 +252,7 @@ function DialogFooter({
   closeLabel?: string
 }) {
   const variant = React.useContext(DialogSurfaceContext)
+  const theme = useThemeStore((state) => state.theme);
 
   return (
     <div
@@ -259,6 +261,7 @@ function DialogFooter({
         "relative z-10 flex flex-col-reverse items-center justify-center gap-2 border-t border-border/60 bg-muted-soft px-4 py-4 shadow-dialog-footer sm:flex-row sm:gap-3 sm:px-5",
         "[&_[data-slot=button]]:h-10 [&_[data-slot=button]]:w-full [&_[data-slot=button]]:px-4 sm:[&_[data-slot=button]]:w-28",
         variant === "alert" && "sm:[&_[data-slot=button]]:w-28",
+        theme === "animal-crossing" && "pb-6 pt-4 overflow-visible [&_[data-slot=button]]:w-auto sm:[&_[data-slot=button]]:w-auto sm:[&_[data-slot=button]]:min-w-28",
         className
       )}
       {...props}

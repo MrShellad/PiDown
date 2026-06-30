@@ -274,6 +274,17 @@ export function getUbuntuThemeStyles(): { dark: Record<string, string>; light: R
   }
 }
 
+export function getAnimalCrossingThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
+  try {
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="animal-crossing"\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="animal-crossing"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    return { dark: darkVars, light: lightVars };
+  } catch (e) {
+    console.error("Failed to parse animal-crossing theme variables", e);
+    return { dark: {}, light: {} };
+  }
+}
+
 
 
 // Helpers for ZIP Parsing

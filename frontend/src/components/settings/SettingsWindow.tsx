@@ -69,10 +69,12 @@ import {
   getModernThemeStyles,
   getSurfaceThemeStyles,
   getUbuntuThemeStyles,
+  getAnimalCrossingThemeStyles,
   parseThemeZip,
   type CustomTheme,
 } from "@/core/store/useThemeStore";
 import { useToastStore } from "@/core/store/useToastStore";
+import { Icon as AnimalIcon } from "animal-island-ui";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { parseNullableSpeedLimit } from "@/core/transfer";
 import { UI_TOKENS } from "@/core/ui-tokens";
@@ -398,16 +400,51 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
   } | null>(null);
   const [svgColor, setSvgColor] = useState("#3b82f6");
 
-  const navItems = useMemo<SettingsNavItem[]>(() => [
-    { id: "general", label: UI_TEXT.settings.navGeneral, icon: <Settings className="size-4" /> },
-    { id: "transfer", label: UI_TEXT.settings.navTransfer, icon: <Gauge className="size-4" /> },
-    { id: "category", label: UI_TEXT.settings.navCategory, icon: <FolderTree className="size-4" /> },
-    { id: "extension", label: UI_TEXT.settings.navExtension, icon: <MonitorCog className="size-4" /> },
-    { id: "magnet", label: UI_TEXT.settings.navMagnet, icon: <Magnet className="size-4" /> },
-    { id: "appearance", label: UI_TEXT.settings.navAppearance, icon: <Paintbrush className="size-4" /> },
-    { id: "player", label: UI_TEXT.settings.navPlayer || "播放器", icon: <PlayCircle className="size-4" /> },
-    { id: "about", label: "关于", icon: <Info className="size-4" /> },
-  ], [draft?.interface?.language]);
+  const navItems = useMemo<SettingsNavItem[]>(() => {
+    const isAnimalCrossing = theme === "animal-crossing";
+    return [
+      {
+        id: "general",
+        label: UI_TEXT.settings.navGeneral,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-diy" size="18px" /> : <Settings className="size-4" />,
+      },
+      {
+        id: "transfer",
+        label: UI_TEXT.settings.navTransfer,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-helicopter" size="18px" /> : <Gauge className="size-4" />,
+      },
+      {
+        id: "category",
+        label: UI_TEXT.settings.navCategory,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-map" size="18px" /> : <FolderTree className="size-4" />,
+      },
+      {
+        id: "extension",
+        label: UI_TEXT.settings.navExtension,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-design" size="18px" /> : <MonitorCog className="size-4" />,
+      },
+      {
+        id: "magnet",
+        label: UI_TEXT.settings.navMagnet,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-shopping" size="18px" /> : <Magnet className="size-4" />,
+      },
+      {
+        id: "appearance",
+        label: UI_TEXT.settings.navAppearance,
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-camera" size="18px" /> : <Paintbrush className="size-4" />,
+      },
+      {
+        id: "player",
+        label: UI_TEXT.settings.navPlayer || "播放器",
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-chat" size="18px" /> : <PlayCircle className="size-4" />,
+      },
+      {
+        id: "about",
+        label: "关于",
+        icon: isAnimalCrossing ? <AnimalIcon name="icon-miles" size="18px" /> : <Info className="size-4" />,
+      },
+    ];
+  }, [theme, draft?.interface?.language]);
 
   const sectionHeaderInfo = useMemo(() => {
     if (!draft) return null;
@@ -708,9 +745,11 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
     const { dark: modernDark, light: modernLight } = getModernThemeStyles();
     const { dark: surfaceDark, light: surfaceLight } = getSurfaceThemeStyles();
     const { dark: ubuntuDark, light: ubuntuLight } = getUbuntuThemeStyles();
+    const { dark: animalCrossingDark, light: animalCrossingLight } = getAnimalCrossingThemeStyles();
     const modernMeta = THEME_REGISTRY.find((t) => t.id === "modern")!;
     const surfaceMeta = THEME_REGISTRY.find((t) => t.id === "surface")!;
     const ubuntuMeta = THEME_REGISTRY.find((t) => t.id === "ubuntu")!;
+    const animalCrossingMeta = THEME_REGISTRY.find((t) => t.id === "animal-crossing")!;
 
     const modernTheme: CustomTheme = {
       id: "modern",
@@ -794,7 +833,27 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
       },
     };
 
-    return [modernTheme, surfaceTheme, ubuntuTheme, ...customThemes];
+    const animalCrossingTheme: CustomTheme = {
+      id: "animal-crossing",
+      name: animalCrossingMeta.name,
+      description: animalCrossingMeta.description,
+      author: "PiDown Team",
+      version: "1.0.0",
+      created_at: "2026-06-30",
+      updated_at: "2026-06-30",
+      hasCanvasBg: animalCrossingMeta.hasCanvasBg,
+      hasSpecialSound: animalCrossingMeta.hasSpecialSound,
+      accent: animalCrossingMeta.accent,
+      previewClassName: animalCrossingMeta.previewClassName,
+      styles: { dark: animalCrossingDark, light: animalCrossingLight },
+      font: {
+        id: "builtin:geist",
+        name: "Nunito & Noto Sans SC",
+        stack: "Nunito, 'Noto Sans SC', 'Microsoft YaHei UI', 'PingFang SC', sans-serif",
+      },
+    };
+
+    return [modernTheme, surfaceTheme, ubuntuTheme, animalCrossingTheme, ...customThemes];
   }, [customThemes]);
 
   useEffect(() => {
@@ -2373,7 +2432,7 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                             >
                               {allThemes.map((item) => {
                                 const active = theme === item.id;
-                                const isCustom = item.id !== "modern" && item.id !== "surface" && item.id !== "ubuntu";
+                                const isCustom = item.id !== "modern" && item.id !== "surface" && item.id !== "ubuntu" && item.id !== "animal-crossing";
                                 const cardPrimaryColor = item.styles[colorMode]?.["--primary"] || "var(--primary)";
                                 const cardAccentColor = item.styles[colorMode]?.["--accent"] || item.styles[colorMode]?.["--primary"] || "var(--accent)";
 

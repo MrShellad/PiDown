@@ -1,5 +1,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { useThemeStore } from "@/core/store/useThemeStore";
+import { Title as AnimalTitle } from "animal-island-ui";
 
 type SettingsActionAlign = "title" | "start" | "center";
 
@@ -51,6 +53,24 @@ export function SettingsSectionHeader({
   description?: string;
   action?: React.ReactNode;
 }) {
+  const theme = useThemeStore((state) => state.theme);
+
+  if (theme === "animal-crossing") {
+    return (
+      <div className="flex flex-col gap-3 py-1">
+        <div className="flex items-center gap-3">
+          <AnimalTitle size="middle" color="default">
+            {title}
+          </AnimalTitle>
+          {action ? <div className="ml-auto flex h-6 shrink-0 items-center">{action}</div> : null}
+        </div>
+        {description ? (
+          <p className="mt-1 text-sm leading-6 text-muted-foreground font-semibold opacity-90">{description}</p>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-start gap-3">
       {icon ? <div className="mt-0.5 text-primary">{icon}</div> : null}

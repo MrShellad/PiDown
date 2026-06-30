@@ -36,4 +36,13 @@ export const THEME_REGISTRY: ThemeMeta[] = [
     accent: "经典橙紫",
     previewClassName: "bg-[radial-gradient(circle_at_18%_18%,rgba(233,84,32,0.18),transparent_34%),radial-gradient(circle_at_82%_72%,rgba(233,84,32,0.12),transparent_31%),linear-gradient(135deg,#300A24,#241E20)]",
   },
+  {
+    id: "animal-crossing",
+    name: "Animal Crossing",
+    description: "Animal Crossing: New Horizons nature-inspired layout with leaf design, bubble dialogs, custom pointers, and wood textures.",
+    hasCanvasBg: false,
+    hasSpecialSound: false,
+    accent: "暖沙翠绿",
+    previewClassName: "bg-[radial-gradient(circle_at_18%_18%,rgba(25,200,185,0.2),transparent_34%),radial-gradient(circle_at_82%_72%,rgba(111,186,44,0.15),transparent_31%),linear-gradient(135deg,#f8f8f0,#e8e2d6)]",
+  },
 ];

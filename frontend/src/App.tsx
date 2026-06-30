@@ -15,6 +15,8 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import FloatDisc from "./components/downloader/FloatDisc";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 import ExtensionGuideDialog from "./components/downloader/ExtensionGuideDialog";
+import { useThemeStore } from "./core/store/useThemeStore";
+import { Cursor } from "animal-island-ui";
 
 import type { WebDavDevice } from "./core/bridge/tauri-commands";
 
@@ -51,6 +53,7 @@ export default function App() {
   const visibleFilter = resolveActiveFilter(activeFilter, categories, tags);
   const settings = useAppSettingsStore((state) => state.settings);
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
+  const activeTheme = useThemeStore((state) => state.theme);
 
   const windowTitle = (visibleFilter === "devices" && activeBrowsingDevice)
     ? `PiDownloader - [${activeBrowsingDevice.name}]`
@@ -66,78 +69,86 @@ export default function App() {
     );
   }
 
+  const content = (
+    <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
+      <ActiveBackground />
+      {!hideBorderAndBg && (
+        <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
+      )}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        <NavSidebar
+          activeFilter={visibleFilter}
+          onFilterChange={(filter) => {
+            setActiveFilter(filter);
+            // Clear browsing device when navigating away
+            if (filter !== "devices") {
+              setActiveBrowsingDevice(null);
+            }
+          }}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+        <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
+          <Suspense fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <LoaderCircle className="size-6 animate-spin text-primary" />
+            </div>
+          }>
+            <DevicesDashboard
+              activeBrowsingDevice={activeBrowsingDevice}
+              setActiveBrowsingDevice={setActiveBrowsingDevice}
+            />
+          </Suspense>
+        </div>
+        <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
+          <Suspense fallback={
+            <div className="flex h-full w-full items-center justify-center">
+              <LoaderCircle className="size-6 animate-spin text-primary" />
+            </div>
+          }>
+            <TaskListDashboard activeFilter={visibleFilter} />
+          </Suspense>
+        </div>
+      </div>
+      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent
+          size="full"
+          showCloseButton={false}
+          className="border border-border bg-card p-0 shadow-surface-strong"
+          overlayClassName="bg-black/45 backdrop-blur-none"
+          style={{
+            width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
+            height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
+            top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
+            maxWidth: UI_TOKENS.settingsDialog.maxWidth,
+            maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
+          }}
+        >
+          <div className="flex h-full min-h-0 flex-col overflow-hidden">
+            <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
+            <Suspense fallback={
+              <div className="flex h-full w-full items-center justify-center bg-card">
+                <LoaderCircle className="size-6 animate-spin text-primary" />
+              </div>
+            }>
+              <SettingsWindow onClose={() => setSettingsOpen(false)} />
+            </Suspense>
+          </div>
+        </DialogContent>
+      </Dialog>
+      <ThemeEditorDialog />
+      <ExtensionGuideDialog />
+    </div>
+  );
+
   return (
     <ThemeProvider taskRuntime>
       <TooltipProvider>
         <Suspense fallback={null}>
-          <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
-            <ActiveBackground />
-            {!hideBorderAndBg && (
-              <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
-            )}
-            <div className="flex min-h-0 flex-1 overflow-hidden">
-              <NavSidebar
-                activeFilter={visibleFilter}
-                onFilterChange={(filter) => {
-                  setActiveFilter(filter);
-                  // Clear browsing device when navigating away
-                  if (filter !== "devices") {
-                    setActiveBrowsingDevice(null);
-                  }
-                }}
-                onOpenSettings={() => setSettingsOpen(true)}
-              />
-              <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
-                <Suspense fallback={
-                  <div className="flex h-full w-full items-center justify-center">
-                    <LoaderCircle className="size-6 animate-spin text-primary" />
-                  </div>
-                }>
-                  <DevicesDashboard
-                    activeBrowsingDevice={activeBrowsingDevice}
-                    setActiveBrowsingDevice={setActiveBrowsingDevice}
-                  />
-                </Suspense>
-              </div>
-              <div className={`flex-1 flex min-h-0 ${visibleFilter !== "devices" ? "" : "hidden"}`}>
-                <Suspense fallback={
-                  <div className="flex h-full w-full items-center justify-center">
-                    <LoaderCircle className="size-6 animate-spin text-primary" />
-                  </div>
-                }>
-                  <TaskListDashboard activeFilter={visibleFilter} />
-                </Suspense>
-              </div>
-            </div>
-            <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-              <DialogContent
-                size="full"
-                showCloseButton={false}
-                className="border border-border bg-card p-0 shadow-surface-strong"
-                overlayClassName="bg-black/45 backdrop-blur-none"
-                style={{
-                  width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
-                  height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
-                  top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
-                  maxWidth: UI_TOKENS.settingsDialog.maxWidth,
-                  maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
-                }}
-              >
-                <div className="flex h-full min-h-0 flex-col overflow-hidden">
-                  <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
-                  <Suspense fallback={
-                    <div className="flex h-full w-full items-center justify-center bg-card">
-                      <LoaderCircle className="size-6 animate-spin text-primary" />
-                    </div>
-                  }>
-                    <SettingsWindow onClose={() => setSettingsOpen(false)} />
-                  </Suspense>
-                </div>
-              </DialogContent>
-            </Dialog>
-            <ThemeEditorDialog />
-            <ExtensionGuideDialog />
-          </div>
+          {activeTheme === "animal-crossing" ? (
+            <Cursor forceAll={false}>{content}</Cursor>
+          ) : (
+            content
+          )}
         </Suspense>
       </TooltipProvider>
     </ThemeProvider>
