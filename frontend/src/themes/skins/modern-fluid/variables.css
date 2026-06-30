@@ -686,11 +686,11 @@ html[data-theme="animal-crossing"][data-color-mode="light"] {
     --radius: 18px;
 
     /* Sidebar */
-    --sidebar: #e6f9f6;
+    --sidebar: #F8F4E8;
     --sidebar-foreground: #794f27;
     --sidebar-primary: #19c8b9;
     --sidebar-primary-foreground: #ffffff;
-    --sidebar-accent: #d5f5f0;
+    --sidebar-accent: #f0ece2;
     --sidebar-accent-foreground: #19c8b9;
     --sidebar-border: #aaa69d;
     --sidebar-ring: #19c8b9;

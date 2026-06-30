@@ -117,7 +117,7 @@ export default function NewTaskModal({
               </DialogBody>
             </ScrollArea>
 
-            <DialogFooter className="shrink-0 justify-between px-5 sm:justify-between [&_[data-slot=button]]:w-auto sm:[&_[data-slot=button]]:w-auto">
+            <DialogFooter className="shrink-0">
               {state.step === "link" ? (
                 <>
                   <Button
@@ -128,28 +128,27 @@ export default function NewTaskModal({
                   >
                     {UI_TEXT.newTask.cancel}
                   </Button>
-                  <Button type="submit" disabled={state.loading || !state.url.trim()}>
+                  <Button type="submit" variant="primary" disabled={state.loading || !state.url.trim()}>
                     下一步
                   </Button>
                 </>
               ) : (
                 <>
                   <Button
-                    type="submit"
-                    disabled={state.loading}
-                    loading={state.loading}
-                    className="min-w-28 shadow-button-glow"
-                  >
-                    下载
-                  </Button>
-                  <Button
                     type="button"
                     variant="outline"
                     onClick={actions.closeModal}
                     disabled={state.loading}
-                    className="min-w-28"
                   >
                     {UI_TEXT.newTask.cancel}
+                  </Button>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={state.loading}
+                    loading={state.loading}
+                  >
+                    下载
                   </Button>
                 </>
               )}

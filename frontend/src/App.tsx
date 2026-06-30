@@ -16,7 +16,7 @@ import FloatDisc from "./components/downloader/FloatDisc";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 import ExtensionGuideDialog from "./components/downloader/ExtensionGuideDialog";
 import { useThemeStore } from "./core/store/useThemeStore";
-import { Cursor } from "animal-island-ui";
+import AnimalCursor from "./components/layout/AnimalCursor";
 
 import type { WebDavDevice } from "./core/bridge/tauri-commands";
 
@@ -145,7 +145,7 @@ export default function App() {
       <TooltipProvider>
         <Suspense fallback={null}>
           {activeTheme === "animal-crossing" ? (
-            <Cursor forceAll={false}>{content}</Cursor>
+            <AnimalCursor forceAll={false}>{content}</AnimalCursor>
           ) : (
             content
           )}

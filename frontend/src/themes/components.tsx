@@ -35,10 +35,10 @@ export function useThemeButton(
   const theme = useThemeStore((state) => state.theme);
 
   if (theme === "animal-crossing" && !props.asChild && !props.noTheme) {
-    const { variant, size, loading, loadingText, leftIcon, rightIcon, disabled, children, className, ...rest } = props;
+    const { type: htmlType, variant, size, loading, loadingText, leftIcon, rightIcon, disabled, children, className, ...rest } = props;
     let animalType: "primary" | "default" | "dashed" | "text" | "link" = "default";
     let danger = false;
-    if (variant === "default") animalType = "primary";
+    if (variant === "default" || variant === "primary") animalType = "primary";
     else if (variant === "outline") animalType = "primary"; // Map outline to 3D primary beige!
     else if (variant === "secondary") animalType = "default";
     else if (variant === "dashed") animalType = "dashed";
@@ -143,6 +143,7 @@ export function useThemeButton(
     return (
       <AnimalButton
         type={animalType}
+        htmlType={htmlType as any}
         size={animalSize}
         danger={danger}
         disabled={disabled || loading}

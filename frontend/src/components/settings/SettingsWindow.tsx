@@ -2481,8 +2481,8 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                                       </div>
                                     </div>
 
-                                    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-                                      <div className="space-y-1.5">
+                                    <div className="flex min-h-0 flex-1 flex-col p-4">
+                                      <div className="flex-1 min-h-0 space-y-1.5">
                                         <div className="flex items-center justify-between gap-3">
                                           <h3 className="text-base font-bold leading-6 text-foreground">
                                             {item.name}
@@ -2493,95 +2493,97 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                                             </span>
                                           ) : null}
                                         </div>
-                                        <p className="line-clamp-4 text-sm leading-6 text-muted-foreground">
+                                        <p className="line-clamp-3 text-sm leading-6 text-muted-foreground">
                                           {item.description}
                                         </p>
                                       </div>
 
-                                      <div className="flex flex-wrap gap-2">
-                                        <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                          {item.hasCanvasBg ? UI_TEXT.settings.dynamicBg : UI_TEXT.settings.staticBg}
-                                        </span>
-                                        <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                          {item.hasSpecialSound ? UI_TEXT.settings.themeSound : UI_TEXT.settings.defaultSound}
-                                        </span>
-                                        {item.font && (
+                                      <div className="mt-auto pt-3 space-y-3">
+                                        <div className="flex flex-wrap gap-2">
                                           <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
-                                            {UI_TEXT.settings.fontPrefix}{item.font.name}
+                                            {item.hasCanvasBg ? UI_TEXT.settings.dynamicBg : UI_TEXT.settings.staticBg}
                                           </span>
-                                        )}
-                                      </div>
+                                          <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                            {item.hasSpecialSound ? UI_TEXT.settings.themeSound : UI_TEXT.settings.defaultSound}
+                                          </span>
+                                          {item.font && (
+                                            <span className="rounded-full border border-border bg-secondary/70 px-2.5 py-1 text-xs font-medium text-muted-foreground">
+                                              {UI_TEXT.settings.fontPrefix}{item.font.name}
+                                            </span>
+                                          )}
+                                        </div>
 
-                                      <div className="mt-auto flex w-full gap-2">
-                                        <Button
-                                          variant={active ? "default" : "outline"}
-                                          size="sm"
-                                          className="flex-1"
-                                          onClick={() => setTheme(item.id)}
-                                        >
-                                          {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
-                                        </Button>
-                                        
-                                        {/* Temporarily hide theme editor edit/duplicate entry points */}
-                                        {false && (isCustom ? (
+                                        <div className="flex w-full gap-2">
+                                          <Button
+                                            variant={active ? "default" : "outline"}
+                                            size="sm"
+                                            className="flex-1"
+                                            onClick={() => setTheme(item.id)}
+                                          >
+                                            {active ? UI_TEXT.settings.active : UI_TEXT.settings.select}
+                                          </Button>
+                                          
+                                          {/* Temporarily hide theme editor edit/duplicate entry points */}
+                                          {false && (isCustom ? (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="outline"
+                                                  size="icon"
+                                                  className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                                  onClick={() => openEditTheme(item)}
+                                                >
+                                                  <Pencil className="size-4" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>{UI_TEXT.settings.editTheme}</TooltipContent>
+                                            </Tooltip>
+                                          ) : (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="outline"
+                                                  size="icon"
+                                                  className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                                  onClick={() => openDuplicateTheme(item)}
+                                                >
+                                                  <Copy className="size-4" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>{UI_TEXT.settings.createTheme}</TooltipContent>
+                                            </Tooltip>
+                                          ))}
+
                                           <Tooltip>
                                             <TooltipTrigger asChild>
                                               <Button
                                                 variant="outline"
                                                 size="icon"
                                                 className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                                onClick={() => openEditTheme(item)}
+                                                onClick={() => exportThemeTemplate(item)}
                                               >
-                                                <Pencil className="size-4" />
+                                                <Download className="size-4" />
                                               </Button>
                                             </TooltipTrigger>
-                                            <TooltipContent>{UI_TEXT.settings.editTheme}</TooltipContent>
+                                            <TooltipContent>{UI_TEXT.settings.exportTheme}</TooltipContent>
                                           </Tooltip>
-                                        ) : (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                variant="outline"
-                                                size="icon"
-                                                className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                                onClick={() => openDuplicateTheme(item)}
-                                              >
-                                                <Copy className="size-4" />
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>{UI_TEXT.settings.createTheme}</TooltipContent>
-                                          </Tooltip>
-                                        ))}
 
-                                        <Tooltip>
-                                          <TooltipTrigger asChild>
-                                            <Button
-                                              variant="outline"
-                                              size="icon"
-                                              className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                              onClick={() => exportThemeTemplate(item)}
-                                            >
-                                              <Download className="size-4" />
-                                            </Button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>{UI_TEXT.settings.exportTheme}</TooltipContent>
-                                        </Tooltip>
-
-                                        {isCustom && (
-                                          <Tooltip>
-                                            <TooltipTrigger asChild>
-                                              <Button
-                                                variant="destructive"
-                                                size="icon"
-                                                className="shrink-0 rounded-[min(var(--radius-md),12px)]"
-                                                onClick={() => deleteTheme(item.id)}
-                                              >
-                                                <Trash2 className="size-4" />
-                                              </Button>
-                                            </TooltipTrigger>
-                                            <TooltipContent>{UI_TEXT.settings.deleteTheme}</TooltipContent>
-                                          </Tooltip>
-                                        )}
+                                          {isCustom && (
+                                            <Tooltip>
+                                              <TooltipTrigger asChild>
+                                                <Button
+                                                  variant="destructive"
+                                                  size="icon"
+                                                  className="shrink-0 rounded-[min(var(--radius-md),12px)]"
+                                                  onClick={() => deleteTheme(item.id)}
+                                                >
+                                                  <Trash2 className="size-4" />
+                                                </Button>
+                                              </TooltipTrigger>
+                                              <TooltipContent>{UI_TEXT.settings.deleteTheme}</TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
                                       </div>
                                     </div>
                                   </article>
