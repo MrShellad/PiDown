@@ -13,6 +13,7 @@ export interface StandardButtonProps extends React.ComponentPropsWithoutRef<"but
   loadingText?: string;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  noTheme?: boolean;
 }
 
 // Interface for standard switch props in our app
@@ -33,7 +34,7 @@ export function useThemeButton(
 ): React.ReactElement {
   const theme = useThemeStore((state) => state.theme);
 
-  if (theme === "animal-crossing" && !props.asChild) {
+  if (theme === "animal-crossing" && !props.asChild && !props.noTheme) {
     const { variant, size, loading, loadingText, leftIcon, rightIcon, disabled, children, className, ...rest } = props;
     let animalType: "primary" | "default" | "dashed" | "text" | "link" = "default";
     let danger = false;
@@ -102,22 +103,25 @@ export function useThemeButton(
       resolvedClassName = cn(resolvedClassName, "p-0 flex items-center justify-center");
 
       // Extract screen reader text from children as aria-label and set children to null
-      let ariaLabel = (props as any)["aria-label"];
-      if (!ariaLabel && children) {
-        const getText = (node: any): string => {
-          if (!node) return "";
-          if (typeof node === "string" || typeof node === "number") return String(node);
-          if (Array.isArray(node)) return node.map(getText).join("");
-          if (React.isValidElement(node)) return getText((node as any).props.children);
-          return "";
-        };
-        const text = getText(children).trim();
-        if (text) {
-          ariaLabel = text;
+      // only if the button actually contains a resolved icon to prevent erasing pagination page numbers
+      if (resolvedLeftIcon) {
+        let ariaLabel = (props as any)["aria-label"];
+        if (!ariaLabel && children) {
+          const getText = (node: any): string => {
+            if (!node) return "";
+            if (typeof node === "string" || typeof node === "number") return String(node);
+            if (Array.isArray(node)) return node.map(getText).join("");
+            if (React.isValidElement(node)) return getText((node as any).props.children);
+            return "";
+          };
+          const text = getText(children).trim();
+          if (text) {
+            ariaLabel = text;
+          }
         }
+        resolvedChildren = null;
+        (rest as any)["aria-label"] = ariaLabel;
       }
-      resolvedChildren = null;
-      (rest as any)["aria-label"] = ariaLabel;
     }
 
     const buttonProps = {
@@ -125,6 +129,16 @@ export function useThemeButton(
       style: resolvedStyle,
       "data-slot": "button",
     };
+
+    let finalChildren = loading && loadingText ? loadingText : resolvedChildren;
+    if (rightIcon) {
+      finalChildren = (
+        <>
+          {finalChildren}
+          <span className="ml-1.5">{rightIcon}</span>
+        </>
+      );
+    }
 
     return (
       <AnimalButton
@@ -135,10 +149,8 @@ export function useThemeButton(
         className={resolvedClassName}
         icon={loading ? <LoaderCircle className="animate-spin" /> : resolvedLeftIcon}
         {...(buttonProps as any)}
-      >
-        {loading && loadingText ? loadingText : resolvedChildren}
-        {rightIcon && <span className="ml-1.5">{rightIcon}</span>}
-      </AnimalButton>
+        children={finalChildren || undefined}
+      />
     );
   }
 

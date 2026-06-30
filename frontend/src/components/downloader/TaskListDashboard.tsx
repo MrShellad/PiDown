@@ -11,6 +11,7 @@ import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
+import { useThemeStore } from "@/core/store/useThemeStore";
 import { useReactTable, getCoreRowModel, type ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
 import { IconPreview } from "@/components/ui/icon-picker";
@@ -155,6 +156,7 @@ interface Particle {
 }
 
 export default function TaskListDashboard({ activeFilter }: TaskListDashboardProps) {
+  const theme = useThemeStore((state) => state.theme);
   const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
@@ -201,10 +203,10 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     const primary = computedStyle.getPropertyValue('--primary').trim() || '#6366f1';
     const accent = computedStyle.getPropertyValue('--accent').trim() || '#10b981';
     const colors = [primary, accent, '#ffffff', primary];
-    
+
     const width = canvas.clientWidth;
     const rowY = previousIndex * TASK_ROW_STRIDE;
-    
+
     const numParticles = 45;
     const newParticles: Particle[] = [];
     const horizontalCenter = 12 + (width - 24) / 2;
@@ -213,7 +215,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       const color = colors[Math.floor(Math.random() * colors.length)];
       const xPos = 12 + Math.random() * (width - 24);
       const pushDirection = xPos > horizontalCenter ? 1 : -1;
-      
+
       newParticles.push({
         x: xPos,
         y: rowY + Math.random() * TASK_ROW_HEIGHT,
@@ -249,28 +251,28 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     const dpr = window.devicePixelRatio || 1;
     const width = canvas.clientWidth;
     const height = canvas.clientHeight;
-    
+
     if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
       canvas.width = width * dpr;
       canvas.height = height * dpr;
     }
-    
+
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
     const particles = particlesRef.current;
     const currentScrollTop = scrollTopRef.current;
     const activeParticles: Particle[] = [];
-    
+
     for (const p of particles) {
       p.x += p.vx;
       p.y += p.vy;
       p.vy += 0.16; // gravity
       p.alpha -= p.decay;
-      
+
       if (p.alpha > 0) {
         const drawY = p.y - currentScrollTop;
-        
+
         if (drawY >= -50 && drawY <= height + 50) {
           ctx.save();
           ctx.globalAlpha = p.alpha;
@@ -280,11 +282,11 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
           ctx.fill();
           ctx.restore();
         }
-        
+
         activeParticles.push(p);
       }
     }
-    
+
     particlesRef.current = activeParticles;
 
     if (activeParticles.length > 0) {
@@ -796,84 +798,84 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
       </AnimatePresence>
 
       <div className="relative z-10 flex min-h-0 flex-1 flex-col gap-5 px-0 pt-0">
-          <div className="shrink-0 px-3">
-            <DownloadToolbar
-              selectedTaskCount={selectedTaskCount}
-              selectedPauseCount={selectedDownloadableGids.length}
-              selectedResumeCount={selectedResumableGids.length}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-              onCreateTask={(initialUrl) => {
-                if (initialUrl && initialUrl.trim()) {
-                  setExternalDownloadRequest({ url: initialUrl.trim() });
-                } else {
-                  setExternalDownloadRequest(null);
-                }
-                setModalOpen(true);
-              }}
-              onPauseSelected={pauseSelectedTasks}
-              onResumeSelected={resumeSelectedTasks}
-              onDeleteSelected={() => setDeleteConfirmOpen(true)}
-            />
-          </div>
+        <div className="shrink-0 px-3">
+          <DownloadToolbar
+            selectedTaskCount={selectedTaskCount}
+            selectedPauseCount={selectedDownloadableGids.length}
+            selectedResumeCount={selectedResumableGids.length}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onCreateTask={(initialUrl) => {
+              if (initialUrl && initialUrl.trim()) {
+                setExternalDownloadRequest({ url: initialUrl.trim() });
+              } else {
+                setExternalDownloadRequest(null);
+              }
+              setModalOpen(true);
+            }}
+            onPauseSelected={pauseSelectedTasks}
+            onResumeSelected={resumeSelectedTasks}
+            onDeleteSelected={() => setDeleteConfirmOpen(true)}
+          />
+        </div>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div
+              ref={horizontalScrollRef}
+              className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+              style={{
+                overflowX: "auto" as React.CSSProperties["overflowX"],
+                ...maskStyle,
+              }}
+              onScroll={updateScrollState}
+            >
               <div
-                ref={horizontalScrollRef}
-                className="flex-1 min-h-0 overflow-x-auto overflow-y-hidden rounded-lg [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+                className="flex min-h-0 flex-col overflow-visible relative"
                 style={{
-                  overflowX: "auto" as React.CSSProperties["overflowX"],
-                  ...maskStyle,
+                  width: "100%",
+                  minWidth: tableWidth + 24,
+                  paddingLeft: 12,
+                  paddingRight: 12,
+                  height: "100%",
                 }}
-                onScroll={updateScrollState}
               >
                 <div
-                  className="flex min-h-0 flex-col overflow-visible relative"
+                  className="absolute top-0 z-20"
                   style={{
-                    width: "100%",
-                    minWidth: tableWidth + 24,
-                    paddingLeft: 12,
-                    paddingRight: 12,
-                    height: "100%",
+                    left: 12,
+                    width: `${tableWidth}px`,
                   }}
                 >
-                  <div
-                    className="absolute top-0 z-20"
-                    style={{
-                      left: 12,
-                      width: `${tableWidth}px`,
-                    }}
-                  >
-                    <TaskListHeader
-                      checked={headerChecked}
-                      disabled={filteredGids.length === 0}
-                      embedded
-                      onCheckedChange={toggleAllFilteredTasks}
-                      table={table}
-                    />
-                  </div>
-                  <ScrollArea
-                    viewportRef={rowViewportRef}
-                    scrollbar="overlay"
-                    visibility="auto"
-                    gutter="stable"
-                    variant="ghost"
-                    className="mt-2 min-h-0 flex-1"
-                    style={{
-                      width: `${tableWidth}px`,
-                      marginBottom: 8,
-                      clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
-                    }}
-                    viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg ${
-                      filteredGids.length === 0 ? "flex flex-col" : ""
+                  <TaskListHeader
+                    checked={headerChecked}
+                    disabled={filteredGids.length === 0}
+                    embedded
+                    onCheckedChange={toggleAllFilteredTasks}
+                    table={table}
+                  />
+                </div>
+                <ScrollArea
+                  viewportRef={rowViewportRef}
+                  scrollbar="overlay"
+                  visibility="auto"
+                  gutter="stable"
+                  variant="ghost"
+                  className="mt-2 min-h-0 flex-1"
+                  style={{
+                    width: `${tableWidth}px`,
+                    marginBottom: 8,
+                    clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
+                  }}
+                  viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg ${filteredGids.length === 0 ? "flex flex-col" : ""
                     }`}
-                    viewportStyle={{
-                      paddingLeft: 0,
-                      paddingRight: 0,
-                    }}
-                    onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-                  >
+                  viewportStyle={{
+                    paddingLeft: 0,
+                    paddingRight: 0,
+                    clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : undefined,
+                  }}
+                  onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+                >
                   <div className="h-[52px] shrink-0" />
                   <div className="h-2 shrink-0" />
                   {filteredGids.length === 0 ? (
@@ -920,21 +922,21 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         style={{ width: `${tableWidth}px` }}
                       >
                         <AnimatePresence initial={false} mode="popLayout">
-                           {visibleGids.map((gid) => {
-                             const shouldAnimate = animatedTaskIds.has(gid);
-                             const isExiting = exitingTaskIds.has(gid);
- 
-                             return (
-                               <Reorder.Item
-                                 key={gid}
-                                 as="div"
-                                 value={gid}
-                                 dragListener={false}
-                               className="list-none overflow-hidden"
-                                 style={{
-                                   width: `${tableWidth}px`,
-                                   pointerEvents: isExiting ? "none" : "auto",
-                                 }}
+                          {visibleGids.map((gid) => {
+                            const shouldAnimate = animatedTaskIds.has(gid);
+                            const isExiting = exitingTaskIds.has(gid);
+
+                            return (
+                              <Reorder.Item
+                                key={gid}
+                                as="div"
+                                value={gid}
+                                dragListener={false}
+                                className="list-none overflow-hidden"
+                                style={{
+                                  width: `${tableWidth}px`,
+                                  pointerEvents: isExiting ? "none" : "auto",
+                                }}
                                 layout="position"
                                 initial={shouldAnimate ? { opacity: 0, height: TASK_ROW_HEIGHT, y: 12 } : false}
                                 animate={{
@@ -947,13 +949,13 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                                 exit={
                                   isExiting
                                     ? {
-                                        opacity: 0,
-                                        height: 0,
-                                        marginTop: 0,
-                                        marginBottom: 0,
-                                        scale: 0.985,
-                                        x: 16,
-                                      }
+                                      opacity: 0,
+                                      height: 0,
+                                      marginTop: 0,
+                                      marginBottom: 0,
+                                      scale: 0.985,
+                                      x: 16,
+                                    }
                                     : undefined
                                 }
                                 transition={{
@@ -1004,138 +1006,137 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                 </ScrollArea>
 
                 {/* Pagination Controls */}
-                  <div
-                    className="absolute z-20"
-                    style={{
-                      left: 12,
-                      width: `${tableWidth}px`,
-                      bottom: 6,
-                    }}
-                  >
+                <div
+                  className="absolute z-20"
+                  style={{
+                    left: 12,
+                    width: `${tableWidth}px`,
+                    bottom: 6,
+                  }}
+                >
                   <div className="flex h-12 items-center justify-between rounded-lg bg-toolbar backdrop-blur-md shadow-sm border border-border/40 px-4 text-xs text-muted-foreground select-none">
-                      {/* Left: Range Info */}
-                      <div className="flex flex-1 items-center gap-1.5 font-medium justify-start">
-                        <span>显示</span>
-                        <span className="font-semibold text-foreground">
-                          {Math.min(filteredGids.length, (currentPage - 1) * pageSize + 1)}
-                        </span>
-                        <span>-</span>
-                        <span className="font-semibold text-foreground">
-                          {Math.min(filteredGids.length, currentPage * pageSize)}
-                        </span>
-                        <span>条，共</span>
-                        <span className="font-semibold text-foreground">{filteredGids.length}</span>
-                        <span>条</span>
-                      </div>
+                    {/* Left: Range Info */}
+                    <div className="flex flex-1 items-center gap-1.5 font-medium justify-start">
+                      <span>显示</span>
+                      <span className="font-semibold text-foreground">
+                        {Math.min(filteredGids.length, (currentPage - 1) * pageSize + 1)}
+                      </span>
+                      <span>-</span>
+                      <span className="font-semibold text-foreground">
+                        {Math.min(filteredGids.length, currentPage * pageSize)}
+                      </span>
+                      <span>条，共</span>
+                      <span className="font-semibold text-foreground">{filteredGids.length}</span>
+                      <span>条</span>
+                    </div>
 
-                      {/* Middle: Page navigation buttons */}
-                      <div className="flex flex-1 items-center justify-center">
-                        {totalPages > 1 && (
-                          <Pagination className="mx-0 w-auto">
-                            <PaginationContent className="gap-1">
-                              <PaginationItem>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-md hover:bg-muted"
-                                  disabled={currentPage === 1}
-                                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                                >
-                                  <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                              </PaginationItem>
+                    {/* Middle: Page navigation buttons */}
+                    <div className="flex flex-1 items-center justify-center">
+                      {totalPages > 1 && (
+                        <Pagination className="mx-0 w-auto">
+                          <PaginationContent className="gap-1">
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-muted"
+                                disabled={currentPage === 1}
+                                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                              >
+                                <ChevronLeft className="h-4 w-4" />
+                              </Button>
+                            </PaginationItem>
 
-                              {/* Page Numbers */}
-                              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
-                                const isNearCurrent = Math.abs(page - currentPage) <= 1;
-                                const isEdge = page === 1 || page === totalPages;
-                                if (totalPages > 7 && !isNearCurrent && !isEdge) {
-                                  if (page === 2 || page === totalPages - 1) {
-                                    return (
-                                      <PaginationItem key={page}>
-                                        <PaginationEllipsis className="h-8 w-8" />
-                                      </PaginationItem>
-                                    );
-                                  }
-                                  return null;
+                            {/* Page Numbers */}
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                              const isNearCurrent = Math.abs(page - currentPage) <= 1;
+                              const isEdge = page === 1 || page === totalPages;
+                              if (totalPages > 7 && !isNearCurrent && !isEdge) {
+                                if (page === 2 || page === totalPages - 1) {
+                                  return (
+                                    <PaginationItem key={page}>
+                                      <PaginationEllipsis className="h-8 w-8" />
+                                    </PaginationItem>
+                                  );
                                 }
+                                return null;
+                              }
 
-                                return (
-                                  <PaginationItem key={page}>
-                                    <Button
-                                      variant={currentPage === page ? "outline" : "ghost"}
-                                      size="icon"
-                                      className={`h-8 w-8 rounded-md text-xs transition-colors ${
-                                        currentPage === page
-                                          ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
-                                          : "hover:bg-muted"
+                              return (
+                                <PaginationItem key={page}>
+                                  <Button
+                                    variant={currentPage === page ? "outline" : "ghost"}
+                                    size="icon"
+                                    className={`h-8 w-8 rounded-md text-xs transition-colors ${currentPage === page
+                                      ? "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20"
+                                      : "hover:bg-muted"
                                       }`}
-                                      onClick={() => setCurrentPage(page)}
-                                    >
-                                      {page}
-                                    </Button>
-                                  </PaginationItem>
-                                );
-                              })}
+                                    onClick={() => setCurrentPage(page)}
+                                  >
+                                    {page}
+                                  </Button>
+                                </PaginationItem>
+                              );
+                            })}
 
-                              <PaginationItem>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 rounded-md hover:bg-muted"
-                                  disabled={currentPage === totalPages}
-                                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                                >
-                                  <ChevronRight className="h-4 w-4" />
-                                </Button>
-                              </PaginationItem>
-                            </PaginationContent>
-                          </Pagination>
-                        )}
-                      </div>
+                            <PaginationItem>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 rounded-md hover:bg-muted"
+                                disabled={currentPage === totalPages}
+                                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                              >
+                                <ChevronRight className="h-4 w-4" />
+                              </Button>
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      )}
+                    </div>
 
-                      {/* Right: Page Size Dropdown */}
-                      <div className="flex flex-1 items-center gap-2 justify-end">
-                        <span>单页显示</span>
-                        <Select
-                          value={String(pageSize)}
-                          onValueChange={(val) => {
-                            const size = parseInt(val, 10);
-                            setPageSize(size);
-                            setCurrentPage(1);
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[70px] rounded-md border-border/60 bg-background/50 px-2 text-xs font-semibold hover:bg-muted/50 transition-colors">
-                            <SelectValue placeholder={String(pageSize)} />
-                          </SelectTrigger>
-                          <SelectContent className="min-w-[70px] border-border/80 bg-popover/95 backdrop-blur-md">
-                            {[5, 10, 15, 20, 30, 40].map((size) => (
-                              <SelectItem key={size} value={String(size)} className="text-xs">
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {/* Right: Page Size Dropdown */}
+                    <div className="flex flex-1 items-center gap-2 justify-end">
+                      <span>单页显示</span>
+                      <Select
+                        value={String(pageSize)}
+                        onValueChange={(val) => {
+                          const size = parseInt(val, 10);
+                          setPageSize(size);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="h-8 w-[70px] rounded-md border-border/60 bg-background/50 px-2 text-xs font-semibold hover:bg-muted/50 transition-colors">
+                          <SelectValue placeholder={String(pageSize)} />
+                        </SelectTrigger>
+                        <SelectContent className="min-w-[70px] border-border/80 bg-popover/95 backdrop-blur-md">
+                          {[5, 10, 15, 20, 30, 40].map((size) => (
+                            <SelectItem key={size} value={String(size)} className="text-xs">
+                              {size}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                  {/* Canvas Overlay for Particle Explosion */}
-                  {filteredGids.length > 0 && (
-                    <canvas
-                      ref={canvasRef}
-                      className="absolute left-12 pointer-events-none z-50"
-                      style={{
-                        top: 60,
-                        width: `${tableWidth}px`,
-                        height: `${viewportHeight}px`,
-                      }}
-                    />
-                  )}
                 </div>
+                {/* Canvas Overlay for Particle Explosion */}
+                {filteredGids.length > 0 && (
+                  <canvas
+                    ref={canvasRef}
+                    className="absolute left-12 pointer-events-none z-50"
+                    style={{
+                      top: 60,
+                      width: `${tableWidth}px`,
+                      height: `${viewportHeight}px`,
+                    }}
+                  />
+                )}
               </div>
             </div>
           </div>
         </div>
+      </div>
 
       <NewTaskModal
         open={modalOpen}

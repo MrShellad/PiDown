@@ -128,8 +128,9 @@ function DialogContent({
     dismissible?: boolean
     overlayClassName?: string
 }) {
+  const theme = useThemeStore((state) => state.theme)
   const surfaceVariant = variant ?? "modal"
-  const shouldShowCloseButton = showCloseButton ?? surfaceVariant === "modal"
+  const shouldShowCloseButton = (showCloseButton ?? surfaceVariant === "modal") && theme !== "animal-crossing"
   const isDismissible = dismissible ?? surfaceVariant === "modal"
   const isOpen = React.useContext(DialogOpenContext)
   const shouldReduceMotion = useReducedMotion()

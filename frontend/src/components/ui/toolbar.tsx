@@ -235,16 +235,11 @@ function PageHeaderToolbar({
       {onSearchQueryChange !== undefined && (
         <div
           className={cn(
-            "transition-all duration-300 self-stretch",
-            isExpanded
-              ? cn("absolute inset-y-0 left-0 bg-toolbar px-5 z-20 flex items-center justify-end", expandedSearchClassName || "right-0")
-              : "relative w-36 ml-auto flex items-center justify-end px-3"
+            "transition-all duration-300 self-stretch relative flex items-center justify-end px-3 ml-auto",
+            isExpanded ? "w-64 sm:w-80" : "w-36"
           )}
         >
-          <div className={cn(
-            "relative w-full flex items-center group transition-all duration-300",
-            isExpanded ? "max-w-md" : "max-w-[144px]"
-          )}>
+          <div className="relative w-full flex items-center group">
             <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
             <input
               type="text"

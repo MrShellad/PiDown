@@ -547,3 +547,39 @@
   pointer-events: auto !important;
 }
 
+/* Animal Crossing Task List Row & Hover Styles */
+html[data-theme="animal-crossing"] [data-slot="task-table-row"] {
+  border-radius: 20px !important;
+  transition: background-color 0.2s ease-in-out,
+              background-image 0.2s ease-in-out,
+              box-shadow 0.2s ease-in-out,
+              clip-path 0.2s ease-in-out !important;
+}
+
+html[data-theme="animal-crossing"] [data-slot="task-table-row"]:hover {
+  background-color: transparent !important;
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(25, 200, 185, 0.55),
+    rgba(25, 200, 185, 0.55) 10px,
+    rgba(14, 196, 182, 0.55) 10px,
+    rgba(14, 196, 182, 0.55) 20px
+  ) !important;
+  background-size: 28.28px 28.28px !important;
+  clip-path: inset(0 0 0 0 round 20px) !important;
+  --foreground: #3d2e1e;
+  --muted-foreground: #5d4a37;
+  color: #3d2e1e !important;
+}
+
+/* Make sure text elements that use absolute styling also transition */
+html[data-theme="animal-crossing"] [data-slot="task-table-row"]:hover span,
+html[data-theme="animal-crossing"] [data-slot="task-table-row"]:hover div:not([aria-hidden="true"]) {
+  transition: color 0.2s ease-in-out;
+}
+
+/* Header rounded corners alignment */
+html[data-theme="animal-crossing"] .bg-table-header {
+  border-radius: 20px !important;
+}
+
