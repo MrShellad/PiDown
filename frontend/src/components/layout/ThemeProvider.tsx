@@ -21,7 +21,7 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
 
   const prevColorModeRef = useRef(colorMode);
 
-  useEvent("toast", (payload) => {
+  useEvent("ui:toast", (payload) => {
     useToastStore.getState().pushToast(payload);
   });
 

@@ -195,7 +195,7 @@ export default function FloatDisc() {
 
   useEffect(() => {
     console.log("FloatDisc: Registering listener for open-new-task-modal via EventBus");
-    const unsubscribe = eventBus.on("open-new-task-modal", (payload) => {
+    const unsubscribe = eventBus.on("task:open-modal", (payload) => {
       if (payload) {
         console.log("FloatDisc: Received open-new-task-modal event:", payload);
         handleOpenModal(payload).catch(console.error);
@@ -210,7 +210,7 @@ export default function FloatDisc() {
 
   useEffect(() => {
     console.log("FloatDisc: Registering listener for browser-pairing-request via EventBus");
-    const unsubscribe = eventBus.on("browser-pairing-request", (payload) => {
+    const unsubscribe = eventBus.on("browser:pairing-request", (payload) => {
       console.log("FloatDisc: Received browser-pairing-request event:", payload);
       handleOpenPairing(payload).catch(console.error);
     });

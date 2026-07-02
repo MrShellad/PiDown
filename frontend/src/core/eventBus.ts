@@ -3,23 +3,23 @@ import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 
 export interface EventMap {
   // Triggered to open the new task modal with an optional pre-filled request
-  "open-new-task-modal": ExternalDownloadRequest | null;
-  // Triggered when close action is requested from backend
-  "request-close-action": void;
-  // Triggered when settings are synchronized from another window
-  "pidownloader-settings-sync": void;
-  // Triggered when theme is synchronized from another window
-  "pidownloader-theme-sync": any;
-  // Triggered for WebDAV download speed streaming updates
-  "webdav-stream-speed": { speed_bps: number };
-  // Triggered when a browser pairing request is received
-  "browser-pairing-request": { pairingId: string; deviceName: string };
-  // Triggered to display a toast notification
-  "toast": { title: string; description?: string; variant?: "info" | "success" | "warning" | "destructive"; duration?: number };
-  // Triggered to play sound effect
-  "play-sound-effect": string;
+  "task:open-modal": ExternalDownloadRequest | null;
   // Triggered to scroll to and focus a download task row
-  "focus-task-row": { gid: string };
+  "task:focus-row": { gid: string };
+  // Triggered when close action is requested from backend
+  "app:request-close": void;
+  // Triggered when settings are synchronized from another window
+  "app:settings-sync": void;
+  // Triggered when theme is synchronized from another window
+  "app:theme-sync": any;
+  // Triggered for WebDAV download speed streaming updates
+  "webdav:stream-speed": { speed_bps: number };
+  // Triggered when a browser pairing request is received
+  "browser:pairing-request": { pairingId: string; deviceName: string };
+  // Triggered to display a toast notification
+  "ui:toast": { title: string; description?: string; variant?: "info" | "success" | "warning" | "destructive"; duration?: number };
+  // Triggered to play sound effect
+  "ui:play-sound": string;
 }
 
 type EventKey = keyof EventMap;

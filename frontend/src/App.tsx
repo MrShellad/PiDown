@@ -63,11 +63,11 @@ export default function App() {
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskRequest, setNewTaskRequest] = useState<ExternalDownloadRequest | null>(null);
 
-  useEvent("request-close-action", () => {
+  useEvent("app:request-close", () => {
     setClosePromptOpen(true);
   });
 
-  useEvent("open-new-task-modal", (payload) => {
+  useEvent("task:open-modal", (payload) => {
     setNewTaskRequest(payload);
     setNewTaskOpen(true);
   });

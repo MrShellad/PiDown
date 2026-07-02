@@ -107,7 +107,7 @@ export default function WebDavVideoPlayerDialog({
     let timer: NodeJS.Timeout | null = null;
 
     if (open) {
-      unsubscribe = eventBus.on("webdav-stream-speed", (payload) => {
+      unsubscribe = eventBus.on("webdav:stream-speed", (payload) => {
         if (payload) {
           setSpeed(payload.speed_bps);
 

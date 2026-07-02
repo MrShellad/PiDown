@@ -7,7 +7,7 @@ import type {
   MatchRules,
   TagInput,
 } from "../bridge/tauri-commands";
-import { eventBus } from "../eventBus";
+import { handleActionError } from "../error";
 import { useAppSettingsStore } from "./useAppSettingsStore";
 import { sendNativeNotification } from "../notification";
 import type { DownloadApiService } from "../api/DownloadApiService";
@@ -231,34 +231,50 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
       updateTasksFromPayload: (payload) => {
         set((state) => {
-          const updatedTasks = { ...state.tasks };
-          const newActiveGids = new Set<string>();
+          let tasksCopy = state.tasks;
+          let tasksChanged = false;
           
-          // Reset speeds for tasks that are no longer active, using activeDownloadingGids
           const payloadActiveGids = new Set(payload.tasks.map((t) => t.gid));
+
+          // 1. Reset speeds for tasks that are no longer active, using activeDownloadingGids
           state.activeDownloadingGids.forEach((gid) => {
-            if (!payloadActiveGids.has(gid) && updatedTasks[gid]) {
-              updatedTasks[gid] = {
-                ...updatedTasks[gid],
-                speed: "0 B/s",
-                speedBps: 0,
-                eta: "--:--:--",
-                etaSeconds: null,
-                connections: 0,
-              };
+            if (!payloadActiveGids.has(gid)) {
+              const existing = state.tasks[gid];
+              if (existing && (
+                existing.speed !== "0 B/s" ||
+                existing.speedBps !== 0 ||
+                existing.eta !== "--:--:--" ||
+                existing.etaSeconds !== null ||
+                existing.connections !== 0
+              )) {
+                if (!tasksChanged) {
+                  tasksCopy = { ...state.tasks };
+                  tasksChanged = true;
+                }
+                tasksCopy[gid] = {
+                  ...existing,
+                  speed: "0 B/s",
+                  speedBps: 0,
+                  eta: "--:--:--",
+                  etaSeconds: null,
+                  connections: 0,
+                };
+              }
             }
           });
 
-          // Update active tasks
+          // 2. Update active tasks
+          const newActiveGids = new Set<string>();
+          let activeGidsChanged = false;
+
           payload.tasks.forEach((activeTask) => {
-            const existing = updatedTasks[activeTask.gid];
-            const progress = activeTask.progress;
             const status = activeTask.status;
-            
             if (status === "Downloading" || status === "Seeding") {
               newActiveGids.add(activeTask.gid);
             }
 
+            const existing = state.tasks[activeTask.gid];
+            
             // Play sound/notification if task completes or fails (transition from active)
             const wasActiveBefore = existing && (existing.status === "Downloading" || existing.status === "Pending");
             const isCompletedNow = status === "Completed" || status === "Seeding";
@@ -291,42 +307,97 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
               completedAt = Math.floor(Date.now() / 1000);
             }
 
-            updatedTasks[activeTask.gid] = {
-              gid: activeTask.gid,
-              name: existing ? existing.name : `Task_${activeTask.gid.substring(0, 8)}`,
-              url: existing ? existing.url : "",
-              status,
-              speed: activeTask.speed,
-              progress: progress,
-              eta: activeTask.eta,
-              speedBps: activeTask.speed_bps ?? 0,
-              etaSeconds: activeTask.eta_seconds ?? null,
-              downloadedBytes: activeTask.downloaded_bytes,
-              totalBytes: activeTask.total_bytes,
-              createdAt: existing ? existing.createdAt : undefined,
-              startedAt,
-              completedAt,
-              uploadSpeed: activeTask.upload_speed,
-              errorMessage: existing ? existing.errorMessage : null,
-              savePath: existing ? existing.savePath : "",
-              connections: activeTask.connections ?? existing?.connections ?? 0,
-              categoryId: existing ? existing.categoryId : null,
-              tags: existing ? existing.tags : [],
-              protocol: existing ? existing.protocol : undefined,
-              maxDownloadSpeedKib: existing ? existing.maxDownloadSpeedKib : undefined,
-              maxUploadSpeedKib: existing ? existing.maxUploadSpeedKib : undefined,
-            };
+            const incomingConnections = activeTask.connections ?? existing?.connections ?? 0;
+            const needsUpdate = !existing ||
+              existing.status !== status ||
+              existing.speed !== activeTask.speed ||
+              existing.progress !== activeTask.progress ||
+              existing.eta !== activeTask.eta ||
+              existing.speedBps !== (activeTask.speed_bps ?? 0) ||
+              existing.etaSeconds !== (activeTask.eta_seconds ?? null) ||
+              existing.downloadedBytes !== activeTask.downloaded_bytes ||
+              existing.totalBytes !== activeTask.total_bytes ||
+              existing.startedAt !== startedAt ||
+              existing.completedAt !== completedAt ||
+              existing.uploadSpeed !== activeTask.upload_speed ||
+              existing.connections !== incomingConnections;
+
+            if (needsUpdate) {
+              if (!tasksChanged) {
+                tasksCopy = { ...state.tasks };
+                tasksChanged = true;
+              }
+              tasksCopy[activeTask.gid] = {
+                gid: activeTask.gid,
+                name: existing ? existing.name : `Task_${activeTask.gid.substring(0, 8)}`,
+                url: existing ? existing.url : "",
+                status,
+                speed: activeTask.speed,
+                progress: activeTask.progress,
+                eta: activeTask.eta,
+                speedBps: activeTask.speed_bps ?? 0,
+                etaSeconds: activeTask.eta_seconds ?? null,
+                downloadedBytes: activeTask.downloaded_bytes,
+                totalBytes: activeTask.total_bytes,
+                createdAt: existing ? existing.createdAt : undefined,
+                startedAt,
+                completedAt,
+                uploadSpeed: activeTask.upload_speed,
+                errorMessage: existing ? existing.errorMessage : null,
+                savePath: existing ? existing.savePath : "",
+                connections: incomingConnections,
+                categoryId: existing ? existing.categoryId : null,
+                tags: existing ? existing.tags : [],
+                protocol: existing ? existing.protocol : undefined,
+                maxDownloadSpeedKib: existing ? existing.maxDownloadSpeedKib : undefined,
+                maxUploadSpeedKib: existing ? existing.maxUploadSpeedKib : undefined,
+              };
+            }
           });
 
-          return {
-            tasks: updatedTasks,
-            activeDownloadingGids: newActiveGids,
-            globalSpeed: payload.global_speed,
-            globalDownloadSpeed: payload.global_download_speed ?? payload.global_speed,
-            globalUploadSpeed: payload.global_upload_speed ?? "0 B/s",
-            globalTransferSpeed: payload.global_transfer_speed ?? payload.global_speed,
-            activeTasksCount: payload.active_tasks_count,
-          };
+          // Check if activeDownloadingGids changed
+          if (state.activeDownloadingGids.size === newActiveGids.size) {
+            let matches = true;
+            for (const gid of newActiveGids) {
+              if (!state.activeDownloadingGids.has(gid)) {
+                matches = false;
+                break;
+              }
+            }
+            activeGidsChanged = !matches;
+          } else {
+            activeGidsChanged = true;
+          }
+
+          const globalSpeed = payload.global_speed;
+          const globalDownloadSpeed = payload.global_download_speed ?? payload.global_speed;
+          const globalUploadSpeed = payload.global_upload_speed ?? "0 B/s";
+          const globalTransferSpeed = payload.global_transfer_speed ?? payload.global_speed;
+          const activeTasksCount = payload.active_tasks_count;
+
+          const globalsChanged =
+            state.globalSpeed !== globalSpeed ||
+            state.globalDownloadSpeed !== globalDownloadSpeed ||
+            state.globalUploadSpeed !== globalUploadSpeed ||
+            state.globalTransferSpeed !== globalTransferSpeed ||
+            state.activeTasksCount !== activeTasksCount;
+
+          if (!tasksChanged && !activeGidsChanged && !globalsChanged) {
+            return {};
+          }
+
+          const nextState: Partial<DownloadState> = {};
+          if (tasksChanged) nextState.tasks = tasksCopy;
+          if (activeGidsChanged) nextState.activeDownloadingGids = newActiveGids;
+          if (globalsChanged) {
+            nextState.globalSpeed = globalSpeed;
+            nextState.globalDownloadSpeed = globalDownloadSpeed;
+            nextState.globalUploadSpeed = globalUploadSpeed;
+            nextState.globalTransferSpeed = globalTransferSpeed;
+            nextState.activeTasksCount = activeTasksCount;
+          }
+
+          return nextState;
         });
       },
 
@@ -375,11 +446,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.cancelTask(gid, deleteFiles);
         } catch (e) {
-          eventBus.emit("toast", {
-            title: "删除任务失败",
-            description: String(e),
-            variant: "warning",
-          });
+          handleActionError(e, "删除任务失败");
           return;
         }
 
@@ -396,11 +463,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.openTaskFile(gid);
         } catch (e) {
-          eventBus.emit("toast", {
-            title: "无法打开文件",
-            description: String(e),
-            variant: "warning",
-          });
+          handleActionError(e, "无法打开文件");
         }
       },
 
@@ -408,11 +471,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.openTaskFolder(gid);
         } catch (e) {
-          eventBus.emit("toast", {
-            title: "无法打开文件夹",
-            description: String(e),
-            variant: "warning",
-          });
+          handleActionError(e, "无法打开文件夹");
         }
       },
 
@@ -450,11 +509,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
           await get().fetchTasks();
         } catch (e) {
-          eventBus.emit("toast", {
-            title: "重新下载失败",
-            description: String(e),
-            variant: "warning",
-          });
+          handleActionError(e, "重新下载失败");
         }
       },
 
@@ -463,11 +518,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           await get().apiService.clearCompletedTasks(false);
           await get().fetchTasks();
         } catch (e) {
-          eventBus.emit("toast", {
-            title: "清空已完成失败",
-            description: String(e),
-            variant: "warning",
-          });
+          handleActionError(e, "清空已完成失败");
         }
       },
 

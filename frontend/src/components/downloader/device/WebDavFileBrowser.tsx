@@ -69,6 +69,7 @@ import {
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { formatDateTime } from "@/core/datetime";
 import { eventBus } from "@/core/eventBus";
+import { handleActionError } from "@/core/error";
 import { motion } from "motion/react";
 
 import PhotoSwipe from "photoswipe";
@@ -319,18 +320,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   const handleDownloadFile = useCallback(async (file: WebDavFile) => {
     try {
       const downloadUrl = await getWebDavDownloadUrl(device.id, file.path);
-      eventBus.emit("open-new-task-modal", {
+      eventBus.emit("task:open-modal", {
         url: downloadUrl,
         filename: file.name,
         totalSize: file.size,
       });
     } catch (e) {
-      console.error(e);
-      eventBus.emit("toast", {
-        title: "获取下载链接失败",
-        description: typeof e === "string" ? e : "无法获取下载链接，请重试。",
-        variant: "destructive",
-      });
+      handleActionError(e, "获取下载链接失败");
     }
   }, [device.id]);
 
@@ -345,7 +341,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     let timer: NodeJS.Timeout | null = null;
 
     if (previewMode === "page") {
-      unsubscribe = eventBus.on("webdav-stream-speed", (payload) => {
+      unsubscribe = eventBus.on("webdav:stream-speed", (payload) => {
         if (payload) {
           setSpeed(payload.speed_bps);
 
@@ -685,7 +681,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
 
       await renameWebDavItem(device.id, renameItem.path, targetPath, renameItem.is_dir);
 
-      eventBus.emit("toast", {
+      eventBus.emit("ui:toast", {
         title: "重命名成功",
         description: `已成功重命名为“${renameNewName}”`,
         variant: "success",
@@ -694,12 +690,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
       setRenameOpen(false);
       handleRefresh();
     } catch (e) {
-      console.error(e);
-      eventBus.emit("toast", {
-        title: "重命名失败",
-        description: typeof e === "string" ? e : "无法重命名项目，请重试。",
-        variant: "destructive",
-      });
+      handleActionError(e, "重命名失败");
     }
   }, [renameItem, renameNewName, device.id, handleRefresh]);
 
@@ -716,7 +707,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
         deleteItems.map(item => [item.path, item.is_dir])
       );
 
-      eventBus.emit("toast", {
+      eventBus.emit("ui:toast", {
         title: "删除成功",
         description: `已成功删除 ${deleteItems.length} 个项目`,
         variant: "success",
@@ -727,12 +718,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
       setSelectedPaths(new Set());
       handleRefresh();
     } catch (e) {
-      console.error(e);
-      eventBus.emit("toast", {
-        title: "删除失败",
-        description: typeof e === "string" ? e : "无法删除选中的项目，请重试。",
-        variant: "destructive",
-      });
+      handleActionError(e, "删除失败");
     }
   }, [deleteItems, device.id, handleRefresh]);
 
@@ -754,7 +740,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     });
     setDrawerExpanded(true);
     setSelectedPaths(new Set());
-    eventBus.emit("toast", {
+    eventBus.emit("ui:toast", {
       title: "已添加到剪贴板",
       description: `已添加 ${newItems.length} 个项目用于复制`,
     });
@@ -778,7 +764,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     });
     setDrawerExpanded(true);
     setSelectedPaths(new Set());
-    eventBus.emit("toast", {
+    eventBus.emit("ui:toast", {
       title: "已添加到剪贴板",
       description: `已添加 ${newItems.length} 个项目用于移动`,
     });
@@ -895,13 +881,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     handleRefresh();
 
     if (failCount > 0) {
-      eventBus.emit("toast", {
+      eventBus.emit("ui:toast", {
         title: "粘贴完成",
         description: `成功 ${successCount} 个，失败 ${failCount} 个`,
         variant: "destructive"
       });
     } else {
-      eventBus.emit("toast", {
+      eventBus.emit("ui:toast", {
         title: "粘贴成功",
         description: `已成功粘贴 ${successCount} 个项目到当前目录。`,
         variant: "success"

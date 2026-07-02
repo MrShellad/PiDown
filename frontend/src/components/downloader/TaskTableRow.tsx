@@ -393,7 +393,11 @@ const TaskTableRow = memo(function TaskTableRow({
               onOpenDetails?.(gid)
             }
           }}
-          onContextMenu={() => onContextSelect?.(gid)}
+          onContextMenu={() => {
+            setTimeout(() => {
+              onContextSelect?.(gid)
+            }, 0)
+          }}
           className={cn(
             "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-task-row text-sm leading-5 transition-colors hover:bg-task-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-primary/8 ring-1.5 ring-primary/30 z-20"

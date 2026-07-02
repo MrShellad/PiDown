@@ -488,6 +488,8 @@
     border: 2px solid transparent;
     background-clip: padding-box;
     background-color: var(--scrollbar-thumb);
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: background-color;
   }
 
   .scrollbar-interactive::-webkit-scrollbar-thumb:hover {
@@ -514,6 +516,8 @@
 
   .scrollbar-auto-hide::-webkit-scrollbar-thumb {
     background-color: transparent;
+    transition: background-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    will-change: background-color;
   }
 
   .scrollbar-auto-hide:hover,

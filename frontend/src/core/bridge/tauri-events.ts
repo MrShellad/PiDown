@@ -57,11 +57,11 @@ export async function setupTauriEvents() {
 
   // 4. Listen for sound playing triggers from the backend
   const unlistenSound = await listen<string>("play-sound", (event) => {
-    eventBus.emit("play-sound-effect", event.payload);
+    eventBus.emit("ui:play-sound", event.payload);
   });
 
   // Sound effect event listener for general frontend usage
-  const unsubscribeSoundEffect = eventBus.on("play-sound-effect", (soundType) => {
+  const unsubscribeSoundEffect = eventBus.on("ui:play-sound", (soundType) => {
     const { soundEnabled, theme } = useThemeStore.getState();
     if (!soundEnabled) return;
 
@@ -89,7 +89,7 @@ export async function setupTauriEvents() {
   // 5. Listen for "open-new-task" from backend
   const unlistenOpenNewTask = await listen<void>("open-new-task", () => {
     if (window.location.pathname !== "/float") {
-      eventBus.emit("open-new-task-modal", null);
+      eventBus.emit("task:open-modal", null);
     }
   });
 
@@ -98,7 +98,7 @@ export async function setupTauriEvents() {
     "external-download-request",
     (event) => {
       if (window.location.pathname === "/float") {
-        eventBus.emit("open-new-task-modal", event.payload);
+        eventBus.emit("task:open-modal", event.payload);
       }
     }
   );
@@ -108,28 +108,28 @@ export async function setupTauriEvents() {
     "browser-pairing-request",
     (event) => {
       if (window.location.pathname === "/float") {
-        eventBus.emit("browser-pairing-request", event.payload);
+        eventBus.emit("browser:pairing-request", event.payload);
       }
     }
   );
 
   // 8. Listen for "request-close-action" from backend
   const unlistenRequestClose = await listen<void>("request-close-action", () => {
-    eventBus.emit("request-close-action", undefined);
+    eventBus.emit("app:request-close", undefined);
   });
 
   // 9. Listen for "webdav-stream-speed" from backend
   const unlistenWebdavSpeed = await listen<{ speed_bps: number }>(
     "webdav-stream-speed",
     (event) => {
-      eventBus.emit("webdav-stream-speed", event.payload);
+      eventBus.emit("webdav:stream-speed", event.payload);
     }
   );
 
   // 10. Settings Sync
   const unlistenSettingsSync = await listen("pidownloader-settings-sync", () => {
     useAppSettingsStore.getState().load().catch(console.error);
-    eventBus.emit("pidownloader-settings-sync", undefined);
+    eventBus.emit("app:settings-sync", undefined);
   });
 
   // 11. Theme Sync
@@ -161,7 +161,7 @@ export async function setupTauriEvents() {
       useThemeStore.setState(normalizedState);
       applyThemeToDocument(normalizedState);
     }
-    eventBus.emit("pidownloader-theme-sync", event.payload);
+    eventBus.emit("app:theme-sync", event.payload);
   });
 
   return () => {

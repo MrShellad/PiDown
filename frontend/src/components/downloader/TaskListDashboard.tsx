@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, memo } from "react";
+import { FixedSizeList as List, areEqual } from "react-window";
+import { cn } from "@/lib/utils";
 import { eventBus, useEvent } from "@/core/eventBus";
-import { AnimatePresence, motion, Reorder } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { ChevronLeft, ChevronRight, Plus, FolderOpen, FolderCheck, FolderDown, Upload, Inbox } from "lucide-react";
 
 import { UI_TEXT } from "@/core/locale";
@@ -85,6 +87,70 @@ const WatermarkIcon = ({
   // "all"
   return <FolderOpen className={iconClass} style={{ color }} />;
 };
+
+const Row = memo(({ index, style, data }: { index: number; style: React.CSSProperties; data: any }) => {
+  const {
+    renderedGids,
+    animatedTaskIds,
+    exitingTaskIds,
+    exitingTaskSnapshots,
+    selectedTaskIds,
+    detailsOpen,
+    primarySelectedGid,
+    toggleTaskSelection,
+    selectSingleTask,
+    toggleTaskDetails,
+    table,
+    categories,
+    toggleTask,
+    removeTask,
+    openTaskFile,
+    openTaskFolder,
+    restartTask,
+    columns,
+    tableWidth,
+    datetimeFormat,
+  } = data;
+
+  const gid = renderedGids[index];
+  if (!gid) return null;
+
+  const shouldAnimate = animatedTaskIds.has(gid);
+  const isExiting = exitingTaskIds.has(gid);
+
+  return (
+    <div
+      style={{
+        ...style,
+        height: 60, // TASK_ROW_HEIGHT
+        width: `${tableWidth}px`,
+        pointerEvents: isExiting ? "none" : "auto",
+      }}
+    >
+      <TaskTableRow
+        gid={gid}
+        exitingTask={exitingTaskSnapshots[gid]}
+        animateEntry={shouldAnimate}
+        selected={!isExiting && selectedTaskIds.has(gid)}
+        detailsOpen={detailsOpen && primarySelectedGid === gid}
+        onSelect={isExiting ? undefined : toggleTaskSelection}
+        onContextSelect={isExiting ? undefined : selectSingleTask}
+        onOpenDetails={isExiting ? undefined : toggleTaskDetails}
+        selectionMode={selectedTaskIds.size > 0}
+        table={table}
+        categories={categories}
+        toggleTask={toggleTask}
+        removeTask={removeTask}
+        openTaskFile={openTaskFile}
+        openTaskFolder={openTaskFolder}
+        restartTask={restartTask}
+        columns={columns}
+        tableWidth={tableWidth}
+        datetimeFormat={datetimeFormat}
+      />
+    </div>
+  );
+}, areEqual);
 
 interface TaskListDashboardProps {
   activeFilter: NavFilter;
@@ -457,6 +523,48 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   }, [activeFilter, categories, tags]);
   const tableWidth = getTaskTableWidth(columns);
 
+  const OuterElement = useMemo(() => {
+    return forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, style, ...props }, ref) => {
+      return (
+        <div
+          ref={ref}
+          className={cn(
+            "min-h-0 flex-1 overscroll-contain pb-[46px] pt-0 scroll-smooth rounded-b-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide",
+            "[overflow-y:overlay!important] overflow-x-hidden",
+            className
+          )}
+          style={{
+            ...style,
+            width: `${tableWidth + 12}px`,
+            clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
+          }}
+          {...props}
+        />
+      );
+    });
+  }, [tableWidth, theme]);
+
+  const InnerElement = useMemo(() => {
+    return forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => {
+      const height = parseFloat(style?.height as string || "0");
+      return (
+        <div
+          ref={ref}
+          style={{
+            ...style,
+            width: `${tableWidth}px`,
+            height: `${height + 60 + 46}px`, // 60px top spacer + 46px bottom padding
+          }}
+          {...props}
+        >
+          <div style={{ transform: "translateY(60px)" }}>
+            {children}
+          </div>
+        </div>
+      );
+    });
+  }, [tableWidth]);
+
   const updateScrollState = useCallback(() => {
     const el = horizontalScrollRef.current;
     if (!el) return;
@@ -517,24 +625,10 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     : selectedFilteredCount > 0
       ? "indeterminate"
       : false;
-  const visibleRange = useMemo(() => {
-    if (renderedGids.length === 0) {
-      return { startIndex: 0, endIndex: 0 };
-    }
-
-    const adjustedScrollTop = Math.max(0, scrollTop - HEADER_GAP);
-    const startIndex = Math.max(0, Math.floor(adjustedScrollTop / TASK_ROW_STRIDE) - TASK_LIST_OVERSCAN);
-    const visibleCount = Math.ceil(viewportHeight / TASK_ROW_STRIDE) + TASK_LIST_OVERSCAN * 2;
-    const endIndex = Math.min(renderedGids.length, startIndex + visibleCount);
-
-    return { startIndex, endIndex };
-  }, [renderedGids.length, scrollTop, viewportHeight]);
-  const visibleGids = renderedGids.slice(visibleRange.startIndex, visibleRange.endIndex);
   const virtualHeight =
     renderedGids.length === 0
       ? 0
       : renderedGids.length * TASK_ROW_HEIGHT + Math.max(0, renderedGids.length - 1) * TASK_ROW_GAP;
-  const virtualTopSpacer = visibleRange.startIndex * TASK_ROW_STRIDE;
   const primarySelectedGid = useMemo(() => {
     const currentTasks = useDownloadStore.getState().tasks;
     if (activeDetailsGid && currentTasks[activeDetailsGid]) return activeDetailsGid;
@@ -544,7 +638,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     return filteredGids.find((gid) => currentTasks[gid]) ?? null;
   }, [filteredGids, selectedTaskIds, activeDetailsGid]);
 
-  useEvent("focus-task-row", ({ gid }) => {
+  useEvent("task:focus-row", ({ gid }) => {
     const index = renderedGids.indexOf(gid);
     if (index !== -1) {
       setSelectedTaskIds(new Set([gid]));
@@ -769,6 +863,50 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     void Promise.all(gids.map((gid) => removeTask(gid, deleteLocalFiles)));
   };
 
+  const itemData = useMemo(() => ({
+    renderedGids,
+    animatedTaskIds,
+    exitingTaskIds,
+    exitingTaskSnapshots,
+    selectedTaskIds,
+    detailsOpen,
+    primarySelectedGid,
+    toggleTaskSelection,
+    selectSingleTask,
+    toggleTaskDetails,
+    table,
+    categories,
+    toggleTask,
+    removeTask,
+    openTaskFile,
+    openTaskFolder,
+    restartTask,
+    columns,
+    tableWidth,
+    datetimeFormat,
+  }), [
+    renderedGids,
+    animatedTaskIds,
+    exitingTaskIds,
+    exitingTaskSnapshots,
+    selectedTaskIds,
+    detailsOpen,
+    primarySelectedGid,
+    toggleTaskSelection,
+    selectSingleTask,
+    toggleTaskDetails,
+    table,
+    categories,
+    toggleTask,
+    removeTask,
+    openTaskFile,
+    openTaskFolder,
+    restartTask,
+    columns,
+    tableWidth,
+    datetimeFormat,
+  ]);
+
   return (
     <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-6 select-none">
       {/* Background Category Watermark */}
@@ -800,9 +938,9 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
             onSearchQueryChange={setSearchQuery}
             onCreateTask={(initialUrl) => {
               if (initialUrl && initialUrl.trim().length > 0) {
-                eventBus.emit("open-new-task-modal", { url: initialUrl.trim() });
+                eventBus.emit("task:open-modal", { url: initialUrl.trim() });
               } else {
-                eventBus.emit("open-new-task-modal", null);
+                eventBus.emit("task:open-modal", null);
               }
             }}
             onPauseSelected={pauseSelectedTasks}
@@ -847,30 +985,28 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     table={table}
                   />
                 </div>
-                <ScrollArea
-                  viewportRef={rowViewportRef}
-                  scrollbar="overlay"
-                  visibility="auto"
-                  gutter="stable"
-                  variant="ghost"
-                  className="mt-2 min-h-0 flex-1"
-                  style={{
-                    width: `${tableWidth}px`,
-                    marginBottom: 8,
-                    clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
-                  }}
-                  viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg ${filteredGids.length === 0 ? "flex flex-col" : ""
-                    }`}
-                  viewportStyle={{
-                    paddingLeft: 0,
-                    paddingRight: 0,
-                    clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : undefined,
-                  }}
-                  onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-                >
-                  <div className="h-[52px] shrink-0" />
-                  <div className="h-2 shrink-0" />
-                  {filteredGids.length === 0 ? (
+                {filteredGids.length === 0 ? (
+                  <ScrollArea
+                    viewportRef={rowViewportRef}
+                    scrollbar="overlay"
+                    visibility="auto"
+                    gutter="stable"
+                    variant="ghost"
+                    className="min-h-0 flex-1"
+                    style={{
+                      width: `${tableWidth + 12}px`,
+                      marginBottom: 8,
+                      clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
+                    }}
+                    viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg flex flex-col`}
+                    viewportStyle={{
+                      paddingLeft: 0,
+                      paddingRight: 12,
+                      clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : undefined,
+                    }}
+                  >
+                    <div className="h-[52px] shrink-0" />
+                    <div className="h-2 shrink-0" />
                     <motion.div
                       className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center"
                       style={{ width: `${tableWidth}px` }}
@@ -894,7 +1030,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
 
                       {activeFilter === "all" && (
                         <Button
-                          onClick={() => eventBus.emit("open-new-task-modal", null)}
+                          onClick={() => eventBus.emit("task:open-modal", null)}
                           className="mt-2 flex items-center gap-1.5 bg-primary hover:bg-[color-mix(in_srgb,var(--primary),var(--foreground)_15%)] text-primary-foreground font-semibold px-5 py-2.5 h-10 rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all duration-150"
                         >
                           <Plus className="h-4 w-4" />
@@ -902,100 +1038,26 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         </Button>
                       )}
                     </motion.div>
-                  ) : (
-                    <div className="relative" style={{ width: `${tableWidth}px`, height: virtualHeight }}>
-                      <div aria-hidden="true" style={{ height: virtualTopSpacer }} />
-                      <Reorder.Group
-                        as="div"
-                        axis="y"
-                        values={visibleGids}
-                        onReorder={() => undefined}
-                        className="flex flex-col gap-2"
-                        style={{ width: `${tableWidth}px` }}
-                      >
-                        <AnimatePresence initial={false} mode="popLayout">
-                          {visibleGids.map((gid) => {
-                            const shouldAnimate = animatedTaskIds.has(gid);
-                            const isExiting = exitingTaskIds.has(gid);
-
-                            return (
-                              <Reorder.Item
-                                key={gid}
-                                as="div"
-                                value={gid}
-                                dragListener={false}
-                                className="list-none overflow-hidden"
-                                style={{
-                                  width: `${tableWidth}px`,
-                                  pointerEvents: isExiting ? "none" : "auto",
-                                }}
-                                layout="position"
-                                initial={shouldAnimate ? { opacity: 0, height: TASK_ROW_HEIGHT, y: 12 } : false}
-                                animate={{
-                                  opacity: isExiting ? 0 : 1,
-                                  height: isExiting ? 0 : TASK_ROW_HEIGHT,
-                                  y: 0,
-                                  x: isExiting ? 16 : 0,
-                                  scale: isExiting ? 0.985 : 1,
-                                }}
-                                exit={
-                                  isExiting
-                                    ? {
-                                      opacity: 0,
-                                      height: 0,
-                                      marginTop: 0,
-                                      marginBottom: 0,
-                                      scale: 0.985,
-                                      x: 16,
-                                    }
-                                    : undefined
-                                }
-                                transition={{
-                                  opacity: { duration: 0.16, ease: "easeOut" },
-                                  x: { duration: 0.18, ease: "easeOut" },
-                                  scale: { duration: 0.18, ease: "easeOut" },
-                                  height: {
-                                    duration: TASK_DELETE_EXIT_MS / 1000,
-                                    ease: [0.22, 1, 0.36, 1],
-                                  },
-                                  layout: {
-                                    type: "spring",
-                                    stiffness: 420,
-                                    damping: 34,
-                                    mass: 0.55,
-                                  },
-                                }}
-                              >
-                                <TaskTableRow
-                                  gid={gid}
-                                  exitingTask={exitingTaskSnapshots[gid]}
-                                  animateEntry={shouldAnimate}
-                                  selected={!isExiting && selectedTaskIds.has(gid)}
-                                  detailsOpen={detailsOpen && primarySelectedGid === gid}
-                                  onSelect={isExiting ? undefined : toggleTaskSelection}
-                                  onContextSelect={isExiting ? undefined : selectSingleTask}
-                                  onOpenDetails={isExiting ? undefined : toggleTaskDetails}
-                                  selectionMode={selectedTaskIds.size > 0}
-                                  table={table}
-                                  categories={categories}
-                                  toggleTask={toggleTask}
-                                  removeTask={removeTask}
-                                  openTaskFile={openTaskFile}
-                                  openTaskFolder={openTaskFolder}
-                                  restartTask={restartTask}
-                                  columns={columns}
-                                  tableWidth={tableWidth}
-                                  datetimeFormat={datetimeFormat}
-                                />
-                              </Reorder.Item>
-                            );
-                          })}
-                        </AnimatePresence>
-                      </Reorder.Group>
-
-                    </div>
-                  )}
-                </ScrollArea>
+                  </ScrollArea>
+                ) : (
+                  <List
+                    height={viewportHeight || 500}
+                    itemCount={renderedGids.length}
+                    itemSize={TASK_ROW_STRIDE}
+                    width={tableWidth + 12}
+                    outerElementType={OuterElement}
+                    innerElementType={InnerElement}
+                    onScroll={({ scrollOffset }: { scrollOffset: number }) => setScrollTop(scrollOffset)}
+                    outerRef={rowViewportRef}
+                    overscanCount={TASK_LIST_OVERSCAN}
+                    itemData={itemData}
+                    style={{
+                      marginBottom: 8,
+                    }}
+                  >
+                    {Row}
+                  </List>
+                )}
 
                 {/* Pagination Controls */}
                 <div
