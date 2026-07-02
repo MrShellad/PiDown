@@ -30,7 +30,8 @@ import {
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import { getCurrentWindow, currentMonitor, LogicalSize, PhysicalPosition, PhysicalSize } from "@tauri-apps/api/window";
-import { emitTo, listen } from "@tauri-apps/api/event";
+import { emitTo } from "@tauri-apps/api/event";
+import { eventBus } from "@/core/eventBus";
 import { invoke } from "@tauri-apps/api/core";
 import NewTaskModal from "./NewTaskModal";
 import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
@@ -134,9 +135,9 @@ export default function FloatDisc() {
 
       await win.setIgnoreCursorEvents(false);
       await win.setResizable(true);
-      await win.setSize(new LogicalSize(420, 240));
+      await win.setSize(new LogicalSize(420, 280));
       await win.center();
-      console.log("FloatDisc: Resized window to 420x240 and centered for pairing.");
+      console.log("FloatDisc: Resized window to 420x280 and centered for pairing.");
 
       setPairingRequest(req);
       setModalOpen(true);
@@ -193,58 +194,30 @@ export default function FloatDisc() {
   }, [pairingRequest]);
 
   useEffect(() => {
-    let disposed = false;
-    let unlistenExternalDownload: (() => void) | undefined;
-
-    console.log("FloatDisc: Registering listener for external-download-request");
-    listen<ExternalDownloadRequest>("external-download-request", (event) => {
-      console.log("FloatDisc: Received external-download-request event:", event);
-      handleOpenModal(event.payload).catch(console.error);
-    })
-      .then((unlisten) => {
-        if (disposed) {
-          unlisten();
-          return;
-        }
-        unlistenExternalDownload = unlisten;
-        console.log("FloatDisc: Successfully registered event listener");
-      })
-      .catch((error) => {
-        console.error("Failed to listen to external-download-request in float window:", error);
-      });
+    console.log("FloatDisc: Registering listener for open-new-task-modal via EventBus");
+    const unsubscribe = eventBus.on("open-new-task-modal", (payload) => {
+      if (payload) {
+        console.log("FloatDisc: Received open-new-task-modal event:", payload);
+        handleOpenModal(payload).catch(console.error);
+      }
+    });
 
     return () => {
-      disposed = true;
-      unlistenExternalDownload?.();
-      console.log("FloatDisc: Unregistered event listener");
+      unsubscribe();
+      console.log("FloatDisc: Unregistered open-new-task-modal listener");
     };
   }, [handleOpenModal]);
 
   useEffect(() => {
-    let disposed = false;
-    let unlistenPairing: (() => void) | undefined;
-
-    console.log("FloatDisc: Registering listener for browser-pairing-request");
-    listen<{ pairingId: string; deviceName: string }>("browser-pairing-request", (event) => {
-      console.log("FloatDisc: Received browser-pairing-request event:", event);
-      handleOpenPairing(event.payload).catch(console.error);
-    })
-      .then((unlisten) => {
-        if (disposed) {
-          unlisten();
-          return;
-        }
-        unlistenPairing = unlisten;
-        console.log("FloatDisc: Successfully registered pairing event listener");
-      })
-      .catch((error) => {
-        console.error("Failed to listen to browser-pairing-request in float window:", error);
-      });
+    console.log("FloatDisc: Registering listener for browser-pairing-request via EventBus");
+    const unsubscribe = eventBus.on("browser-pairing-request", (payload) => {
+      console.log("FloatDisc: Received browser-pairing-request event:", payload);
+      handleOpenPairing(payload).catch(console.error);
+    });
 
     return () => {
-      disposed = true;
-      unlistenPairing?.();
-      console.log("FloatDisc: Unregistered pairing event listener");
+      unsubscribe();
+      console.log("FloatDisc: Unregistered browser-pairing-request listener");
     };
   }, [handleOpenPairing]);
 
@@ -904,45 +877,46 @@ export default function FloatDisc() {
             }
           }}
         >
-          <DialogContent className="sm:max-w-[420px] max-h-[85vh] flex flex-col p-5 backdrop-blur-md bg-background/90 border border-border/60 shadow-2xl rounded-2xl overflow-hidden">
-            <DialogHeader className="space-y-2 pb-2 border-b border-border/40 text-center flex flex-col items-center">
-              <div className="p-2.5 bg-primary/10 text-primary rounded-full animate-bounce mb-1">
-                <Globe className="size-6 text-primary" />
-              </div>
-              <DialogTitle className="text-lg font-bold bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
+          <DialogContent
+            variant="modal"
+            overlayClassName="bg-transparent backdrop-blur-none"
+            className="sm:max-w-[420px] h-[280px] flex flex-col border-border bg-card text-card-foreground"
+          >
+            <DialogHeader className="shrink-0 flex flex-col items-center">
+              <DialogTitle className="flex items-center justify-center gap-2 text-lg font-bold">
+                <Globe className="size-5 text-primary" />
                 {UI_TEXT.browserPairing.title}
               </DialogTitle>
+            </DialogHeader>
+
+            <DialogBody className="flex-1 flex flex-col justify-center space-y-3 py-4 text-center select-text">
               <p className="text-xs text-muted-foreground leading-relaxed">
                 {UI_TEXT.browserPairing.description}
               </p>
-            </DialogHeader>
-
-            <DialogBody className="space-y-4 py-4 pr-1 text-center select-text">
-              <div className="p-3 bg-muted/40 hover:bg-muted/50 transition-colors border border-border/30 rounded-xl">
-                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
+              <div className="p-2.5 bg-muted/40 hover:bg-muted/50 transition-colors border border-border/30 rounded-xl">
+                <div className="text-[10px] text-muted-foreground uppercase tracking-wider mb-0.5">
                   {UI_TEXT.browserPairing.deviceName}
                 </div>
-                <div className="font-semibold text-sm text-foreground select-all break-all">
+                <div className="font-semibold text-xs text-foreground select-all break-all">
                   {pairingRequest.deviceName}
                 </div>
               </div>
-              
-              <p className="text-xs text-foreground font-medium px-2 leading-relaxed">
+              <p className="text-xs text-foreground font-semibold">
                 {UI_TEXT.browserPairing.question}
               </p>
             </DialogBody>
 
-            <DialogFooter className="flex flex-row items-center gap-3 pt-3 border-t border-border/40 [&_[data-slot=button]]:w-full [&_[data-slot=button]]:h-9">
+            <DialogFooter className="shrink-0 flex flex-row items-center gap-3">
               <Button
                 variant="outline"
                 onClick={() => handlePairingResponse(false)}
-                className="font-semibold text-xs border-border/60 hover:bg-muted/50"
+                className="flex-1 font-semibold text-xs border-border/60 hover:bg-muted/50"
               >
                 {UI_TEXT.browserPairing.btnDeny}
               </Button>
               <Button
                 onClick={() => handlePairingResponse(true)}
-                className="font-semibold text-xs bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 text-primary-foreground shadow-md hover:shadow-lg transition-all"
+                className="flex-1 font-semibold text-xs text-primary-foreground bg-primary shadow-md hover:shadow-lg transition-all"
               >
                 {UI_TEXT.browserPairing.btnApprove}
               </Button>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { eventBus } from "@/core/eventBus";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { MediaPlayer, MediaProvider } from "@vidstack/react";
 import { DefaultVideoLayout, defaultLayoutIcons } from "@vidstack/react/player/layouts/default";
@@ -103,13 +103,13 @@ export default function WebDavVideoPlayerDialog({
   const [speed, setSpeed] = useState<number>(0);
 
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined;
     let timer: NodeJS.Timeout | null = null;
 
-    const setup = async () => {
-      unlisten = await listen("webdav-stream-speed", (event: { payload: { speed_bps: number } }) => {
-        if (event && event.payload) {
-          setSpeed(event.payload.speed_bps);
+    if (open) {
+      unsubscribe = eventBus.on("webdav-stream-speed", (payload) => {
+        if (payload) {
+          setSpeed(payload.speed_bps);
 
           // Watchdog timer: reset to 0 after 2 seconds of silence
           if (timer) clearTimeout(timer);
@@ -118,16 +118,12 @@ export default function WebDavVideoPlayerDialog({
           }, 2000);
         }
       });
-    };
-
-    if (open) {
-      setup().catch(console.error);
     } else {
       setSpeed(0);
     }
 
     return () => {
-      if (unlisten) unlisten();
+      if (unsubscribe) unsubscribe();
       if (timer) clearTimeout(timer);
     };
   }, [open]);

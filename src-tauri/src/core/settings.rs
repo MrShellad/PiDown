@@ -140,6 +140,7 @@ impl TransferSettings {
 #[serde(default)]
 pub struct InterfaceSettings {
     pub close_action: CloseAction,
+    pub close_action_prompted: bool,
     pub minimize_on_close_with_tasks: bool,
     pub float_display_mode: FloatDisplayMode,
     pub background_id: Option<i64>,
@@ -157,12 +158,15 @@ pub struct InterfaceSettings {
     pub datetime_format: String,
     pub auto_start_on_boot: bool,
     pub show_extension_guide: bool,
+    #[serde(default)]
+    pub task_table: Option<String>,
 }
 
 impl Default for InterfaceSettings {
     fn default() -> Self {
         Self {
             close_action: CloseAction::Minimize,
+            close_action_prompted: false,
             minimize_on_close_with_tasks: false,
             float_display_mode: FloatDisplayMode::Always,
             background_id: None,
@@ -180,6 +184,7 @@ impl Default for InterfaceSettings {
             datetime_format: "YYYY-MM-DD HH:mm:ss".to_string(),
             auto_start_on_boot: false,
             show_extension_guide: true,
+            task_table: None,
         }
     }
 }

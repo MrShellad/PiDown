@@ -157,6 +157,7 @@ export interface AppSettings {
   };
   interface: {
     close_action: CloseAction;
+    close_action_prompted: boolean;
     minimize_on_close_with_tasks: boolean;
     float_display_mode: FloatDisplayMode;
     background_id: number | null;
@@ -174,6 +175,7 @@ export interface AppSettings {
     datetime_format: string;
     auto_start_on_boot: boolean;
     show_extension_guide: boolean;
+    task_table?: string | null;
   };
   bt: {
     enable_dht: boolean;
@@ -476,6 +478,7 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
     },
     interface: {
       close_action: "minimize",
+      close_action_prompted: false,
       minimize_on_close_with_tasks: false,
       float_display_mode: "always",
       background_id: null,

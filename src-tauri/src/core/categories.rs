@@ -216,21 +216,42 @@ pub fn match_rules(rules: &MatchRules, url: &str, filename: &str, size_bytes: Op
     true
 }
 
+fn get_match_priority(rules: &MatchRules) -> u8 {
+    let has_domain = rules.domains.iter().any(|val| !val.trim().is_empty());
+    let has_keyword = rules.name_keywords.iter().any(|val| !val.trim().is_empty());
+    let has_extension = rules.extensions.iter().any(|val| !val.trim().is_empty());
+
+    if has_domain {
+        3
+    } else if has_keyword {
+        2
+    } else if has_extension {
+        1
+    } else {
+        0
+    }
+}
+
 pub fn infer_category<'a>(
     categories: &'a [DbCategory],
     url: &str,
     filename: &str,
     size_bytes: Option<u64>,
 ) -> Option<&'a DbCategory> {
+    let mut matched: Vec<&'a DbCategory> = categories
+        .iter()
+        .filter(|category| match_rules(&category.rules, url, filename, size_bytes))
+        .collect();
+
+    if !matched.is_empty() {
+        matched.sort_by_key(|category| std::cmp::Reverse(get_match_priority(&category.rules)));
+        return Some(matched[0]);
+    }
+
+    let fallback_name = infer_category_name(filename);
     categories
         .iter()
-        .find(|category| match_rules(&category.rules, url, filename, size_bytes))
-        .or_else(|| {
-            let fallback_name = infer_category_name(filename);
-            categories
-                .iter()
-                .find(|category| category.name == fallback_name)
-        })
+        .find(|category| category.name == fallback_name)
 }
 
 pub fn infer_tags<'a>(
@@ -240,10 +261,14 @@ pub fn infer_tags<'a>(
     filename: &str,
     size_bytes: Option<u64>,
 ) -> Vec<&'a DbTag> {
-    tags.iter()
+    let mut matched: Vec<&'a DbTag> = tags
+        .iter()
         .filter(|tag| tag.category_id.is_none() || tag.category_id == category_id)
         .filter(|tag| match_rules(&tag.rules, url, filename, size_bytes))
-        .collect()
+        .collect();
+
+    matched.sort_by_key(|tag| std::cmp::Reverse(get_match_priority(&tag.rules)));
+    matched
 }
 
 #[cfg(test)]
@@ -302,5 +327,87 @@ mod tests {
 
         // File size is too large: should not match (false)
         assert!(!match_rules(&rules, "http://example.com/file.zip", "file.zip", Some(3000)));
+    }
+
+    #[test]
+    fn test_category_priority() {
+        use super::{infer_category, DbCategory, MatchRules};
+
+        let cat_extension = DbCategory {
+            id: 1,
+            name: "ExtensionMatch".to_string(),
+            icon: None,
+            color: None,
+            sort_order: 1,
+            rules: MatchRules {
+                domains: vec![],
+                extensions: vec!["zip".to_string()],
+                name_keywords: vec![],
+                min_size_bytes: None,
+                max_size_bytes: None,
+            },
+            save_path: None,
+        };
+
+        let cat_keyword = DbCategory {
+            id: 2,
+            name: "KeywordMatch".to_string(),
+            icon: None,
+            color: None,
+            sort_order: 2,
+            rules: MatchRules {
+                domains: vec![],
+                extensions: vec![],
+                name_keywords: vec!["release".to_string()],
+                min_size_bytes: None,
+                max_size_bytes: None,
+            },
+            save_path: None,
+        };
+
+        let cat_domain = DbCategory {
+            id: 3,
+            name: "DomainMatch".to_string(),
+            icon: None,
+            color: None,
+            sort_order: 3,
+            rules: MatchRules {
+                domains: vec!["github.com".to_string()],
+                extensions: vec![],
+                name_keywords: vec![],
+                min_size_bytes: None,
+                max_size_bytes: None,
+            },
+            save_path: None,
+        };
+
+        let categories = vec![cat_extension, cat_keyword, cat_domain];
+
+        // Case 1: Match by domain, keyword, and extension. Domain has highest priority (3).
+        let result = infer_category(
+            &categories,
+            "http://github.com/user/release.zip",
+            "release.zip",
+            None,
+        );
+        assert_eq!(result.unwrap().id, 3); // DomainMatch
+
+        // Case 2: Match by keyword and extension. Keyword has higher priority (2).
+        let result = infer_category(
+            &categories,
+            "http://example.com/user/release.zip",
+            "release.zip",
+            None,
+        );
+        assert_eq!(result.unwrap().id, 2); // KeywordMatch
+
+        // Case 3: Match only by extension. Extension has priority (1).
+        let result = infer_category(
+            &categories,
+            "http://example.com/user/other.zip",
+            "other.zip",
+            None,
+        );
+        assert_eq!(result.unwrap().id, 1); // ExtensionMatch
     }
 }

@@ -7,7 +7,7 @@ import type {
   MatchRules,
   TagInput,
 } from "../bridge/tauri-commands";
-import { useToastStore } from "./useToastStore";
+import { eventBus } from "../eventBus";
 import { useAppSettingsStore } from "./useAppSettingsStore";
 import { sendNativeNotification } from "../notification";
 import type { DownloadApiService } from "../api/DownloadApiService";
@@ -375,7 +375,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.cancelTask(gid, deleteFiles);
         } catch (e) {
-          useToastStore.getState().pushToast({
+          eventBus.emit("toast", {
             title: "删除任务失败",
             description: String(e),
             variant: "warning",
@@ -396,7 +396,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.openTaskFile(gid);
         } catch (e) {
-          useToastStore.getState().pushToast({
+          eventBus.emit("toast", {
             title: "无法打开文件",
             description: String(e),
             variant: "warning",
@@ -408,7 +408,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
         try {
           await get().apiService.openTaskFolder(gid);
         } catch (e) {
-          useToastStore.getState().pushToast({
+          eventBus.emit("toast", {
             title: "无法打开文件夹",
             description: String(e),
             variant: "warning",
@@ -450,7 +450,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
 
           await get().fetchTasks();
         } catch (e) {
-          useToastStore.getState().pushToast({
+          eventBus.emit("toast", {
             title: "重新下载失败",
             description: String(e),
             variant: "warning",
@@ -463,7 +463,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           await get().apiService.clearCompletedTasks(false);
           await get().fetchTasks();
         } catch (e) {
-          useToastStore.getState().pushToast({
+          eventBus.emit("toast", {
             title: "清空已完成失败",
             description: String(e),
             variant: "warning",

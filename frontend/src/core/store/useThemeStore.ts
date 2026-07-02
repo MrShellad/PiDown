@@ -243,8 +243,8 @@ function parseCssVariables(css: string, selectorRegex: RegExp): Record<string, s
 
 export function getModernThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
   try {
-    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="modern"\]\s*\{([\s\S]+?)\}/);
-    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="modern"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?modern["']?\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?modern["']?\]\[data-color-mode=["']?light["']?\]\s*\{([\s\S]+?)\}/);
     return { dark: darkVars, light: lightVars };
   } catch (e) {
     console.error("Failed to parse built-in theme variables", e);
@@ -254,8 +254,8 @@ export function getModernThemeStyles(): { dark: Record<string, string>; light: R
 
 export function getSurfaceThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
   try {
-    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="surface"\]\s*\{([\s\S]+?)\}/);
-    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="surface"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?surface["']?\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?surface["']?\]\[data-color-mode=["']?light["']?\]\s*\{([\s\S]+?)\}/);
     return { dark: darkVars, light: lightVars };
   } catch (e) {
     console.error("Failed to parse surface theme variables", e);
@@ -265,8 +265,8 @@ export function getSurfaceThemeStyles(): { dark: Record<string, string>; light: 
 
 export function getUbuntuThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
   try {
-    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="ubuntu"\]\s*\{([\s\S]+?)\}/);
-    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="ubuntu"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?ubuntu["']?\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?ubuntu["']?\]\[data-color-mode=["']?light["']?\]\s*\{([\s\S]+?)\}/);
     return { dark: darkVars, light: lightVars };
   } catch (e) {
     console.error("Failed to parse ubuntu theme variables", e);
@@ -276,8 +276,8 @@ export function getUbuntuThemeStyles(): { dark: Record<string, string>; light: R
 
 export function getAnimalCrossingThemeStyles(): { dark: Record<string, string>; light: Record<string, string> } {
   try {
-    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme="animal-crossing"\]\s*\{([\s\S]+?)\}/);
-    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme="animal-crossing"\]\[data-color-mode="light"\]\s*\{([\s\S]+?)\}/);
+    const darkVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?animal-crossing["']?\]\s*\{([\s\S]+?)\}/);
+    const lightVars = parseCssVariables(themeCssTemplate, /\[data-theme=["']?animal-crossing["']?\]\[data-color-mode=["']?light["']?\]\s*\{([\s\S]+?)\}/);
     return { dark: darkVars, light: lightVars };
   } catch (e) {
     console.error("Failed to parse animal-crossing theme variables", e);

@@ -457,9 +457,11 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
           exit="collapsed"
           variants={MOTION_TOKENS.collapseVariants}
           transition={MOTION_TOKENS.layoutSpring}
-          className="flex flex-col space-y-0.5 pt-0.5"
+          style={{ overflow: "hidden" }}
         >
-          {children}
+          <div className="flex flex-col space-y-0.5 pt-0.5">
+            {children}
+          </div>
         </motion.div>
       ) : null}
     </AnimatePresence>

@@ -1,9 +1,11 @@
 import { listen } from "@tauri-apps/api/event";
 import { useDownloadStore } from "../store/useDownloadStore";
 import type { DownloadSpeedPayload } from "../store/useDownloadStore";
-import { useThemeStore } from "../store/useThemeStore";
+import { useThemeStore, applyThemeToDocument } from "../store/useThemeStore";
 import { useAppSettingsStore } from "../store/useAppSettingsStore";
 import { playSoundEffect } from "../audio";
+import { eventBus } from "../eventBus";
+import type { ExternalDownloadRequest } from "./external-download";
 
 interface TaskUpdatedPayload {
   gid: string;
@@ -55,10 +57,14 @@ export async function setupTauriEvents() {
 
   // 4. Listen for sound playing triggers from the backend
   const unlistenSound = await listen<string>("play-sound", (event) => {
+    eventBus.emit("play-sound-effect", event.payload);
+  });
+
+  // Sound effect event listener for general frontend usage
+  const unsubscribeSoundEffect = eventBus.on("play-sound-effect", (soundType) => {
     const { soundEnabled, theme } = useThemeStore.getState();
     if (!soundEnabled) return;
 
-    const soundType = event.payload; // e.g., "success" | "warning" | "click"
     if (soundType === "success") {
       const settings = useAppSettingsStore.getState().settings;
       const playSoundOnComplete = settings?.download?.play_sound_on_complete ?? true;
@@ -80,6 +86,84 @@ export async function setupTauriEvents() {
     }
   });
 
+  // 5. Listen for "open-new-task" from backend
+  const unlistenOpenNewTask = await listen<void>("open-new-task", () => {
+    if (window.location.pathname !== "/float") {
+      eventBus.emit("open-new-task-modal", null);
+    }
+  });
+
+  // 6. Listen for "external-download-request" from backend
+  const unlistenExternalDownload = await listen<ExternalDownloadRequest>(
+    "external-download-request",
+    (event) => {
+      if (window.location.pathname === "/float") {
+        eventBus.emit("open-new-task-modal", event.payload);
+      }
+    }
+  );
+
+  // 7. Listen for "browser-pairing-request" from backend
+  const unlistenPairing = await listen<{ pairingId: string; deviceName: string }>(
+    "browser-pairing-request",
+    (event) => {
+      if (window.location.pathname === "/float") {
+        eventBus.emit("browser-pairing-request", event.payload);
+      }
+    }
+  );
+
+  // 8. Listen for "request-close-action" from backend
+  const unlistenRequestClose = await listen<void>("request-close-action", () => {
+    eventBus.emit("request-close-action", undefined);
+  });
+
+  // 9. Listen for "webdav-stream-speed" from backend
+  const unlistenWebdavSpeed = await listen<{ speed_bps: number }>(
+    "webdav-stream-speed",
+    (event) => {
+      eventBus.emit("webdav-stream-speed", event.payload);
+    }
+  );
+
+  // 10. Settings Sync
+  const unlistenSettingsSync = await listen("pidownloader-settings-sync", () => {
+    useAppSettingsStore.getState().load().catch(console.error);
+    eventBus.emit("pidownloader-settings-sync", undefined);
+  });
+
+  // 11. Theme Sync
+  const unlistenThemeSync = await listen("pidownloader-theme-sync", (event: any) => {
+    let nextState: any = null;
+    if (event && event.payload) {
+      nextState = event.payload;
+    } else {
+      try {
+        const raw = window.localStorage.getItem("pidownloader-theme-config");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          nextState = parsed.state;
+        }
+      } catch (e) {
+        console.error("Failed to parse theme config from storage:", e);
+      }
+    }
+
+    if (nextState) {
+      const normalizedState = {
+        theme: nextState.theme || "modern",
+        colorMode: nextState.colorMode || "dark",
+        fontId: nextState.fontId || "builtin:geist",
+        effectsEnabled: nextState.effectsEnabled ?? true,
+        soundEnabled: nextState.soundEnabled ?? true,
+        customThemes: nextState.customThemes ?? [],
+      };
+      useThemeStore.setState(normalizedState);
+      applyThemeToDocument(normalizedState);
+    }
+    eventBus.emit("pidownloader-theme-sync", event.payload);
+  });
+
   return () => {
     if (refreshTimer != null) {
       window.clearTimeout(refreshTimer);
@@ -88,6 +172,14 @@ export async function setupTauriEvents() {
     unlistenSpeed();
     unlistenTaskUpdated();
     unlistenSound();
+    unsubscribeSoundEffect();
+    unlistenOpenNewTask();
+    unlistenExternalDownload();
+    unlistenPairing();
+    unlistenRequestClose();
+    unlistenWebdavSpeed();
+    unlistenSettingsSync();
+    unlistenThemeSync();
   };
 }
 

@@ -56,8 +56,7 @@ import { listWebDavFiles, getWebDavDownloadUrl, renameWebDavItem, deleteWebDavIt
 import type { WebDavFile, WebDavDevice } from "@/core/bridge/tauri-commands";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import NewTaskModal from "../NewTaskModal";
-import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
+
 
 import {
   ContextMenu,
@@ -66,10 +65,10 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { useToastStore } from "@/core/store/useToastStore";
+
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import { formatDateTime } from "@/core/datetime";
-import { listen } from "@tauri-apps/api/event";
+import { eventBus } from "@/core/eventBus";
 import { motion } from "motion/react";
 
 import PhotoSwipe from "photoswipe";
@@ -175,9 +174,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   const [drawerExpanded, setDrawerExpanded] = useState(false);
   const [isPasting, setIsPasting] = useState(false);
 
-  // Download modal state
-  const [downloadModalOpen, setDownloadModalOpen] = useState(false);
-  const [downloadRequest, setDownloadRequest] = useState<ExternalDownloadRequest | null>(null);
+
 
 
 
@@ -322,15 +319,14 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   const handleDownloadFile = useCallback(async (file: WebDavFile) => {
     try {
       const downloadUrl = await getWebDavDownloadUrl(device.id, file.path);
-      setDownloadRequest({
+      eventBus.emit("open-new-task-modal", {
         url: downloadUrl,
         filename: file.name,
         totalSize: file.size,
       });
-      setDownloadModalOpen(true);
     } catch (e) {
       console.error(e);
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "获取下载链接失败",
         description: typeof e === "string" ? e : "无法获取下载链接，请重试。",
         variant: "destructive",
@@ -345,13 +341,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
 
   // Stream speed listener for new page mode
   useEffect(() => {
-    let unlisten: (() => void) | undefined;
+    let unsubscribe: (() => void) | undefined;
     let timer: NodeJS.Timeout | null = null;
 
-    const setup = async () => {
-      unlisten = await listen("webdav-stream-speed", (event: { payload: { speed_bps: number } }) => {
-        if (event && event.payload) {
-          setSpeed(event.payload.speed_bps);
+    if (previewMode === "page") {
+      unsubscribe = eventBus.on("webdav-stream-speed", (payload) => {
+        if (payload) {
+          setSpeed(payload.speed_bps);
 
           if (timer) clearTimeout(timer);
           timer = setTimeout(() => {
@@ -359,16 +355,12 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
           }, 2000);
         }
       });
-    };
-
-    if (previewMode === "page") {
-      setup().catch(console.error);
     } else {
       setSpeed(0);
     }
 
     return () => {
-      if (unlisten) unlisten();
+      if (unsubscribe) unsubscribe();
       if (timer) clearTimeout(timer);
     };
   }, [previewMode]);
@@ -693,7 +685,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
 
       await renameWebDavItem(device.id, renameItem.path, targetPath, renameItem.is_dir);
 
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "重命名成功",
         description: `已成功重命名为“${renameNewName}”`,
         variant: "success",
@@ -703,7 +695,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
       handleRefresh();
     } catch (e) {
       console.error(e);
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "重命名失败",
         description: typeof e === "string" ? e : "无法重命名项目，请重试。",
         variant: "destructive",
@@ -724,7 +716,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
         deleteItems.map(item => [item.path, item.is_dir])
       );
 
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "删除成功",
         description: `已成功删除 ${deleteItems.length} 个项目`,
         variant: "success",
@@ -736,7 +728,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
       handleRefresh();
     } catch (e) {
       console.error(e);
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "删除失败",
         description: typeof e === "string" ? e : "无法删除选中的项目，请重试。",
         variant: "destructive",
@@ -762,7 +754,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     });
     setDrawerExpanded(true);
     setSelectedPaths(new Set());
-    useToastStore.getState().pushToast({
+    eventBus.emit("toast", {
       title: "已添加到剪贴板",
       description: `已添加 ${newItems.length} 个项目用于复制`,
     });
@@ -786,7 +778,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     });
     setDrawerExpanded(true);
     setSelectedPaths(new Set());
-    useToastStore.getState().pushToast({
+    eventBus.emit("toast", {
       title: "已添加到剪贴板",
       description: `已添加 ${newItems.length} 个项目用于移动`,
     });
@@ -903,13 +895,13 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
     handleRefresh();
 
     if (failCount > 0) {
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "粘贴完成",
         description: `成功 ${successCount} 个，失败 ${failCount} 个`,
         variant: "destructive"
       });
     } else {
-      useToastStore.getState().pushToast({
+      eventBus.emit("toast", {
         title: "粘贴成功",
         description: `已成功粘贴 ${successCount} 个项目到当前目录。`,
         variant: "success"
@@ -1678,12 +1670,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
         videoUrl={playUrl}
         videoTitle={playTitle}
       />
-      <NewTaskModal
-        open={downloadModalOpen}
-        onOpenChange={setDownloadModalOpen}
-        initialRequest={downloadRequest}
-        onInitialRequestConsumed={() => setDownloadRequest(null)}
-      />
+
 
       <WebDavClipboardDrawer
         clipboardItems={clipboardItems}

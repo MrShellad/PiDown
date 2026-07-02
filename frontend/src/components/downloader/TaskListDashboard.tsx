@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import { listen } from "@tauri-apps/api/event";
+import { eventBus, useEvent } from "@/core/eventBus";
 import { AnimatePresence, motion, Reorder } from "motion/react";
-import { ChevronLeft, ChevronRight, Plus, FolderOpen, FolderCheck, FolderDown, Upload } from "lucide-react";
+import { ChevronLeft, ChevronRight, Plus, FolderOpen, FolderCheck, FolderDown, Upload, Inbox } from "lucide-react";
 
 import { UI_TEXT } from "@/core/locale";
-import type { ExternalDownloadRequest } from "@/core/bridge/external-download";
 import { filterTaskIds, parseNavFilter, type NavFilter } from "@/core/taskFilters";
 import { useDownloadStore } from "@/core/store/useDownloadStore";
 import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
@@ -19,7 +18,7 @@ import {
   getTaskTableWidth,
 } from "@/core/taskTableLayout";
 import DownloadToolbar from "./DownloadToolbar";
-import NewTaskModal from "./NewTaskModal";
+
 import TaskDeleteConfirmDialog from "./TaskDeleteConfirmDialog";
 import TaskDetailsDrawer from "./TaskDetailsDrawer";
 import TaskListHeader from "./TaskListHeader";
@@ -157,11 +156,8 @@ interface Particle {
 
 export default function TaskListDashboard({ activeFilter }: TaskListDashboardProps) {
   const theme = useThemeStore((state) => state.theme);
-  const [modalOpen, setModalOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [externalDownloadRequest, setExternalDownloadRequest] =
-    useState<ExternalDownloadRequest | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(0);
   const [animatedTaskIds, setAnimatedTaskIds] = useState<Set<string>>(() => new Set());
@@ -548,29 +544,26 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
     return filteredGids.find((gid) => currentTasks[gid]) ?? null;
   }, [filteredGids, selectedTaskIds, activeDetailsGid]);
 
-  useEffect(() => {
-    let disposed = false;
-    let unlistenOpenNewTask: (() => void) | undefined;
+  useEvent("focus-task-row", ({ gid }) => {
+    const index = renderedGids.indexOf(gid);
+    if (index !== -1) {
+      setSelectedTaskIds(new Set([gid]));
+      
+      const targetScrollTop = Math.max(
+        0,
+        index * TASK_ROW_STRIDE - (viewportHeight - TASK_ROW_HEIGHT) / 2
+      );
 
-    listen<void>("open-new-task", () => {
-      setModalOpen(true);
-    })
-      .then((unlisten) => {
-        if (disposed) {
-          unlisten();
-          return;
-        }
-        unlistenOpenNewTask = unlisten;
-      })
-      .catch((error) => {
-        console.error("Failed to listen open-new-task event:", error);
-      });
+      if (rowViewportRef.current) {
+        rowViewportRef.current.scrollTo({
+          top: targetScrollTop,
+          behavior: "smooth",
+        });
+      }
+    }
+  });
 
-    return () => {
-      disposed = true;
-      unlistenOpenNewTask?.();
-    };
-  }, []);
+
 
   useEffect(() => {
     const viewport = rowViewportRef.current;
@@ -806,12 +799,11 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
             onCreateTask={(initialUrl) => {
-              if (initialUrl && initialUrl.trim()) {
-                setExternalDownloadRequest({ url: initialUrl.trim() });
+              if (initialUrl && initialUrl.trim().length > 0) {
+                eventBus.emit("open-new-task-modal", { url: initialUrl.trim() });
               } else {
-                setExternalDownloadRequest(null);
+                eventBus.emit("open-new-task-modal", null);
               }
-              setModalOpen(true);
             }}
             onPauseSelected={pauseSelectedTasks}
             onResumeSelected={resumeSelectedTasks}
@@ -880,14 +872,14 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   <div className="h-2 shrink-0" />
                   {filteredGids.length === 0 ? (
                     <motion.div
-                      className="flex flex-1 flex-col items-center justify-center gap-5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-md p-8 shadow-lg text-center"
+                      className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center"
                       style={{ width: `${tableWidth}px` }}
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ duration: 0.2, ease: "easeOut" }}
                     >
                       <div className="flex flex-col items-center gap-2 max-w-sm">
-                        <span className="text-4xl text-primary/80">📥</span>
+                        <Inbox className="size-12 text-primary/80 stroke-[1.5]" />
                         <h3 className="text-base font-semibold text-foreground mt-2">
                           {activeFilter === "all"
                             ? UI_TEXT.dashboard.emptyTasks
@@ -902,7 +894,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
 
                       {activeFilter === "all" && (
                         <Button
-                          onClick={() => setModalOpen(true)}
+                          onClick={() => eventBus.emit("open-new-task-modal", null)}
                           className="mt-2 flex items-center gap-1.5 bg-primary hover:bg-[color-mix(in_srgb,var(--primary),var(--foreground)_15%)] text-primary-foreground font-semibold px-5 py-2.5 h-10 rounded-lg shadow-md hover:shadow-lg active:scale-95 transition-all duration-150"
                         >
                           <Plus className="h-4 w-4" />
@@ -1138,12 +1130,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
         </div>
       </div>
 
-      <NewTaskModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        initialRequest={externalDownloadRequest}
-        onInitialRequestConsumed={() => setExternalDownloadRequest(null)}
-      />
+
       <TaskDeleteConfirmDialog
         open={deleteConfirmOpen}
         taskCount={selectedTaskCount}

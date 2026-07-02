@@ -7,6 +7,7 @@ import {
 } from "../bridge/tauri-commands";
 import { useThemeStore, applyThemeToDocument } from "./useThemeStore";
 import { applyLanguage } from "../i18n";
+import { useTaskTableStore, normalizeColumns, normalizeSortState } from "./useTaskTableStore";
 
 export type SettingsSectionId =
   | "general"
@@ -75,6 +76,33 @@ export const useAppSettingsStore = create<AppSettingsState>((set) => ({
         // Apply language from settings
         if (settings.interface.language) {
           applyLanguage(settings.interface.language);
+        }
+
+        // Apply task table settings from settings
+        if (settings.interface.task_table) {
+          try {
+            const parsed = JSON.parse(settings.interface.task_table);
+            const tableStore = useTaskTableStore.getState();
+            
+            const normalizedCols = parsed.columns ? normalizeColumns(parsed.columns) : tableStore.columns;
+            const normalizedSort = parsed.sort !== undefined ? normalizeSortState(parsed.sort) : tableStore.sort;
+            const normalizedPageSize = parsed.pageSize !== undefined ? parsed.pageSize : tableStore.pageSize;
+            
+            const hasChanges = 
+              JSON.stringify(normalizedCols) !== JSON.stringify(tableStore.columns) ||
+              JSON.stringify(normalizedSort) !== JSON.stringify(tableStore.sort) ||
+              normalizedPageSize !== tableStore.pageSize;
+              
+            if (hasChanges) {
+              useTaskTableStore.setState({
+                columns: normalizedCols,
+                sort: normalizedSort,
+                pageSize: normalizedPageSize,
+              });
+            }
+          } catch (e) {
+            console.error("Failed to parse persisted task table settings:", e);
+          }
         }
       }
     } catch (error) {

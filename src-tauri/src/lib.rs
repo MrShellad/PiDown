@@ -16,20 +16,29 @@ pub fn run() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
-            // Initialize logging in debug mode
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
-
             let app_handle = app.handle().clone();
             let app_data_dir = app_handle
                 .path()
                 .app_data_dir()
                 .expect("Failed to resolve app data directory");
+
+            // Initialize logging to data_dir/logs
+            let logs_dir = app_data_dir.join("logs");
+            std::fs::create_dir_all(&logs_dir).ok();
+
+            let log_plugin = tauri_plugin_log::Builder::new()
+                .level(log::LevelFilter::Info)
+                .targets([
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Folder {
+                        path: logs_dir,
+                        file_name: Some("pidownloader.log".to_string()),
+                    }),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Stdout),
+                    tauri_plugin_log::Target::new(tauri_plugin_log::TargetKind::Webview),
+                ])
+                .build();
+            app.handle().plugin(log_plugin)?;
+
             let default_save_dir = default_download_dir(&app_data_dir);
 
             let state =

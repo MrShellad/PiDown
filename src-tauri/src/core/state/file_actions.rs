@@ -30,7 +30,13 @@ pub fn cleanup_task_files(task: &DbTask) {
 
 fn open_path(path: &Path) -> Result<(), String> {
     #[cfg(target_os = "windows")]
-    let result = Command::new("explorer").raw_arg(path.as_os_str()).spawn();
+    let result = Command::new("cmd")
+        .arg("/C")
+        .arg("start")
+        .arg("")
+        .arg(path)
+        .creation_flags(0x08000000) // CREATE_NO_WINDOW
+        .spawn();
 
     #[cfg(target_os = "macos")]
     let result = Command::new("open").arg(path).spawn();

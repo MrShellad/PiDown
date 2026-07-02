@@ -27,6 +27,7 @@
     "core:event:default",
     "notification:default",
     "autostart:default",
-    "updater:default"
+    "updater:default",
+    "log:default"
   ]
 }

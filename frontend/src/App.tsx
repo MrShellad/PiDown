@@ -1,6 +1,9 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
 import { useState, lazy, Suspense } from "react";
 import { LoaderCircle } from "lucide-react";
+import NewTaskModal from "./components/downloader/NewTaskModal";
+import { useEvent } from "./core/eventBus";
+import type { ExternalDownloadRequest } from "./core/bridge/external-download";
 import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
 import WindowFrame from "./components/layout/WindowFrame";
@@ -15,6 +18,7 @@ import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
 import FloatDisc from "./components/downloader/FloatDisc";
 import ThemeEditorDialog from "./components/settings/ThemeEditorDialog";
 import ExtensionGuideDialog from "./components/downloader/ExtensionGuideDialog";
+import CloseConfirmDialog from "./components/downloader/CloseConfirmDialog";
 import { useThemeStore } from "./core/store/useThemeStore";
 import AnimalCursor from "./components/layout/AnimalCursor";
 
@@ -47,6 +51,7 @@ export default function App() {
   const [path] = useState(window.location.pathname);
   const [activeFilter, setActiveFilter] = useState<NavFilter>("all");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [closePromptOpen, setClosePromptOpen] = useState(false);
   const [activeBrowsingDevice, setActiveBrowsingDevice] = useState<WebDavDevice | null>(null);
   const categories = useDownloadStore((state) => state.categories);
   const tags = useDownloadStore((state) => state.tags);
@@ -54,6 +59,18 @@ export default function App() {
   const settings = useAppSettingsStore((state) => state.settings);
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
   const activeTheme = useThemeStore((state) => state.theme);
+
+  const [newTaskOpen, setNewTaskOpen] = useState(false);
+  const [newTaskRequest, setNewTaskRequest] = useState<ExternalDownloadRequest | null>(null);
+
+  useEvent("request-close-action", () => {
+    setClosePromptOpen(true);
+  });
+
+  useEvent("open-new-task-modal", (payload) => {
+    setNewTaskRequest(payload);
+    setNewTaskOpen(true);
+  });
 
   const windowTitle = (visibleFilter === "devices" && activeBrowsingDevice)
     ? `PiDownloader - [${activeBrowsingDevice.name}]`
@@ -137,6 +154,13 @@ export default function App() {
       </Dialog>
       <ThemeEditorDialog />
       <ExtensionGuideDialog />
+      <CloseConfirmDialog open={closePromptOpen} onOpenChange={setClosePromptOpen} />
+      <NewTaskModal
+        open={newTaskOpen}
+        onOpenChange={setNewTaskOpen}
+        initialRequest={newTaskRequest}
+        onInitialRequestConsumed={() => setNewTaskRequest(null)}
+      />
     </div>
   );
 

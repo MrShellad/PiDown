@@ -134,7 +134,7 @@ function HeaderCell({
       <button
         type="button"
         aria-label={`${meta.label} 调整列宽`}
-        className="absolute right-0 top-1/2 h-7 w-3 -translate-y-1/2 cursor-col-resize rounded-full outline-none transition-colors hover:bg-primary/20 focus-visible:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring/40"
+        className="absolute right-[-6px] top-1/2 z-30 h-7 w-3 -translate-y-1/2 cursor-col-resize rounded-full outline-none transition-colors hover:bg-primary/20 focus-visible:bg-primary/25 focus-visible:ring-2 focus-visible:ring-ring/40"
         draggable={false}
         onClick={(event) => event.stopPropagation()}
         onDragStart={(event) => event.preventDefault()}
@@ -177,15 +177,29 @@ export default function TaskListHeader({
     event.preventDefault()
     event.stopPropagation()
 
+    const button = event.currentTarget
+    const pointerId = event.pointerId
+
     resizeRef.current = {
       id: column.id,
       startX: event.clientX,
       startWidth: column.width,
     }
 
-    event.currentTarget.setPointerCapture(event.pointerId)
+    try {
+      button.setPointerCapture(pointerId)
+    } catch (e) {
+      console.error("Failed to set pointer capture", e)
+    }
+
+    document.body.style.cursor = "col-resize"
+    document.body.style.userSelect = "none"
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
+      if (moveEvent.buttons === 0) {
+        handlePointerUp()
+        return
+      }
       const resize = resizeRef.current
       if (!resize) return
 
@@ -194,12 +208,21 @@ export default function TaskListHeader({
 
     const handlePointerUp = () => {
       resizeRef.current = null
+      try {
+        button.releasePointerCapture(pointerId)
+      } catch (e) {
+        // ignore
+      }
+      document.body.style.cursor = ""
+      document.body.style.userSelect = ""
       window.removeEventListener("pointermove", handlePointerMove)
       window.removeEventListener("pointerup", handlePointerUp)
+      window.removeEventListener("pointercancel", handlePointerUp)
     }
 
     window.addEventListener("pointermove", handlePointerMove)
     window.addEventListener("pointerup", handlePointerUp)
+    window.addEventListener("pointercancel", handlePointerUp)
   }
 
   const handleSort = (id: TaskTableColumnId) => {

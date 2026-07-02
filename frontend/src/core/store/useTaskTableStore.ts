@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { useAppSettingsStore } from "./useAppSettingsStore"
 
 export type TaskTableColumnId =
   | "name"
@@ -23,8 +24,15 @@ export interface TaskTableColumnState {
   visible?: boolean
 }
 
-const MIN_COLUMN_WIDTH = 88
-const MAX_COLUMN_WIDTH = 360
+const COLUMN_LIMITS: Record<TaskTableColumnId, { min: number; max: number }> = {
+  name: { min: 180, max: 1000 },
+  size: { min: 88, max: 360 },
+  status: { min: 88, max: 360 },
+  speed: { min: 88, max: 360 },
+  eta: { min: 112, max: 360 },
+  createdAt: { min: 112, max: 360 },
+  tags: { min: 96, max: 360 },
+}
 
 export const DEFAULT_TASK_TABLE_COLUMNS: TaskTableColumnState[] = [
   { id: "name", width: 360, visible: true },
@@ -48,11 +56,12 @@ interface TaskTableState {
   setPageSize: (size: number) => void
 }
 
-function clampWidth(width: number) {
-  return Math.min(MAX_COLUMN_WIDTH, Math.max(MIN_COLUMN_WIDTH, Math.round(width)))
+function clampWidth(id: TaskTableColumnId, width: number) {
+  const limits = COLUMN_LIMITS[id] || { min: 88, max: 360 }
+  return Math.min(limits.max, Math.max(limits.min, Math.round(width)))
 }
 
-function normalizeColumns(columns: TaskTableColumnState[]): TaskTableColumnState[] {
+export function normalizeColumns(columns: TaskTableColumnState[]): TaskTableColumnState[] {
   const defaultsById = new Map(DEFAULT_TASK_TABLE_COLUMNS.map((column) => [column.id, column]))
   const seen = new Set<TaskTableColumnId>()
   const normalized: TaskTableColumnState[] = []
@@ -64,7 +73,7 @@ function normalizeColumns(columns: TaskTableColumnState[]): TaskTableColumnState
     seen.add(column.id)
     normalized.push({
       id: column.id,
-      width: clampWidth(Number.isFinite(column.width) ? column.width : fallback.width),
+      width: clampWidth(column.id, Number.isFinite(column.width) ? column.width : fallback.width),
       visible: column.visible !== false,
     })
   })
@@ -81,7 +90,7 @@ function normalizeColumns(columns: TaskTableColumnState[]): TaskTableColumnState
   return normalized
 }
 
-function normalizeSortState(sort: TaskTableSortState | null | undefined): TaskTableSortState | null {
+export function normalizeSortState(sort: TaskTableSortState | null | undefined): TaskTableSortState | null {
   if (!sort) return null
 
   const validColumn = DEFAULT_TASK_TABLE_COLUMNS.some((column) => column.id === sort.id)
@@ -101,7 +110,7 @@ export const useTaskTableStore = create<TaskTableState>()(
         set((state) => ({
           columns: normalizeColumns(
             state.columns.map((column) =>
-              column.id === id ? { ...column, width: clampWidth(width) } : column
+              column.id === id ? { ...column, width: clampWidth(id, width) } : column
             )
           ),
         }))
@@ -167,3 +176,38 @@ export const useTaskTableStore = create<TaskTableState>()(
     }
   )
 )
+
+if (typeof window !== "undefined") {
+  let saveTimeoutId: any = null
+
+  useTaskTableStore.subscribe((state) => {
+    if (saveTimeoutId) {
+      clearTimeout(saveTimeoutId)
+    }
+
+    saveTimeoutId = setTimeout(() => {
+      const appSettingsStore = useAppSettingsStore.getState()
+      if (!appSettingsStore.settings) return
+
+      const tableSettings = JSON.stringify({
+        columns: normalizeColumns(state.columns),
+        sort: normalizeSortState(state.sort),
+        pageSize: state.pageSize,
+      })
+
+      if (appSettingsStore.settings.interface.task_table === tableSettings) return
+
+      const nextSettings = {
+        ...appSettingsStore.settings,
+        interface: {
+          ...appSettingsStore.settings.interface,
+          task_table: tableSettings,
+        },
+      }
+
+      appSettingsStore.save(nextSettings).catch((err) => {
+        console.error("Failed to save task table settings to backend settings.json:", err)
+      })
+    }, 800)
+  })
+}

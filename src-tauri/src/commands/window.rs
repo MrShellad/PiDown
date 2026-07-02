@@ -41,7 +41,13 @@ pub async fn handle_close_action(
     app: &AppHandle,
     state: &AppState,
 ) -> Result<(), String> {
-    use tauri::Manager;
+    use tauri::{Manager, Emitter};
+
+    let settings = state.get_settings();
+    if !settings.interface.close_action_prompted {
+        app.emit("request-close-action", ()).map_err(|e| e.to_string())?;
+        return Ok(());
+    }
 
     if state.should_minimize_on_close_with_tasks() && state.has_incomplete_download_tasks()? {
         let main_win = app
@@ -52,7 +58,7 @@ pub async fn handle_close_action(
         return Ok(());
     }
 
-    let close_action = state.get_settings().interface.close_action;
+    let close_action = settings.interface.close_action;
     let main_win = app
         .get_webview_window("main")
         .ok_or("Main window not found")?;
