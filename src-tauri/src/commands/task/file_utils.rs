@@ -208,49 +208,63 @@ pub fn get_disk_space(path: String) -> Result<(u64, u64), String> {
 }
 
 #[tauri::command]
-pub fn open_directory(path: String) -> Result<(), String> {
+pub fn open_directory(app_handle: tauri::AppHandle, path: String) -> Result<(), String> {
     let p = std::path::Path::new(&path);
     if !p.exists() {
         return Err("Directory does not exist".to_string());
     }
 
-    #[cfg(target_os = "windows")]
-    let result = {
-        use std::os::windows::process::CommandExt;
-        std::process::Command::new("explorer").raw_arg(p.as_os_str()).spawn()
-    };
+    use tauri_plugin_opener::OpenerExt;
+    if let Err(e) = app_handle.opener().open_path(&path, None::<&str>) {
+        log::warn!("tauri-plugin-opener failed: {e}. Falling back to command spawn.");
 
-    #[cfg(target_os = "macos")]
-    let result = std::process::Command::new("open").arg(p).spawn();
+        #[cfg(target_os = "windows")]
+        let result = {
+            use std::os::windows::process::CommandExt;
+            std::process::Command::new("explorer").raw_arg(p.as_os_str()).spawn()
+        };
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let result = std::process::Command::new("xdg-open").arg(p).spawn();
+        #[cfg(target_os = "macos")]
+        let result = std::process::Command::new("open").arg(p).spawn();
 
-    result
-        .map(|_| ())
-        .map_err(|e| format!("Failed to open folder: {e}"))
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let result = std::process::Command::new("xdg-open").arg(p).spawn();
+
+        result
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open folder: {e}"))
+    } else {
+        Ok(())
+    }
 }
 
 #[tauri::command]
-pub fn open_url(url: String) -> Result<(), String> {
+pub fn open_url(app_handle: tauri::AppHandle, url: String) -> Result<(), String> {
     if !url.starts_with("http://") && !url.starts_with("https://") {
         return Err("Invalid URL protocol".to_string());
     }
 
-    #[cfg(target_os = "windows")]
-    let result = std::process::Command::new("cmd")
-        .args(["/C", "start", "", &url])
-        .spawn();
+    use tauri_plugin_opener::OpenerExt;
+    if let Err(e) = app_handle.opener().open_url(&url, None::<&str>) {
+        log::warn!("tauri-plugin-opener failed: {e}. Falling back to command spawn.");
 
-    #[cfg(target_os = "macos")]
-    let result = std::process::Command::new("open").arg(&url).spawn();
+        #[cfg(target_os = "windows")]
+        let result = std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn();
 
-    #[cfg(all(unix, not(target_os = "macos")))]
-    let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+        #[cfg(target_os = "macos")]
+        let result = std::process::Command::new("open").arg(&url).spawn();
 
-    result
-        .map(|_| ())
-        .map_err(|e| format!("Failed to open URL: {e}"))
+        #[cfg(all(unix, not(target_os = "macos")))]
+        let result = std::process::Command::new("xdg-open").arg(&url).spawn();
+
+        result
+            .map(|_| ())
+            .map_err(|e| format!("Failed to open URL: {e}"))
+    } else {
+        Ok(())
+    }
 }
 
 

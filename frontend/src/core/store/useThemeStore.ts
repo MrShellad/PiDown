@@ -156,6 +156,12 @@ interface ThemeState {
   initialActiveThemeId: string;
   dragOffset: { x: number; y: number };
 
+  // Theme Transition State
+  themeTransitionActive: boolean;
+  themeTransitionStage: "idle" | "intro" | "morph" | "outro";
+  targetColorMode: ThemeColorMode;
+  targetTheme: ThemeType;
+
   // Actions
   setTheme: (theme: ThemeType) => void;
   setColorMode: (colorMode: ThemeColorMode) => void;
@@ -608,6 +614,12 @@ export const useThemeStore = create<ThemeState>()(
       soundEnabled: true,
       customThemes: [],
 
+      // Theme Transition State Initializers
+      themeTransitionActive: false,
+      themeTransitionStage: "idle",
+      targetColorMode: "dark",
+      targetTheme: "modern",
+
       // Theme Editor State Initializers
       themeEditorOpen: false,
       editingTheme: null,
@@ -616,15 +628,93 @@ export const useThemeStore = create<ThemeState>()(
       initialActiveThemeId: "",
       dragOffset: { x: 0, y: 0 },
 
-      setTheme: (theme) => {
-        set({ theme });
-        window.queueMicrotask(broadcastThemeSync);
-        saveThemeSettingsToBackend({ theme });
+      setTheme: (newTheme) => {
+        const { theme, effectsEnabled } = get();
+        if (newTheme === theme) return;
+
+        if (!effectsEnabled) {
+          set({ theme: newTheme });
+          window.queueMicrotask(broadcastThemeSync);
+          saveThemeSettingsToBackend({ theme: newTheme });
+          return;
+        }
+
+        // 1. Start transition
+        set({
+          themeTransitionActive: true,
+          themeTransitionStage: "intro",
+          targetTheme: newTheme,
+          targetColorMode: get().colorMode,
+        });
+
+        // 2. Wait for overlay to fade in (250ms)
+        setTimeout(() => {
+          // 3. Overlay is fully opaque: switch the actual theme state immediately!
+          // This updates the document classes, background CSS vars and triggers all components to re-render in the dark.
+          set({
+            theme: newTheme,
+            themeTransitionStage: "morph",
+          });
+          window.queueMicrotask(broadcastThemeSync);
+          saveThemeSettingsToBackend({ theme: newTheme });
+
+          // 4. Play the Sun/Moon morph animation (580ms) against the new theme background
+          setTimeout(() => {
+            set({ themeTransitionStage: "outro" });
+
+            // 5. Hold brief reflow pause, then fade out overlay
+            setTimeout(() => {
+              set({
+                themeTransitionActive: false,
+                themeTransitionStage: "idle",
+              });
+            }, 100);
+          }, 580);
+        }, 250);
       },
-      setColorMode: (colorMode) => {
-        set({ colorMode });
-        window.queueMicrotask(broadcastThemeSync);
-        saveThemeSettingsToBackend({ colorMode });
+      setColorMode: (newColorMode) => {
+        const { colorMode, effectsEnabled } = get();
+        if (newColorMode === colorMode) return;
+
+        if (!effectsEnabled) {
+          set({ colorMode: newColorMode });
+          window.queueMicrotask(broadcastThemeSync);
+          saveThemeSettingsToBackend({ colorMode: newColorMode });
+          return;
+        }
+
+        // 1. Start transition
+        set({
+          themeTransitionActive: true,
+          themeTransitionStage: "intro",
+          targetColorMode: newColorMode,
+          targetTheme: get().theme,
+        });
+
+        // 2. Wait for overlay to fade in (250ms)
+        setTimeout(() => {
+          // 3. Overlay is fully opaque: switch the actual colorMode state immediately!
+          // This updates the document classes, background CSS vars and triggers all components to re-render in the dark.
+          set({
+            colorMode: newColorMode,
+            themeTransitionStage: "morph",
+          });
+          window.queueMicrotask(broadcastThemeSync);
+          saveThemeSettingsToBackend({ colorMode: newColorMode });
+
+          // 4. Play the Sun/Moon morph animation (580ms) against the new theme background
+          setTimeout(() => {
+            set({ themeTransitionStage: "outro" });
+
+            // 5. Hold brief reflow pause, then fade out overlay
+            setTimeout(() => {
+              set({
+                themeTransitionActive: false,
+                themeTransitionStage: "idle",
+              });
+            }, 100);
+          }, 580);
+        }, 250);
       },
       setFontId: (fontId) => {
         set({ fontId });
@@ -875,6 +965,14 @@ export const useThemeStore = create<ThemeState>()(
     }),
     {
       name: THEME_STORAGE_KEY,
+      partialize: (state) => ({
+        theme: state.theme,
+        colorMode: state.colorMode,
+        fontId: state.fontId,
+        effectsEnabled: state.effectsEnabled,
+        soundEnabled: state.soundEnabled,
+        customThemes: state.customThemes,
+      }),
       migrate: (persistedState) => {
         const state = persistedState as PersistedThemeState | undefined;
         return {

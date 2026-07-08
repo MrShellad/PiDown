@@ -175,7 +175,7 @@ function DialogContent({
                 data-slot="dialog-content"
                 data-variant={surfaceVariant}
                 className={cn(dialogContentVariants({ size, variant: surfaceVariant, className }))}
-                style={{ x: "-50%", y: "-50%", willChange: "transform, opacity", ...props.style }}
+                style={{ x: "-50%", y: "-50%", willChange: "opacity", ...props.style }}
                 initial={{ opacity: 0, scale: shouldReduceMotion || isFullSize ? 1 : 0.96 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: shouldReduceMotion || isFullSize ? 1 : 0.98 }}

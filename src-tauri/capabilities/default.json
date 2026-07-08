@@ -28,6 +28,10 @@
     "notification:default",
     "autostart:default",
     "updater:default",
-    "log:default"
+    "log:default",
+    "core:app:default",
+    "core:path:default",
+    "core:window:allow-current-monitor",
+    "opener:default"
   ]
 }

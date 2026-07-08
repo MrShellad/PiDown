@@ -15,6 +15,14 @@ pub fn run() {
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(main_win) = app.get_webview_window("main") {
+                let _ = main_win.show();
+                let _ = main_win.unminimize();
+                let _ = main_win.set_focus();
+            }
+        }))
         .setup(|app| {
             let app_handle = app.handle().clone();
             let app_data_dir = app_handle

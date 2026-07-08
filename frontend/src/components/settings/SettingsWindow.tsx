@@ -76,6 +76,7 @@ import {
 import { useToastStore } from "@/core/store/useToastStore";
 import { Icon as AnimalIcon } from "animal-island-ui";
 import iconDiy from "@/assets/icons/icon-diy.svg?url";
+import logoPng from "@/assets/logopng.png";
 import iconHelicopter from "@/assets/icons/icon-helicopter.svg?url";
 import iconMap from "@/assets/icons/icon-map.svg?url";
 import iconDesign from "@/assets/icons/icon-design.svg?url";
@@ -3197,11 +3198,8 @@ export default function SettingsWindow({ onClose }: { onClose?: () => void }) {
                     <SettingsSectionCard>
                       <div className="mt-4 flex flex-col items-center justify-center text-center">
                         {/* Centered Logo */}
-                        <div className="relative flex size-24 items-center justify-center rounded-2xl bg-primary/10 text-primary shadow-glow-effect mb-5 select-none">
-                          <Download className="size-12 animate-pulse" style={{ animationDuration: "3s" }} />
-                          <div className="absolute -right-1 -top-1 flex size-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
-                            Pi
-                          </div>
+                        <div className="relative flex size-24 items-center justify-center mb-5 select-none">
+                          <img src={logoPng} alt="PiDownloader Logo" className="size-24 object-contain rounded-2xl" />
                         </div>
 
                         {/* Title & Description */}

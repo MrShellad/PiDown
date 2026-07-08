@@ -157,7 +157,7 @@ interface TaskListDashboardProps {
 }
 
 const TASK_ROW_HEIGHT = 60;
-const TASK_ROW_GAP = 8;
+const TASK_ROW_GAP = 4;
 const TASK_ROW_STRIDE = TASK_ROW_HEIGHT + TASK_ROW_GAP;
 const TASK_LIST_OVERSCAN = 6;
 const TASK_DELETE_EXIT_MS = 260;

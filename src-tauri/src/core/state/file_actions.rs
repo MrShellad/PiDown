@@ -28,7 +28,16 @@ pub fn cleanup_task_files(task: &DbTask) {
     }
 }
 
-fn open_path(path: &Path) -> Result<(), String> {
+fn open_path(app_handle_opt: Option<&tauri::AppHandle>, path: &Path) -> Result<(), String> {
+    if let Some(app_handle) = app_handle_opt {
+        use tauri_plugin_opener::OpenerExt;
+        if let Err(e) = app_handle.opener().open_path(path.to_string_lossy(), None::<&str>) {
+            log::warn!("tauri-plugin-opener failed: {e}. Falling back to command spawn.");
+        } else {
+            return Ok(());
+        }
+    }
+
     #[cfg(target_os = "windows")]
     let result = Command::new("cmd")
         .arg("/C")
@@ -80,7 +89,7 @@ impl super::AppState {
             return Err("File does not exist yet".to_string());
         }
 
-        open_path(&file_path)
+        open_path(self.app_handle.lock().unwrap().as_ref(), &file_path)
     }
 
     pub fn open_task_folder(&self, gid: &str) -> Result<(), String> {
@@ -121,6 +130,6 @@ impl super::AppState {
             }
         }
 
-        open_path(folder_path)
+        open_path(self.app_handle.lock().unwrap().as_ref(), folder_path)
     }
 }
