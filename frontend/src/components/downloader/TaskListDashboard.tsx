@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, useCallback, forwardRef, memo } from "react";
-import { FixedSizeList as List, areEqual } from "react-window";
+import { useEffect, useMemo, useRef, useState, useCallback, memo } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { cn } from "@/lib/utils";
 import { eventBus, useEvent } from "@/core/eventBus";
 import { AnimatePresence, motion } from "motion/react";
@@ -150,7 +150,12 @@ const Row = memo(({ index, style, data }: { index: number; style: React.CSSPrope
       />
     </div>
   );
-}, areEqual);
+}, (prev, next) => {
+  return prev.index === next.index &&
+         prev.style.transform === next.style.transform &&
+         prev.style.height === next.style.height &&
+         prev.data === next.data;
+});
 
 interface TaskListDashboardProps {
   activeFilter: NavFilter;
@@ -523,47 +528,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   }, [activeFilter, categories, tags]);
   const tableWidth = getTaskTableWidth(columns);
 
-  const OuterElement = useMemo(() => {
-    return forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ className, style, ...props }, ref) => {
-      return (
-        <div
-          ref={ref}
-          className={cn(
-            "min-h-0 flex-1 overscroll-contain pb-[46px] pt-0 scroll-smooth rounded-b-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide",
-            "[overflow-y:overlay!important] overflow-x-hidden",
-            className
-          )}
-          style={{
-            ...style,
-            width: `${tableWidth + 12}px`,
-            clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
-          }}
-          {...props}
-        />
-      );
-    });
-  }, [tableWidth, theme]);
-
-  const InnerElement = useMemo(() => {
-    return forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(({ style, children, ...props }, ref) => {
-      const height = parseFloat(style?.height as string || "0");
-      return (
-        <div
-          ref={ref}
-          style={{
-            ...style,
-            width: `${tableWidth}px`,
-            height: `${height + 60 + 46}px`, // 60px top spacer + 46px bottom padding
-          }}
-          {...props}
-        >
-          <div style={{ transform: "translateY(60px)" }}>
-            {children}
-          </div>
-        </div>
-      );
-    });
-  }, [tableWidth]);
+  const rowVirtualizer = useVirtualizer({
+    count: renderedGids.length,
+    getScrollElement: () => rowViewportRef.current,
+    estimateSize: () => TASK_ROW_STRIDE,
+    overscan: TASK_LIST_OVERSCAN,
+  });
 
   const updateScrollState = useCallback(() => {
     const el = horizontalScrollRef.current;
@@ -1040,23 +1010,48 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     </motion.div>
                   </ScrollArea>
                 ) : (
-                  <List
-                    height={viewportHeight || 500}
-                    itemCount={renderedGids.length}
-                    itemSize={TASK_ROW_STRIDE}
-                    width={tableWidth + 12}
-                    outerElementType={OuterElement}
-                    innerElementType={InnerElement}
-                    onScroll={({ scrollOffset }: { scrollOffset: number }) => setScrollTop(scrollOffset)}
-                    outerRef={rowViewportRef}
-                    overscanCount={TASK_LIST_OVERSCAN}
-                    itemData={itemData}
+                  <div
+                    ref={rowViewportRef}
+                    className={cn(
+                      "min-h-0 flex-1 overscroll-contain pb-[46px] pt-0 scroll-smooth rounded-b-lg scrollbar-interactive scrollbar-overlay scrollbar-auto-hide",
+                      "[overflow-y:overlay!important] overflow-x-hidden"
+                    )}
                     style={{
+                      height: `${viewportHeight || 500}px`,
+                      width: `${tableWidth + 12}px`,
+                      clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
                       marginBottom: 8,
                     }}
+                    onScroll={(e) => {
+                      setScrollTop(e.currentTarget.scrollTop);
+                    }}
                   >
-                    {Row}
-                  </List>
+                    <div
+                      style={{
+                        position: "relative",
+                        width: `${tableWidth}px`,
+                        height: `${rowVirtualizer.getTotalSize() + 60 + 46}px`, // 60px top spacer + 46px bottom padding
+                      }}
+                    >
+                      <div style={{ transform: "translateY(60px)" }}>
+                        {rowVirtualizer.getVirtualItems().map((virtualRow) => (
+                          <Row
+                            key={virtualRow.key}
+                            index={virtualRow.index}
+                            style={{
+                              position: "absolute",
+                              top: 0,
+                              left: 0,
+                              width: "100%",
+                              height: `${TASK_ROW_HEIGHT}px`,
+                              transform: `translateY(${virtualRow.start}px)`,
+                            }}
+                            data={itemData}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 )}
 
                 {/* Pagination Controls */}
