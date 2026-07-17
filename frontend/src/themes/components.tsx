@@ -176,7 +176,7 @@ export function useThemeSwitch(
         <AnimalSwitch
           checked={resolvedChecked}
           defaultChecked={defaultChecked}
-          onChange={(next) => {
+          onChange={(next: boolean) => {
             if (!isControlled) {
               setInternalChecked(next);
             }
