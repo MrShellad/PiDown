@@ -164,8 +164,16 @@ export default function AboutSection({}: AboutSectionProps) {
             <span className="font-semibold text-foreground font-mono">v{version}</span>
           </div>
           <div className="flex justify-between items-center border-t border-border/40 pt-3">
-            <span className="text-muted-foreground">下载核心引擎</span>
+            <span className="text-muted-foreground">内置下载引擎</span>
             <span className="font-semibold text-foreground font-mono">gosh-dl v0.4.0</span>
+          </div>
+          <div className="flex justify-between items-center border-t border-border/40 pt-3">
+            <span className="text-muted-foreground">Aria2 辅助引擎</span>
+            <span className="font-semibold text-foreground font-mono">Aria2 v1.37.0</span>
+          </div>
+          <div className="flex justify-between items-center border-t border-border/40 pt-3">
+            <span className="text-muted-foreground">视频混流核心</span>
+            <span className="font-semibold text-foreground font-mono">FFmpeg v6.1</span>
           </div>
           <div className="flex justify-between items-center border-t border-border/40 pt-3">
             <span className="text-muted-foreground">开源项目</span>
