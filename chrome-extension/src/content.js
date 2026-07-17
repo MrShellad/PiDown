@@ -183,15 +183,33 @@ function formatBytes(bytes) {
 function renderDropdownContents(dropdown, videos, video, tweetInfo) {
   dropdown.innerHTML = '';
   
+  const tweetIds = utils.getTweetIds(video);
+  const videoSrc = video.src || video.currentSrc || '';
+  
+  let targetVideos = videos.filter(v => {
+    if (v.tweetId && tweetInfo.tweetId && v.tweetId === tweetInfo.tweetId) {
+      return true;
+    }
+    if (videoSrc && (v.url === videoSrc || videoSrc.includes(v.url) || v.url.includes(videoSrc))) {
+      return true;
+    }
+    return tweetIds.some(id => v.url.includes(id));
+  });
+  
+  const isPrecise = targetVideos.length > 0;
+  if (!isPrecise) {
+    targetVideos = videos;
+  }
+  
   const header = document.createElement('div');
   header.className = 'pidownloader-dropdown-header';
   header.innerHTML = `
-    <span>嗅探到的视频流 (${videos.length})</span>
+    <span>嗅探到的视频流 (${targetVideos.length})${isPrecise ? ' - 已精准匹配' : ''}</span>
     <span style="font-size: 9px; opacity: 0.7;">PIDOWN</span>
   `;
   dropdown.appendChild(header);
   
-  if (videos.length === 0) {
+  if (targetVideos.length === 0) {
     const empty = document.createElement('div');
     empty.className = 'pidownloader-dropdown-empty';
     empty.innerHTML = `
@@ -206,14 +224,7 @@ function renderDropdownContents(dropdown, videos, video, tweetInfo) {
     return;
   }
   
-  const tweetIds = utils.getTweetIds(video);
-  const sortedVideos = [...videos].sort((a, b) => {
-    const aMatch = tweetIds.some(id => a.url.includes(id));
-    const bMatch = tweetIds.some(id => b.url.includes(id));
-    if (aMatch && !bMatch) return -1;
-    if (!aMatch && bMatch) return 1;
-    return 0;
-  });
+  const sortedVideos = [...targetVideos];
   
   const listContainer = document.createElement('div');
   listContainer.className = 'pidownloader-dropdown-list';

@@ -83,9 +83,12 @@ export function handleGetSniffedVideos(message, sender, sendResponse) {
         const syndVideos = result.videos || [];
         const thumbnail = result.thumbnail || null;
         for (const v of syndVideos) {
+          v.tweetId = tweetId;
           const existing = map.get(v.url);
           if (!existing || (v.size && !existing.size)) {
             map.set(v.url, v);
+          } else {
+            existing.tweetId = tweetId;
           }
         }
         if (thumbnail) {
@@ -171,6 +174,30 @@ function loadCachedConfig() {
 }
 loadCachedConfig();
 
+async function autoUpdateRulesIfEmpty() {
+  const options = await getOptions();
+  if (options.rulesSubscriptionEnabled && options.rulesSubscriptionUrl) {
+    const localData = await chrome.storage.local.get("sniffRules");
+    if (!localData.sniffRules || !localData.sniffRules.platforms) {
+      try {
+        const res = await fetch(options.rulesSubscriptionUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.platforms) {
+            await chrome.storage.local.set({
+              sniffRules: data,
+              rulesLastUpdated: new Date().toLocaleString(),
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Auto-update rules failed on startup", err);
+      }
+    }
+  }
+}
+configLoadedPromise.then(autoUpdateRulesIfEmpty).catch(console.error);
+
 chrome.storage.onChanged.addListener((changes, area) => {
   if (area === "sync") {
     if (changes.rulesSubscriptionEnabled) {
@@ -187,6 +214,9 @@ function wildcardToRegExp(wildcard) {
   let makeSubdomainOptional = false;
   if (pattern.includes("://*.")) {
     pattern = pattern.replace("://*.", "://");
+    makeSubdomainOptional = true;
+  } else if (pattern.includes("*://*.")) {
+    pattern = pattern.replace("*://*.", "*://");
     makeSubdomainOptional = true;
   }
   
@@ -216,13 +246,31 @@ function matchesAnyRule(url, rulesList) {
   return false;
 }
 
-export function shouldInterceptUrlSync(url) {
+function normalizeUrlForMatching(url) {
+  if (!url) return "";
+  if (url.startsWith("http") && !url.substring(8).includes("/")) {
+    return url + "/";
+  }
+  return url;
+}
+
+export function shouldInterceptUrlSync(url, initiator) {
+  let matched = false;
+  const normalizedUrl = normalizeUrlForMatching(url);
+  const normalizedInitiator = normalizeUrlForMatching(initiator);
+  
   if (rulesSubscriptionEnabled && cachedSniffRules && cachedSniffRules.platforms) {
     const allUrls = Object.values(cachedSniffRules.platforms).flatMap(p => p.urls || []);
-    return matchesAnyRule(url, allUrls);
+    matched = matchesAnyRule(normalizedUrl, allUrls) || (normalizedInitiator && matchesAnyRule(normalizedInitiator, allUrls));
   }
-  const builtInUrls = Object.values(PLATFORMS).flatMap(p => p.urls);
-  return matchesAnyRule(url, builtInUrls);
+  
+  // Fallback to built-in rules if not matched by subscription or subscription is empty/disabled
+  if (!matched) {
+    const builtInUrls = Object.values(PLATFORMS).flatMap(p => p.urls);
+    matched = matchesAnyRule(normalizedUrl, builtInUrls) || (normalizedInitiator && matchesAnyRule(normalizedInitiator, builtInUrls));
+  }
+  
+  return matched;
 }
 
 export function handleShouldSniffPage(message, sendResponse) {
@@ -241,7 +289,7 @@ export function initVideoSniffer() {
   chrome.webRequest.onSendHeaders.addListener(
     (details) => {
       const url = details.url;
-      if (!shouldInterceptUrlSync(url)) return;
+      if (!shouldInterceptUrlSync(url, details.initiator)) return;
 
       const headers = {};
       for (const h of (details.requestHeaders || [])) {
@@ -270,7 +318,7 @@ export function initVideoSniffer() {
     (details) => {
       if (details.tabId < 0) return;
       const url = details.url;
-      if (!shouldInterceptUrlSync(url)) return;
+      if (!shouldInterceptUrlSync(url, details.initiator)) return;
 
       if (url.includes(".m3u8") || url.includes(".mp4")) {
         let size = null;
