@@ -12,6 +12,8 @@ const DEFAULT_OPTIONS = {
   serverPort: 18388,
   serverToken: "",
   contextMenuEnabled: true,
+  rulesSubscriptionEnabled: false,
+  rulesSubscriptionUrl: "https://raw.githubusercontent.com/MrShellad/PiDown/main/chrome-extension/rules.json",
 };
 
 const EXTENSION_PRESETS = [
@@ -35,6 +37,13 @@ const minBytesField = document.querySelector("#minBytesField");
 const minBytesMbInput = document.querySelector("#minBytesMb");
 const apiUrlInput = document.querySelector("#apiUrl");
 const serverTokenInput = document.querySelector("#serverToken");
+
+const rulesSubEnabledInput = document.querySelector("#rulesSubscriptionEnabled");
+const rulesUrlInput = document.querySelector("#rulesSubscriptionUrl");
+const rulesUrlField = document.querySelector("#rulesUrlField");
+const rulesStatusField = document.querySelector("#rulesStatusField");
+const rulesStatusText = document.querySelector("#rules-status-text");
+const updateRulesBtn = document.querySelector("#update-rules-btn");
 
 const extVersionEl = document.querySelector("#ext-version");
 const clientVersionEl = document.querySelector("#client-version");
@@ -108,6 +117,9 @@ async function init() {
 
   // Presets
   renderPresetChips();
+
+  // Load Rules Status
+  await loadRulesStatus();
 }
 
 // Show/hide minBytes field based on toggle
@@ -115,12 +127,70 @@ largeFileToggle.addEventListener("change", () => {
   minBytesField.style.display = largeFileToggle.checked ? "block" : "none";
 });
 
-form.addEventListener("submit", async (event) => {
-  event.preventDefault();
+rulesSubEnabledInput.addEventListener("change", () => {
+  const isEnabled = rulesSubEnabledInput.checked;
+  rulesUrlField.style.display = isEnabled ? "block" : "none";
+  rulesStatusField.style.display = isEnabled ? "block" : "none";
+});
+
+updateRulesBtn.addEventListener("click", async () => {
+  const url = rulesUrlInput.value.trim();
+  if (!url) {
+    showStatus("订阅链接不能为空", "error");
+    return;
+  }
+
+  updateRulesBtn.disabled = true;
+  const originalText = updateRulesBtn.textContent;
+  updateRulesBtn.textContent = "更新中...";
+
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP 错误: ${res.status}`);
+    const data = await res.json();
+    
+    if (!data || typeof data !== "object" || !data.platforms) {
+      throw new Error("规则格式非法，需包含 platforms 属性");
+    }
+
+    await chrome.storage.local.set({
+      sniffRules: data,
+      rulesLastUpdated: new Date().toLocaleString(),
+    });
+
+    showStatus("规则订阅更新成功！", "success");
+    await loadRulesStatus();
+  } catch (err) {
+    showStatus(`更新失败：${err instanceof Error ? err.message : String(err)}`, "error");
+  } finally {
+    updateRulesBtn.disabled = false;
+    updateRulesBtn.textContent = originalText;
+  }
+});
+
+async function loadRulesStatus() {
+  const localData = await chrome.storage.local.get(["sniffRules", "rulesLastUpdated"]);
+  if (localData.sniffRules && localData.sniffRules.platforms) {
+    const platformCount = Object.keys(localData.sniffRules.platforms).length;
+    const ruleCount = Object.values(localData.sniffRules.platforms)
+      .flatMap(p => p.urls || [])
+      .length;
+    rulesStatusText.textContent = `已加载 ${platformCount} 个平台共 ${ruleCount} 条规则。\n更新时间: ${localData.rulesLastUpdated || "未知"}`;
+  } else {
+    rulesStatusText.textContent = "未加载任何订阅规则，请点击下方更新";
+  }
+}
+
+// Auto-save settings on any form change
+form.addEventListener("change", async () => {
   const options = readForm();
   await chrome.storage.sync.set(options);
-  showStatus("设置已保存", "success");
+  showStatus("设置已自动保存", "success");
   updateConnectionStatus();
+});
+
+form.addEventListener("submit", (event) => {
+  event.preventDefault();
 });
 
 resetButton.addEventListener("click", async () => {
@@ -128,6 +198,7 @@ resetButton.addEventListener("click", async () => {
   writeForm(DEFAULT_OPTIONS);
   showStatus("已恢复默认设置", "success");
   updateConnectionStatus();
+  await loadRulesStatus();
 });
 
 testButton.addEventListener("click", async () => {
@@ -241,15 +312,15 @@ async function updateConnectionStatus() {
 
 function writeForm(options) {
   // Simple checkboxes
-  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled"]) {
+  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled", "rulesSubscriptionEnabled"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       input.checked = Boolean(options[field]);
     }
   }
 
-  // Extensions & Bypassed Domains
-  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains"]) {
+  // Extensions & Bypassed Domains & Subscription URLs
+  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains", "rulesSubscriptionUrl"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       input.value = options[field] || "";
@@ -271,21 +342,26 @@ function writeForm(options) {
     minBytesField.style.display = "none";
     minBytesMbInput.value = 10; // default placeholder
   }
+
+  // Toggle rules fields visibility
+  const isRulesEnabled = Boolean(options.rulesSubscriptionEnabled);
+  rulesUrlField.style.display = isRulesEnabled ? "block" : "none";
+  rulesStatusField.style.display = isRulesEnabled ? "block" : "none";
 }
 
 function readForm() {
   const options = {};
 
   // Simple checkboxes
-  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled"]) {
+  for (const field of ["enabled", "fallbackToBrowserDownload", "pauseDuringHandoff", "eraseCancelledDownload", "showNotifications", "captureIncognito", "contextMenuEnabled", "rulesSubscriptionEnabled"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       options[field] = input.checked;
     }
   }
 
-  // Extensions & Bypassed Domains
-  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains"]) {
+  // Extensions & Bypassed Domains & Subscription URLs
+  for (const field of ["allowExtensions", "blockExtensions", "bypassDomains", "rulesSubscriptionUrl"]) {
     const input = document.querySelector(`#${field}`);
     if (input) {
       options[field] = input.value;
@@ -348,7 +424,7 @@ function appendPresetValues(fieldId, values) {
     new Set([...parseCsv(input.value), ...values.map((value) => normalizeExtension(value))])
   );
   input.value = merged.join(", ");
-  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
 function parseCsv(value) {
@@ -363,6 +439,9 @@ function normalizeExtension(value) {
 }
 
 function showStatus(message, kind) {
+  if (kind === "success") {
+    dismissAllToasts();
+  }
   showToast(message, kind, kind === "error" ? 5000 : 3000);
 }
 

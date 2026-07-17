@@ -34,6 +34,7 @@ impl HlsDownloadProvider {
             ignore_ssl_certificate: settings.transfer.ignore_ssl_certificate,
             proxy_url: settings.transfer.proxy_url.clone(),
             task_thread_count: settings.transfer.task_thread_count.clamp(1, 16) as usize,
+            app_data_dir: Some(state.app_data_dir()),
         };
 
         let gid_clone = gid.to_string();
@@ -89,15 +90,19 @@ impl HlsDownloadProvider {
                             let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid_clone }));
                         }
                     }
-                    crate::download::hls::HlsDownloadEvent::Completed { final_bytes } => {
+                    crate::download::hls::HlsDownloadEvent::Completed { final_bytes, warning } => {
                         if let Some(task) = state_clone.task_cache.write().unwrap().get_mut(&gid_clone) {
                             task.status = "Completed".to_string();
                             task.completed_size = final_bytes;
                             task.total_size = final_bytes;
                             task.completed_at = Some(chrono::Utc::now().timestamp());
+                            task.error_message = warning.clone();
                             task.dirty = true;
                         }
                         let _ = state_clone.db.update_task_status(&gid_clone, "Completed", Some(chrono::Utc::now().timestamp()));
+                        if let Some(ref warn_msg) = warning {
+                            let _ = state_clone.db.update_task_error(&gid_clone, Some(warn_msg));
+                        }
                         state_clone.hls_speeds.lock().unwrap().remove(&gid_clone);
                         state_clone.hls_cancel_tokens.lock().unwrap().remove(&gid_clone);
 

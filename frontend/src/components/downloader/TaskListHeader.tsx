@@ -111,7 +111,12 @@ function HeaderCell({
         column.id === "name" ? "justify-start" : "justify-center",
         "hover:bg-muted/35 hover:text-foreground"
       )}
-      style={{ flexBasis: column.width, width: column.width, minWidth: meta.minWidth }}
+      style={{
+        flexBasis: column.width,
+        width: column.width,
+        minWidth: meta.minWidth,
+        flexGrow: column.id === "name" ? 1 : 0,
+      }}
       onClick={() => {
         if (meta.sortable) onSort(column.id)
       }}
@@ -278,7 +283,7 @@ export default function TaskListHeader({
         embedded ? "rounded-lg bg-table-header backdrop-blur-md border border-border/30" : "rounded-lg bg-table-header border border-border/40",
         className
       )}
-      style={{ width: `${tableWidth}px` }}
+      style={{ width: "100%", minWidth: `${tableWidth}px` }}
     >
       <div
         className="flex h-full shrink-0 items-center justify-center"

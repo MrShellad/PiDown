@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "platforms": {
+    "twitter": {
+      "urls": [
+        "https://*.twimg.com/*",
+        "https://*.x.com/*",
+        "https://*.twitter.com/*"
+      ]
+    },
+    "tiktok": {
+      "urls": [
+        "https://*.tiktok.com/*",
+        "https://*.tiktokcdn.com/*",
+        "https://*.byteoversea.com/*",
+        "https://*.ibyteimg.com/*"
+      ]
+    }
+  }
+}

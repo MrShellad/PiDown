@@ -135,6 +135,8 @@ const CSS_STYLES = `
     flex-direction: column;
     gap: 4px;
     padding-right: 2px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
   }
 
   .pidownloader-dropdown-list::-webkit-scrollbar {

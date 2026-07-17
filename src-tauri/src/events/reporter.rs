@@ -27,7 +27,7 @@ pub fn start_event_reporter(app_handle: AppHandle, state: Arc<AppState>) {
                 Ok(event) => event,
                 Err(broadcast::error::RecvError::Lagged(skipped)) => {
                     log::warn!("Download event reporter lagged, skipped {skipped} events");
-                    state.reconcile_download_tasks();
+                    state.reconcile_download_tasks().await;
                     continue;
                 }
                 Err(broadcast::error::RecvError::Closed) => break,
@@ -71,7 +71,7 @@ pub fn start_event_reporter(app_handle: AppHandle, state: Arc<AppState>) {
                             "Download completed but task status could not be synced: {}",
                             gid
                         );
-                        state.reconcile_download_tasks();
+                        state.reconcile_download_tasks().await;
                         emit_task_updated(&app_handle, gid);
                     }
                 }
@@ -86,7 +86,7 @@ pub fn start_event_reporter(app_handle: AppHandle, state: Arc<AppState>) {
                     if let Some(gid) = synced_gid {
                         emit_task_updated(&app_handle, gid);
                     } else {
-                        state.reconcile_download_tasks();
+                        state.reconcile_download_tasks().await;
                         emit_task_updated(&app_handle, gid);
                     }
                     let _ = app_handle.emit("play-sound", "warning");

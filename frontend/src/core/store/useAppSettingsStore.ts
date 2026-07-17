@@ -11,6 +11,7 @@ import { useTaskTableStore, normalizeColumns, normalizeSortState } from "./useTa
 
 export type SettingsSectionId =
   | "general"
+  | "download"
   | "transfer"
   | "category"
   | "extension"

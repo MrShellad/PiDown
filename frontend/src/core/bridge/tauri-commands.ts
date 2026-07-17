@@ -144,6 +144,12 @@ export interface AppSettings {
     play_sound_on_complete: boolean;
     sound_effect_id: string;
     auto_remove_on_file_deleted: boolean;
+    backend: "gosh" | "aria2";
+    auto_focus_window_on_download: boolean;
+    aria2_rpc_url: string;
+    aria2_rpc_secret: string;
+    aria2_port: number;
+    aria2_auto_update: boolean;
   };
   transfer: {
     max_concurrent_downloads: number;
@@ -465,6 +471,12 @@ export async function getDefaultAppSettings(): Promise<AppSettings> {
       play_sound_on_complete: true,
       sound_effect_id: "success",
       auto_remove_on_file_deleted: false,
+      backend: "gosh",
+      auto_focus_window_on_download: true,
+      aria2_rpc_url: "http://127.0.0.1:6800/jsonrpc",
+      aria2_rpc_secret: "",
+      aria2_port: 6800,
+      aria2_auto_update: true,
     },
     transfer: {
       max_concurrent_downloads: 3,
@@ -705,4 +717,34 @@ export async function copyWebDavItem(deviceId: string, fromPath: string, toPath:
 
 export async function moveWebDavItem(deviceId: string, fromPath: string, toPath: string, isDir: boolean): Promise<void> {
   return invoke<void>("move_webdav_item", { deviceId, fromPath, toPath, isDir });
+}
+
+export interface Aria2EngineStatus {
+  status: "not_installed" | "downloading" | "extracting" | "ready" | "running" | "error";
+  version: string | null;
+  progress: number;
+  error_message: string | null;
+}
+
+export async function getAria2EngineStatus(): Promise<Aria2EngineStatus> {
+  return invoke<Aria2EngineStatus>("get_aria2_engine_status");
+}
+
+export async function updateAria2Engine(): Promise<void> {
+  return invoke<void>("update_aria2_engine");
+}
+
+export interface FfmpegEngineStatus {
+  status: "not_installed" | "downloading" | "extracting" | "ready" | "error";
+  version: string | null;
+  progress: number;
+  error_message: string | null;
+}
+
+export async function getFfmpegEngineStatus(): Promise<FfmpegEngineStatus> {
+  return invoke<FfmpegEngineStatus>("get_ffmpeg_engine_status");
+}
+
+export async function updateFfmpegEngine(): Promise<void> {
+  return invoke<void>("update_ffmpeg_engine");
 }

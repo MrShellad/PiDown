@@ -114,7 +114,7 @@ export default function DevicesDashboard({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 p-6 relative select-none">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 pt-3 pb-6 px-6 relative select-none">
       {/* Header Panel */}
       <div className="shrink-0 px-3">
         <PageHeaderToolbar

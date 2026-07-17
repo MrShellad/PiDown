@@ -12,6 +12,8 @@ export const DEFAULT_OPTIONS = {
   serverPort: 18388,
   serverToken: "",
   contextMenuEnabled: true,
+  rulesSubscriptionEnabled: false,
+  rulesSubscriptionUrl: "https://raw.githubusercontent.com/MrShellad/PiDown/main/chrome-extension/rules.json",
 };
 
 export function getOptions() {

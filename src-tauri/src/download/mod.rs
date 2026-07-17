@@ -7,6 +7,9 @@ pub mod provider;
 pub mod gosh_provider;
 pub mod hls_provider;
 pub mod protocols;
+pub mod aria2_engine;
+pub mod aria2_provider;
+pub mod ffmpeg_engine;
 
 pub use engine::{DownloadInspection, EngineHttpConfig, EngineWrapper, HttpTaskOptions, TorrentFileInspection};
 #[allow(unused_imports)]
@@ -31,4 +34,7 @@ pub fn apply_basic_auth_if_present(builder: reqwest::RequestBuilder, url: &str) 
 
 #[cfg(test)]
 mod engine_tests;
+
+#[cfg(test)]
+mod aria2_tests;
 

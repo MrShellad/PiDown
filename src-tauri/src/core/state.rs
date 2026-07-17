@@ -36,6 +36,8 @@ pub struct AppState {
     pub(crate) video_cache: Mutex<Option<VideoCache>>,
     pub(crate) http_client: reqwest::Client,
     pub(crate) providers: HashMap<String, Arc<dyn crate::download::provider::DownloadProvider>>,
+    pub aria2_engine: Arc<crate::download::aria2_engine::Aria2Engine>,
+    pub ffmpeg_engine: Arc<crate::download::ffmpeg_engine::FfmpegEngine>,
     pub(crate) pending_pairings: Mutex<HashMap<String, tokio::sync::oneshot::Sender<bool>>>,
 }
 
@@ -75,15 +77,21 @@ impl AppState {
         let settings_created_at = settings_doc.created_at;
         let db = Arc::new(db_concrete) as Arc<dyn crate::core::store::repository::TaskRepository>;
 
+        let aria2_engine = Arc::new(crate::download::aria2_engine::Aria2Engine::new(app_data_dir));
+        let ffmpeg_engine = Arc::new(crate::download::ffmpeg_engine::FfmpegEngine::new(app_data_dir));
+
         let state = Arc::new_cyclic(|me| {
             let gosh_provider = Arc::new(crate::download::gosh_provider::GoshDownloadProvider::new(engine.clone()))
                 as Arc<dyn crate::download::provider::DownloadProvider>;
             let hls_provider = Arc::new(crate::download::hls_provider::HlsDownloadProvider::new(me.clone()))
                 as Arc<dyn crate::download::provider::DownloadProvider>;
+            let aria2_provider = Arc::new(crate::download::aria2_provider::Aria2DownloadProvider::new(me.clone()))
+                as Arc<dyn crate::download::provider::DownloadProvider>;
 
             let mut providers = HashMap::new();
             providers.insert("gosh".to_string(), gosh_provider);
             providers.insert("hls".to_string(), hls_provider);
+            providers.insert("aria2".to_string(), aria2_provider);
 
             Self {
                 engine,
@@ -103,6 +111,8 @@ impl AppState {
                 video_cache: Mutex::new(None),
                 http_client,
                 providers,
+                aria2_engine,
+                ffmpeg_engine,
                 pending_pairings: Mutex::new(HashMap::new()),
             }
         });
@@ -112,6 +122,32 @@ impl AppState {
         state.ensure_default_save_dir()?;
         state.ensure_default_category_configs(None)?;
         state.sync_on_startup();
+
+        // Start aria2c daemon if selected as backend (auto-download if missing)
+        {
+            let current_settings = state.get_settings();
+            if current_settings.download.backend == crate::core::settings::DownloadBackend::Aria2 {
+                let rpc_port = current_settings.download.aria2_port;
+                let rpc_secret = current_settings.download.aria2_rpc_secret.clone();
+                let aria2_engine_clone = state.aria2_engine.clone();
+                let auto_update = current_settings.download.aria2_auto_update;
+
+                tauri::async_runtime::spawn(async move {
+                    if aria2_engine_clone.check_install() {
+                        if let Err(e) = aria2_engine_clone.start(rpc_port, &rpc_secret).await {
+                            log::error!("Failed to auto-start aria2 daemon: {}", e);
+                        }
+                    } else if auto_update {
+                        log::info!("Aria2 binary not found, auto-downloading engine...");
+                        if let Ok(_) = aria2_engine_clone.download_and_install().await {
+                            let _ = aria2_engine_clone.start(rpc_port, &rpc_secret).await;
+                        }
+                    } else {
+                        log::warn!("Aria2 engine is selected as backend but not installed.");
+                    }
+                });
+            }
+        }
 
         // Spawn periodic DB checkpoint task
         let state_clone = Arc::clone(&state);
@@ -147,6 +183,10 @@ impl AppState {
         });
 
         Ok(state)
+    }
+
+    pub fn app_data_dir(&self) -> PathBuf {
+        self.settings_file.parent().unwrap().to_path_buf()
     }
 }
 
@@ -199,5 +239,14 @@ impl VideoCache {
             let removed = self.blocks.remove(0);
             self.total_bytes -= removed.data.len();
         }
+    }
+}
+
+impl Drop for AppState {
+    fn drop(&mut self) {
+        let aria2_engine = self.aria2_engine.clone();
+        tauri::async_runtime::block_on(async move {
+            aria2_engine.stop().await;
+        });
     }
 }

@@ -88,6 +88,9 @@ impl super::AppState {
     pub fn update_settings(&self, mut settings: AppSettings) -> Result<AppSettings, String> {
         let current = self.settings.read().unwrap().clone();
         let previous_default_save_dir = PathBuf::from(&current.download.default_save_dir);
+        let previous_backend = current.download.backend;
+        let previous_port = current.download.aria2_port;
+        let previous_secret = current.download.aria2_rpc_secret.clone();
 
         settings.download.default_save_dir = if settings.download.default_save_dir.trim().is_empty()
         {
@@ -108,6 +111,31 @@ impl super::AppState {
         self.persist_settings()?;
         self.apply_transfer_settings()?;
         self.ensure_default_category_configs(Some(&previous_default_save_dir))?;
+
+        // Manage Aria2 engine lifecycle based on backend change
+        let backend = settings.download.backend;
+        let rpc_port = settings.download.aria2_port;
+        let rpc_secret = settings.download.aria2_rpc_secret.clone();
+        
+        let aria2_engine = self.aria2_engine.clone();
+        let previous_active = previous_backend == crate::core::settings::DownloadBackend::Aria2;
+        let now_active = backend == crate::core::settings::DownloadBackend::Aria2;
+
+        let auto_update = settings.download.aria2_auto_update;
+        tauri::async_runtime::spawn(async move {
+            if previous_active && (!now_active || previous_port != rpc_port || previous_secret != rpc_secret) {
+                aria2_engine.stop().await;
+            }
+            if now_active && (!previous_active || previous_port != rpc_port || previous_secret != rpc_secret) {
+                if aria2_engine.check_install() {
+                    let _ = aria2_engine.start(rpc_port, &rpc_secret).await;
+                } else if auto_update {
+                    if let Ok(_) = aria2_engine.download_and_install().await {
+                        let _ = aria2_engine.start(rpc_port, &rpc_secret).await;
+                    }
+                }
+            }
+        });
 
         Ok(settings)
     }

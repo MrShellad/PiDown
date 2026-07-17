@@ -86,6 +86,7 @@ export default function WindowFrame({
   const [menuOpen, setMenuOpen] = useState(false);
   const colorMode = useThemeStore((state) => state.colorMode);
   const setColorMode = useThemeStore((state) => state.setColorMode);
+  const theme = useThemeStore((state) => state.theme);
   const nextColorMode = colorMode === "dark" ? "light" : "dark";
   const ThemeIcon = colorMode === "dark" ? Sun : Moon;
 
@@ -126,10 +127,33 @@ export default function WindowFrame({
     setMenuOpen((prev) => !prev);
   }, []);
 
+  const isAnimal = theme === "animal-crossing";
+  const isUbuntu = theme === "ubuntu";
+
+  // Base classes for the buttons
+  let buttonClass = "";
+  let closeButtonClass = "";
+  let containerClass = "ml-auto flex h-full items-center";
+
+  if (isAnimal) {
+    containerClass = "ml-auto flex h-full items-center gap-2 px-3";
+    buttonClass = "flex size-7 items-center justify-center rounded-full border border-primary/20 bg-card/85 text-foreground/75 shadow-sm transition-all hover:scale-110 hover:bg-primary/20 hover:text-primary hover:border-primary/40 cursor-pointer";
+    closeButtonClass = "flex size-7 items-center justify-center rounded-full border border-red-500/20 bg-card/85 text-red-500/75 shadow-sm transition-all hover:scale-110 hover:bg-red-500/20 hover:text-red-500 hover:border-red-500/40 cursor-pointer";
+  } else if (isUbuntu) {
+    containerClass = "ml-auto flex h-full items-center gap-1.5 px-3";
+    buttonClass = "flex size-6 items-center justify-center rounded-full bg-secondary/80 text-foreground/70 transition-all hover:bg-secondary hover:text-foreground cursor-pointer";
+    closeButtonClass = "flex size-6 items-center justify-center rounded-full bg-orange-600/80 text-white transition-all hover:bg-orange-600 cursor-pointer";
+  } else {
+    // Default modern / surface style
+    containerClass = "ml-auto flex h-full items-center";
+    buttonClass = "flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90 cursor-pointer";
+    closeButtonClass = "flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-red-500/20 hover:text-red-500 cursor-pointer";
+  }
+
   return (
     <div className="window-frame relative select-none" style={{ zIndex: 100 }}>
       <div
-        className="flex items-center rounded-t-lg bg-background text-base backdrop-blur-md shadow-[0_1px_3px_rgba(0,0,0,0.1)]"
+        className="flex items-center bg-transparent text-base"
         style={{ height: UI_TOKENS.frameHeights.modern }}
       >
         {showMenu ? (
@@ -137,7 +161,7 @@ export default function WindowFrame({
             <TitlebarTooltip label={UI_TEXT.windowFrame.menu}>
               <button
                 onClick={toggleMenu}
-                className="flex h-full items-center gap-1.5 rounded-tl-lg px-3.5 text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90"
+                className="flex h-full items-center gap-1.5 px-3.5 text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90 cursor-pointer"
               >
                 <Menu size={14} />
                 <span className="text-sm font-medium">{UI_TEXT.windowFrame.menu}</span>
@@ -158,7 +182,7 @@ export default function WindowFrame({
           </div>
         </div>
 
-        <div className="ml-auto flex h-full items-center" style={{ zIndex: 10 }}>
+        <div className={containerClass} style={{ zIndex: 10 }}>
           <TitlebarTooltip
             label={
               nextColorMode === "light"
@@ -168,7 +192,7 @@ export default function WindowFrame({
           >
             <button
               onClick={() => setColorMode(nextColorMode)}
-              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40 hover:text-foreground/90"
+              className={buttonClass}
               aria-label={
                 nextColorMode === "light"
                   ? UI_TEXT.windowFrame.switchToLightMode
@@ -183,7 +207,7 @@ export default function WindowFrame({
               <button
                 onClick={onOpenSettings}
                 disabled={!onOpenSettings}
-                className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+                className={buttonClass}
                 aria-label={UI_TEXT.windowFrame.openSettings}
               >
                 <Settings size={14} />
@@ -193,7 +217,7 @@ export default function WindowFrame({
           <TitlebarTooltip label={UI_TEXT.windowFrame.minimize}>
             <button
               onClick={handleMinimize}
-              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+              className={buttonClass}
               aria-label={UI_TEXT.windowFrame.minimize}
             >
               <Minus size={14} />
@@ -202,7 +226,7 @@ export default function WindowFrame({
           <TitlebarTooltip label={UI_TEXT.windowFrame.maximize}>
             <button
               onClick={handleMaximize}
-              className="flex h-full w-[36px] items-center justify-center text-foreground/60 transition-colors hover:bg-secondary/40"
+              className={buttonClass}
               aria-label={UI_TEXT.windowFrame.maximize}
             >
               <Square size={12} />
@@ -211,7 +235,7 @@ export default function WindowFrame({
           <TitlebarTooltip label={UI_TEXT.windowFrame.close}>
             <button
               onClick={handleClose}
-              className="flex h-full w-[36px] items-center justify-center rounded-tr-lg text-foreground/60 transition-colors hover:bg-red-500/20 hover:text-red-500"
+              className={closeButtonClass}
               aria-label={UI_TEXT.windowFrame.close}
             >
               <X size={14} />

@@ -123,7 +123,8 @@ const Row = memo(({ index, style, data }: { index: number; style: React.CSSPrope
       style={{
         ...style,
         height: 60, // TASK_ROW_HEIGHT
-        width: `${tableWidth}px`,
+        width: "100%",
+        minWidth: `${tableWidth}px`,
         pointerEvents: isExiting ? "none" : "auto",
       }}
     >
@@ -878,7 +879,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
   ]);
 
   return (
-    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-6 select-none">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden pt-3 pb-6 px-6 select-none">
       {/* Background Category Watermark */}
       <AnimatePresence mode="wait">
         <motion.div
@@ -944,7 +945,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   className="absolute top-0 z-20"
                   style={{
                     left: 12,
-                    width: `${tableWidth}px`,
+                    right: 12,
+                    minWidth: `${tableWidth}px`,
                   }}
                 >
                   <TaskListHeader
@@ -964,7 +966,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     variant="ghost"
                     className="min-h-0 flex-1"
                     style={{
-                      width: `${tableWidth + 12}px`,
+                      width: "100%",
+                      minWidth: `${tableWidth + 12}px`,
                       marginBottom: 8,
                       clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
                     }}
@@ -1018,7 +1021,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     )}
                     style={{
                       height: `${viewportHeight || 500}px`,
-                      width: `${tableWidth + 12}px`,
+                      width: "100%",
+                      minWidth: `${tableWidth + 12}px`,
                       clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
                       marginBottom: 8,
                     }}
@@ -1029,7 +1033,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     <div
                       style={{
                         position: "relative",
-                        width: `${tableWidth}px`,
+                        width: "100%",
+                        minWidth: `${tableWidth}px`,
                         height: `${rowVirtualizer.getTotalSize() + 60 + 46}px`, // 60px top spacer + 46px bottom padding
                       }}
                     >
@@ -1059,7 +1064,8 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                   className="absolute z-20"
                   style={{
                     left: 12,
-                    width: `${tableWidth}px`,
+                    right: 12,
+                    minWidth: `${tableWidth}px`,
                     bottom: 6,
                   }}
                 >
@@ -1173,10 +1179,12 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                 {filteredGids.length > 0 && (
                   <canvas
                     ref={canvasRef}
-                    className="absolute left-12 pointer-events-none z-50"
+                    className="absolute pointer-events-none z-50"
                     style={{
+                      left: 12,
+                      right: 12,
                       top: 60,
-                      width: `${tableWidth}px`,
+                      minWidth: `${tableWidth}px`,
                       height: `${viewportHeight}px`,
                     }}
                   />

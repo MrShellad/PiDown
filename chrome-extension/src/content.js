@@ -27,13 +27,30 @@ function showPreview(url, dropdown) {
   preview.className = 'pidownloader-preview-card';
   
   const dropdownRect = dropdown.getBoundingClientRect();
-  let left = dropdownRect.left + window.scrollX - 280 - 12;
-  if (left < 0) {
-    left = dropdownRect.right + window.scrollX + 12;
+  const viewWidth = window.innerWidth;
+  const viewHeight = window.innerHeight;
+  const previewWidth = 280;
+  const previewHeight = 158;
+  const margin = 12;
+
+  // Position preview card horizontally relative to the dropdown menu
+  const spaceRight = viewWidth - dropdownRect.right;
+  const spaceLeft = dropdownRect.left;
+
+  let left = 0;
+  if (spaceRight >= previewWidth + margin) {
+    left = dropdownRect.right + margin;
+  } else if (spaceLeft >= previewWidth + margin) {
+    left = dropdownRect.left - previewWidth - margin;
+  } else {
+    left = Math.max(margin, Math.min(dropdownRect.left, viewWidth - previewWidth - margin));
   }
+
+  // Position vertically aligned to dropdown, but bounds checked
+  const top = Math.max(margin, Math.min(dropdownRect.top, viewHeight - previewHeight - margin));
   
-  preview.style.top = `${dropdownRect.top + window.scrollY}px`;
-  preview.style.left = `${left}px`;
+  preview.style.top = `${top + window.scrollY}px`;
+  preview.style.left = `${left + window.scrollX}px`;
   
   const isM3u8 = url.includes('.m3u8');
   
@@ -286,9 +303,49 @@ function toggleDropdown(button, video, tweetInfo) {
   const dropdown = document.createElement('div');
   dropdown.className = 'pidownloader-dropdown-menu';
   
+  const dropdownWidth = 280;
+  const dropdownHeight = 280; // approximate max height of dropdown + headers + margins
+  const margin = 10;
+
   const rect = button.getBoundingClientRect();
-  dropdown.style.top = `${rect.bottom + window.scrollY + 6}px`;
-  dropdown.style.left = `${rect.right + window.scrollX - 280}px`;
+  const videoRect = video.getBoundingClientRect();
+  
+  const viewWidth = window.innerWidth;
+  const viewHeight = window.innerHeight;
+
+  const spaceRight = viewWidth - videoRect.right;
+  const spaceLeft = videoRect.left;
+  const spaceBottom = viewHeight - videoRect.bottom;
+  const spaceTop = videoRect.top;
+
+  let finalLeft = 0;
+  let finalTop = 0;
+
+  if (spaceRight >= dropdownWidth + margin) {
+    // 1. Place on the right side of the video
+    finalLeft = videoRect.right + margin;
+    // Align with video top, but keep within viewport vertically
+    finalTop = Math.max(margin, Math.min(videoRect.top, viewHeight - dropdownHeight - margin));
+  } else if (spaceLeft >= dropdownWidth + margin) {
+    // 2. Place on the left side of the video
+    finalLeft = videoRect.left - dropdownWidth - margin;
+    finalTop = Math.max(margin, Math.min(videoRect.top, viewHeight - dropdownHeight - margin));
+  } else if (spaceBottom >= dropdownHeight + margin) {
+    // 3. Place below the video
+    finalLeft = Math.max(margin, Math.min(videoRect.right - dropdownWidth, viewWidth - dropdownWidth - margin));
+    finalTop = videoRect.bottom + margin;
+  } else if (spaceTop >= dropdownHeight + margin) {
+    // 4. Place above the video
+    finalLeft = Math.max(margin, Math.min(videoRect.right - dropdownWidth, viewWidth - dropdownWidth - margin));
+    finalTop = videoRect.top - dropdownHeight - margin;
+  } else {
+    // Fallback: place below button (overlap video)
+    finalLeft = Math.max(margin, Math.min(rect.right - dropdownWidth, viewWidth - dropdownWidth - margin));
+    finalTop = rect.bottom + margin;
+  }
+
+  dropdown.style.left = `${finalLeft + window.scrollX}px`;
+  dropdown.style.top = `${finalTop + window.scrollY}px`;
   
   dropdown.addEventListener('click', (e) => {
     e.stopPropagation();
@@ -437,5 +494,9 @@ function init() {
   });
 }
 
-// Start
-init();
+// Start after verifying page eligibility
+safeSendMessage({ type: "pidownloader:should-sniff-page", url: window.location.href }, (response) => {
+  if (response?.shouldSniff) {
+    init();
+  }
+});

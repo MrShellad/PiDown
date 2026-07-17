@@ -50,29 +50,71 @@ fn speed_limit_kib_to_bps(value: Option<u64>) -> Option<u64> {
 }
 
 impl super::AppState {
-    pub fn reconcile_download_tasks(&self) {
+    pub fn sync_task_from_progress_info(&self, gid: &str, info: &crate::download::provider::DownloadProgressInfo) {
+        if let Some(task) = self.task_cache.write().unwrap().get_mut(gid) {
+            task.status = info.status.clone();
+            task.completed_size = info.completed_size;
+            task.total_size = info.total_size;
+            if info.status == "Downloading" {
+                if task.started_at.is_none() {
+                    task.started_at = Some(Utc::now().timestamp());
+                }
+            } else if info.status == "Completed" || info.status == "Failed" {
+                if task.completed_at.is_none() {
+                    task.completed_at = Some(Utc::now().timestamp());
+                }
+            }
+            task.dirty = true;
+        }
+        let completed_at = if info.status == "Completed" || info.status == "Failed" {
+            Some(Utc::now().timestamp())
+        } else {
+            None
+        };
+        let _ = self.db.update_task_status(gid, &info.status, completed_at);
+    }
+
+    pub async fn reconcile_download_tasks(&self) {
         let cache_tasks: Vec<DbTask> = self.task_cache.read().unwrap().values().cloned().collect();
+        let backend = self.settings.read().unwrap().download.backend;
 
         for db_task in cache_tasks {
-            if let Some(engine_status) = self.engine_status_for_task(&db_task) {
-                self.sync_task_from_engine_status(&db_task.id, &engine_status, None);
-            } else if db_task.status == "Downloading" || db_task.status == "Pending" {
-                if let Some(task) = self.task_cache.write().unwrap().get_mut(&db_task.id) {
-                    task.status = "Paused".to_string();
-                    task.dirty = true;
+            let provider_name = if db_task.protocol == "hls" {
+                "hls"
+            } else {
+                match backend {
+                    crate::core::settings::DownloadBackend::Gosh => "gosh",
+                    crate::core::settings::DownloadBackend::Aria2 => "aria2",
+                }
+            };
+
+            if let Some(provider) = self.providers.get(provider_name) {
+                let ref_id = db_task.engine_id.as_deref().unwrap_or(&db_task.id);
+                if let Ok(Some(info)) = provider.query_status(ref_id).await {
+                    self.sync_task_from_progress_info(&db_task.id, &info);
+                } else if db_task.status == "Downloading" || db_task.status == "Pending" {
+                    if let Some(task) = self.task_cache.write().unwrap().get_mut(&db_task.id) {
+                        task.status = "Paused".to_string();
+                        task.dirty = true;
+                    }
+                    let _ = self.db.update_task_status(&db_task.id, "Paused", None);
                 }
             }
         }
     }
 
-    pub(super) fn sync_on_startup(&self) {
-        self.reconcile_download_tasks();
+    pub(super) fn sync_on_startup(self: &Arc<Self>) {
+        let self_clone = self.clone();
+        tauri::async_runtime::spawn(async move {
+            self_clone.reconcile_download_tasks().await;
+        });
     }
 
     fn parse_engine_id(engine_id: &str) -> Option<DownloadId> {
         Uuid::parse_str(engine_id).ok().map(DownloadId::from_uuid)
     }
 
+    #[allow(dead_code)]
     fn engine_status_for_task(&self, task: &DbTask) -> Option<DownloadStatus> {
         if let Some(engine_id) = task.engine_id.as_deref().and_then(Self::parse_engine_id) {
             if let Some(status) = self.engine.status(engine_id) {
@@ -341,7 +383,15 @@ impl super::AppState {
             }
         };
 
-        let provider_name = if is_hls { "hls" } else { "gosh" };
+        let backend = self.settings.read().unwrap().download.backend;
+        let provider_name = if is_hls {
+            "hls"
+        } else {
+            match backend {
+                crate::core::settings::DownloadBackend::Gosh => "gosh",
+                crate::core::settings::DownloadBackend::Aria2 => "aria2",
+            }
+        };
         let provider = self.providers.get(provider_name)
             .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
@@ -552,7 +602,15 @@ impl super::AppState {
             (task.protocol.clone(), task.engine_id.clone())
         };
 
-        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let backend = self.settings.read().unwrap().download.backend;
+        let provider_name = if protocol == "hls" {
+            "hls"
+        } else {
+            match backend {
+                crate::core::settings::DownloadBackend::Gosh => "gosh",
+                crate::core::settings::DownloadBackend::Aria2 => "aria2",
+            }
+        };
         let provider = self.providers.get(provider_name)
             .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
@@ -568,7 +626,15 @@ impl super::AppState {
             (task.protocol.clone(), task.engine_id.clone())
         };
 
-        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let backend = self.settings.read().unwrap().download.backend;
+        let provider_name = if protocol == "hls" {
+            "hls"
+        } else {
+            match backend {
+                crate::core::settings::DownloadBackend::Gosh => "gosh",
+                crate::core::settings::DownloadBackend::Aria2 => "aria2",
+            }
+        };
         let provider = self.providers.get(provider_name)
             .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 
@@ -584,7 +650,15 @@ impl super::AppState {
             (task.protocol.clone(), task.engine_id.clone())
         };
 
-        let provider_name = if protocol == "hls" { "hls" } else { "gosh" };
+        let backend = self.settings.read().unwrap().download.backend;
+        let provider_name = if protocol == "hls" {
+            "hls"
+        } else {
+            match backend {
+                crate::core::settings::DownloadBackend::Gosh => "gosh",
+                crate::core::settings::DownloadBackend::Aria2 => "aria2",
+            }
+        };
         let provider = self.providers.get(provider_name)
             .ok_or_else(|| format!("No provider registered for {}", provider_name))?;
 

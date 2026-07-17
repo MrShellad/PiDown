@@ -197,7 +197,14 @@ fn handle_native_request(app_handle: &AppHandle, request: NativeRequest) -> Nati
 
             match app_handle.emit("external-download-request", payload) {
                 Ok(_) => {
-                    if let Some(float_win) = app_handle.get_webview_window("float") {
+                    let settings = state.get_settings();
+                    if settings.download.auto_focus_window_on_download {
+                        if let Some(main_win) = app_handle.get_webview_window("main") {
+                            let _ = main_win.show();
+                            let _ = main_win.unminimize();
+                            let _ = main_win.set_focus();
+                        }
+                    } else if let Some(float_win) = app_handle.get_webview_window("float") {
                         let _ = float_win.show();
                         let _ = float_win.unminimize();
                         let _ = float_win.set_focus();

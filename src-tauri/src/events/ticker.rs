@@ -53,7 +53,7 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
 
             if ticks_since_reconcile >= 10 {
                 ticks_since_reconcile = 0;
-                state.reconcile_download_tasks();
+                state.reconcile_download_tasks().await;
             }
 
             let active_tasks: Vec<crate::core::models::DbTask> = state
@@ -75,7 +75,15 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
 
             for db_task in active_tasks {
                 let gid = db_task.id.clone();
-                let provider_name = if db_task.protocol == "hls" { "hls" } else { "gosh" };
+                let backend = state.get_settings().download.backend;
+                let provider_name = if db_task.protocol == "hls" {
+                    "hls"
+                } else {
+                    match backend {
+                        crate::core::settings::DownloadBackend::Gosh => "gosh",
+                        crate::core::settings::DownloadBackend::Aria2 => "aria2",
+                    }
+                };
                 let provider = match state.providers.get(provider_name) {
                     Some(p) => p,
                     None => continue,
@@ -86,6 +94,21 @@ pub fn start_global_event_ticker(app_handle: AppHandle, state: Arc<AppState>) {
                     Ok(Some(info)) => info,
                     _ => continue,
                 };
+
+                if backend == crate::core::settings::DownloadBackend::Aria2 {
+                    if info.status == "Completed" {
+                        state.sync_task_from_progress_info(&gid, &info);
+                        let _ = state.validate_completed_task_file(&gid);
+                        let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+                        let _ = app_handle.emit("play-sound", "success");
+                        continue;
+                    } else if info.status == "Failed" {
+                        state.sync_task_from_progress_info(&gid, &info);
+                        let _ = app_handle.emit("download-task-updated", serde_json::json!({ "gid": gid }));
+                        let _ = app_handle.emit("play-sound", "warning");
+                        continue;
+                    }
+                }
 
                 active_count += 1;
                 active_gids.insert(gid.clone());

@@ -36,10 +36,10 @@ html[data-theme="modern"] {
     --radius: 12px;
     
     /* Custom Glow effect */
-    --glow-effect: 0 0 20px oklch(0.65 0.22 290 / 0.45);
-    --button-glow: 0 4px 14px oklch(0.65 0.22 290 / 0.4);
-    --surface-shadow-raised: 0 14px 32px oklch(0 0 0 / 0.24), inset 0 1px 0 oklch(1 0 0 / 0.06);
-    --surface-shadow-strong: 0 18px 42px oklch(0 0 0 / 0.32), inset 0 1px 0 oklch(1 0 0 / 0.08);
+    --glow-effect: 0 0 8px oklch(0.65 0.22 290 / 0.25);
+    --button-glow: 0 4px 10px oklch(0.65 0.22 290 / 0.3);
+    --surface-shadow-raised: 0 6px 16px oklch(0 0 0 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.06);
+    --surface-shadow-strong: 0 8px 24px oklch(0 0 0 / 0.2), inset 0 1px 0 oklch(1 0 0 / 0.08);
     --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.05);
     --surface-shadow-divider: 0 0 8px oklch(1 0 0 / 0.08);
     --dialog-header-shadow: 0 10px 24px oklch(0 0 0 / 0.12);
@@ -113,10 +113,10 @@ html[data-theme="modern"][data-color-mode="light"] {
     --aurora-blob-secondary: oklch(0.76 0.14 220 / 0.2);
     --aurora-blob-tertiary: oklch(0.7 0.16 200 / 0.16);
 
-    --glow-effect: 0 0 24px oklch(0.58 0.2 252 / 0.28);
-    --button-glow: 0 8px 22px oklch(0.58 0.2 252 / 0.25);
-    --surface-shadow-raised: 0 14px 34px oklch(0.42 0.08 252 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.75);
-    --surface-shadow-strong: 0 18px 42px oklch(0.38 0.08 252 / 0.2), inset 0 1px 0 oklch(1 0 0 / 0.82);
+    --glow-effect: 0 0 10px oklch(0.58 0.2 252 / 0.15);
+    --button-glow: 0 4px 12px oklch(0.58 0.2 252 / 0.15);
+    --surface-shadow-raised: 0 6px 16px oklch(0.42 0.08 252 / 0.1), inset 0 1px 0 oklch(1 0 0 / 0.75);
+    --surface-shadow-strong: 0 8px 24px oklch(0.38 0.08 252 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.82);
     --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.85);
     --surface-shadow-divider: 0 0 8px oklch(0.58 0.2 252 / 0.16);
     --dialog-header-shadow: 0 10px 24px oklch(0.42 0.08 252 / 0.1);
@@ -200,10 +200,10 @@ html[data-theme="surface"] {
     --sidebar-ring: #6366F1;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(99, 102, 241, 0.2);
-    --button-glow: 0 4px 14px rgba(99, 102, 241, 0.35);
-    --surface-shadow-raised: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
-    --surface-shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.4), 0 10px 10px -5px rgba(0, 0, 0, 0.3);
+    --glow-effect: 0 0 10px rgba(99, 102, 241, 0.12);
+    --button-glow: 0 4px 10px rgba(99, 102, 241, 0.22);
+    --surface-shadow-raised: 0 6px 12px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -4px rgba(0, 0, 0, 0.2);
+    --surface-shadow-strong: 0 8px 16px -4px rgba(0, 0, 0, 0.25), 0 6px 8px -4px rgba(0, 0, 0, 0.2);
     --surface-shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.2);
     --surface-shadow-divider: 0 1px 2px 0 rgba(0, 0, 0, 0.2);
     --dialog-header-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
@@ -298,10 +298,10 @@ html[data-theme="surface"][data-color-mode="light"] {
     --sidebar-ring: #818CF8;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(79, 70, 229, 0.15);
-    --button-glow: 0 4px 12px rgba(79, 70, 229, 0.2);
-    --surface-shadow-raised: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-    --surface-shadow-strong: 0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    --glow-effect: 0 0 10px rgba(79, 70, 229, 0.08);
+    --button-glow: 0 4px 8px rgba(79, 70, 229, 0.12);
+    --surface-shadow-raised: 0 6px 12px -3px rgba(0, 0, 0, 0.03), 0 4px 6px -4px rgba(0, 0, 0, 0.03);
+    --surface-shadow-strong: 0 8px 16px -4px rgba(0, 0, 0, 0.04), 0 6px 8px -4px rgba(0, 0, 0, 0.03);
     --surface-shadow-inset: inset 0 2px 4px 0 rgba(0, 0, 0, 0.03);
     --surface-shadow-divider: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
     --dialog-header-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.03);
@@ -398,10 +398,10 @@ html[data-theme="ubuntu"] {
     --sidebar-ring: #E95420;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(233, 84, 32, 0.25);
-    --button-glow: 0 4px 14px rgba(233, 84, 32, 0.4);
-    --surface-shadow-raised: 0 10px 25px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
-    --surface-shadow-strong: 0 20px 45px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --glow-effect: 0 0 10px rgba(233, 84, 32, 0.15);
+    --button-glow: 0 4px 10px rgba(233, 84, 32, 0.25);
+    --surface-shadow-raised: 0 6px 12px rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    --surface-shadow-strong: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.08);
     --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.3);
     --surface-shadow-divider: 0 1px 0 rgba(255, 255, 255, 0.05);
     --dialog-header-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -496,10 +496,10 @@ html[data-theme="ubuntu"][data-color-mode="light"] {
     --sidebar-ring: #FFFFFF;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(233, 84, 32, 0.15);
-    --button-glow: 0 4px 12px rgba(233, 84, 32, 0.25);
-    --surface-shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.08);
-    --surface-shadow-strong: 0 16px 36px rgba(0, 0, 0, 0.12);
+    --glow-effect: 0 0 10px rgba(233, 84, 32, 0.08);
+    --button-glow: 0 4px 8px rgba(233, 84, 32, 0.15);
+    --surface-shadow-raised: 0 4px 10px rgba(0, 0, 0, 0.05);
+    --surface-shadow-strong: 0 6px 16px rgba(0, 0, 0, 0.08);
     --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.04);
     --surface-shadow-divider: 0 1px 2px rgba(0, 0, 0, 0.04);
     --dialog-header-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
@@ -595,10 +595,10 @@ html[data-theme="animal-crossing"] {
     --sidebar-ring: #19c8b9;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(25, 200, 185, 0.3);
-    --button-glow: 0 4px 12px rgba(25, 200, 185, 0.4);
-    --surface-shadow-raised: 0 8px 20px rgba(0, 0, 0, 0.3);
-    --surface-shadow-strong: 0 16px 36px rgba(0, 0, 0, 0.4);
+    --glow-effect: 0 0 10px rgba(25, 200, 185, 0.15);
+    --button-glow: 0 4px 8px rgba(25, 200, 185, 0.25);
+    --surface-shadow-raised: 0 4px 10px rgba(0, 0, 0, 0.15);
+    --surface-shadow-strong: 0 6px 16px rgba(0, 0, 0, 0.2);
     --surface-shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.2);
     --surface-shadow-divider: 0 1px 0 rgba(255, 255, 255, 0.05);
     --dialog-header-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
@@ -696,10 +696,10 @@ html[data-theme="animal-crossing"][data-color-mode="light"] {
     --sidebar-ring: #19c8b9;
 
     /* Shadows and buttons */
-    --glow-effect: 0 0 24px rgba(25, 200, 185, 0.15);
-    --button-glow: 0 4px 12px rgba(25, 200, 185, 0.25);
-    --surface-shadow-raised: 0 8px 20px rgba(61, 52, 40, 0.08);
-    --surface-shadow-strong: 0 16px 36px rgba(61, 52, 40, 0.12);
+    --glow-effect: 0 0 10px rgba(25, 200, 185, 0.08);
+    --button-glow: 0 4px 8px rgba(25, 200, 185, 0.15);
+    --surface-shadow-raised: 0 4px 10px rgba(61, 52, 40, 0.05);
+    --surface-shadow-strong: 0 6px 16px rgba(61, 52, 40, 0.08);
     --surface-shadow-inset: inset 0 2px 4px rgba(61, 52, 40, 0.04);
     --surface-shadow-divider: 0 1px 2px rgba(61, 52, 40, 0.04);
     --dialog-header-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);

@@ -523,7 +523,12 @@ export function useNewTaskModalState({
       closeModal()
     } catch (err) {
       console.error("Failed to create download task:", err)
-      alert(UI_TEXT.newTask.errorAlert)
+      const errorMsg = typeof err === "string" ? err : (err as any)?.message || String(err)
+      pushToast({
+        title: "创建下载任务失败",
+        description: errorMsg || UI_TEXT.newTask.errorAlert,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -557,7 +562,12 @@ export function useNewTaskModalState({
       await submitTaskCreate(nextTask, overwrite)
     } catch (err) {
       console.error("Failed to create download task:", err)
-      alert(UI_TEXT.newTask.errorAlert)
+      const errorMsg = typeof err === "string" ? err : (err as any)?.message || String(err)
+      pushToast({
+        title: "创建下载任务失败",
+        description: errorMsg || UI_TEXT.newTask.errorAlert,
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }

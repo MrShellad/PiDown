@@ -50,6 +50,9 @@ libc = "0.2"
 m3u8-rs = "6.0.0"
 async-trait = "0.1"
 opendal = { version = "0.52.0", features = ["services-webdav"] }
+zip = { version = "2.2.0", default-features = false, features = ["deflate"] }
+flate2 = "1.0"
+tar = "0.4"
 
 
 

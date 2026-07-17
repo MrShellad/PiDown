@@ -1,5 +1,5 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
-import { useState, lazy, Suspense } from "react";
+import { useEffect, useState, lazy, Suspense } from "react";
 import { LoaderCircle } from "lucide-react";
 import NewTaskModal from "./components/downloader/NewTaskModal";
 import { useEvent } from "./core/eventBus";
@@ -59,9 +59,16 @@ export default function App() {
   const settings = useAppSettingsStore((state) => state.settings);
   const hideBorderAndBg = settings?.interface?.hide_border_and_bg ?? false;
   const activeTheme = useThemeStore((state) => state.theme);
-
   const [newTaskOpen, setNewTaskOpen] = useState(false);
   const [newTaskRequest, setNewTaskRequest] = useState<ExternalDownloadRequest | null>(null);
+
+  useEffect(() => {
+    if (path === "/float") {
+      document.body.style.setProperty("background-color", "transparent", "important");
+    } else {
+      document.body.style.setProperty("background-color", "var(--theme-static-background)", "important");
+    }
+  }, [path, activeTheme]);
 
   useEvent("app:request-close", () => {
     setClosePromptOpen(true);
@@ -87,7 +94,7 @@ export default function App() {
   }
 
   const content = (
-    <div className={`relative flex h-screen flex-col overflow-hidden rounded-lg bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
+    <div className={`relative flex h-screen flex-col overflow-hidden bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
       <ActiveBackground />
       {!hideBorderAndBg && (
         <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />

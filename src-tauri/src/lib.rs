@@ -171,6 +171,8 @@ pub fn run() {
             commands::get_app_settings,
             commands::update_app_settings,
             commands::update_trackers_from_subscription,
+            commands::get_aria2_engine_status,
+            commands::update_aria2_engine,
             commands::list_system_fonts,
             commands::save_theme_font,
             commands::get_backgrounds,
@@ -197,6 +199,8 @@ pub fn run() {
             commands::get_extension_directory_path,
             commands::respond_pairing,
             commands::save_extension_zip,
+            commands::get_ffmpeg_engine_status,
+            commands::update_ffmpeg_engine,
         ]);
 
     let builder = crate::download::protocols::webdav_stream::register_webdav_protocol(builder);

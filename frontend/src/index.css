@@ -281,8 +281,8 @@
     --scrollbar-thumb-hover: color-mix(in oklch, var(--primary), transparent 52%);
     --scrollbar-thumb-active: color-mix(in oklch, var(--primary), transparent 35%);
     --theme-static-background: var(--background);
-    --surface-shadow-raised: 0 14px 32px oklch(0 0 0 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.05);
-    --surface-shadow-strong: 0 18px 42px oklch(0 0 0 / 0.22), inset 0 1px 0 oklch(1 0 0 / 0.06);
+    --surface-shadow-raised: 0 6px 16px oklch(0 0 0 / 0.08), inset 0 1px 0 oklch(1 0 0 / 0.05);
+    --surface-shadow-strong: 0 8px 20px oklch(0 0 0 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.06);
     --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.05);
     --surface-shadow-divider: 0 0 8px oklch(1 0 0 / 0.08);
     --glow-effect: 0 0 0 oklch(0 0 0 / 0);

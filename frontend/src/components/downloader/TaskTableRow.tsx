@@ -402,7 +402,7 @@ const TaskTableRow = memo(function TaskTableRow({
             "group/task-row relative flex min-h-[60px] cursor-pointer items-center overflow-hidden rounded-lg bg-task-row text-sm leading-5 transition-colors hover:bg-task-row-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
             contextMenuOpen && "bg-primary/8 ring-1.5 ring-primary/30 z-20"
           )}
-          style={{ width: `${tableWidth}px` }}
+          style={{ width: "100%", minWidth: `${tableWidth}px` }}
         >
       <motion.div
         aria-hidden="true"
@@ -510,7 +510,11 @@ const TaskTableRow = memo(function TaskTableRow({
                 "relative flex min-h-[60px] shrink-0 items-center px-4",
                 colId === "name" ? "justify-start" : "justify-center"
               )}
-              style={{ flexBasis: width, width: width }}
+              style={{
+                flexBasis: width,
+                width: width,
+                flexGrow: colId === "name" ? 1 : 0,
+              }}
             >
               {index > 0 ? (
                 <span

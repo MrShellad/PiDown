@@ -22,9 +22,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://x.com/*",
-        "https://twitter.com/*",
-        "https://*.tiktok.com/*"
+        "http://*/*",
+        "https://*/*"
       ],
       "js": [
         "assets/hls.min.js",

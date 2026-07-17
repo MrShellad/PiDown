@@ -53,6 +53,19 @@ impl Default for SpeedDisplayUnit {
     }
 }
 
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DownloadBackend {
+    Gosh,
+    Aria2,
+}
+
+impl Default for DownloadBackend {
+    fn default() -> Self {
+        Self::Aria2
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
 pub struct DownloadSettings {
@@ -66,6 +79,12 @@ pub struct DownloadSettings {
     pub play_sound_on_complete: bool,
     pub sound_effect_id: String,
     pub auto_remove_on_file_deleted: bool,
+    pub backend: DownloadBackend,
+    pub auto_focus_window_on_download: bool,
+    pub aria2_rpc_url: String,
+    pub aria2_rpc_secret: String,
+    pub aria2_port: u16,
+    pub aria2_auto_update: bool,
 }
 
 impl Default for DownloadSettings {
@@ -81,6 +100,12 @@ impl Default for DownloadSettings {
             play_sound_on_complete: true,
             sound_effect_id: "success".to_string(),
             auto_remove_on_file_deleted: false,
+            backend: DownloadBackend::Aria2,
+            auto_focus_window_on_download: true,
+            aria2_rpc_url: "http://localhost:6800/jsonrpc".to_string(),
+            aria2_rpc_secret: uuid::Uuid::new_v4().to_string(),
+            aria2_port: 6800,
+            aria2_auto_update: true,
         }
     }
 }
@@ -269,6 +294,16 @@ impl AppSettings {
         }
         if self.download.browser_extension_token.trim().is_empty() {
             self.download.browser_extension_token = uuid::Uuid::new_v4().to_string();
+        }
+
+        if self.download.aria2_rpc_url.trim().is_empty() {
+            self.download.aria2_rpc_url = "http://localhost:6800/jsonrpc".to_string();
+        }
+        if self.download.aria2_rpc_secret.trim().is_empty() {
+            self.download.aria2_rpc_secret = uuid::Uuid::new_v4().to_string();
+        }
+        if self.download.aria2_port == 0 {
+            self.download.aria2_port = 6800;
         }
 
         self.transfer.normalize();

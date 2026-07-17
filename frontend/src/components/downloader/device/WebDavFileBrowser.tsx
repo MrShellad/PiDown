@@ -1065,7 +1065,7 @@ export default function WebDavFileBrowser({ device, onBack }: WebDavFileBrowserP
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 p-6 relative select-none">
+    <div className="flex h-full min-h-0 flex-1 flex-col gap-5 pt-3 pb-6 px-6 relative select-none">
       {/* Combined Solid Toolbar */}
       <div className="shrink-0 bg-toolbar border border-border rounded-xl p-2.5 flex items-center justify-between gap-4 mx-3 shadow-sm">
         <div className="flex items-center gap-3 min-w-0 flex-1">

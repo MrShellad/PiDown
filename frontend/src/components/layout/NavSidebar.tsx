@@ -531,7 +531,7 @@ export default function NavSidebar({ activeFilter, onFilterChange, onOpenSetting
   return (
     <nav
       data-tauri-drag-region
-      className="flex h-full min-h-0 flex-col bg-transparent pt-6 pb-6 pl-6 pr-0 select-none cursor-default"
+      className="flex h-full min-h-0 flex-col bg-transparent pt-3 pb-6 pl-6 pr-0 select-none cursor-default"
       style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}
     >
       <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-sidebar text-sidebar-foreground shadow-toolbar-glow">

@@ -152,10 +152,97 @@ export function handlePushVideo(message, sendResponse) {
   return true; // Keep channel open for async reply
 }
 
+// Rules Cache and Syncing
+let rulesSubscriptionEnabled = false;
+let cachedSniffRules = null;
+let configLoadedPromise = null;
+
+function loadCachedConfig() {
+  const p1 = getOptions().then(options => {
+    rulesSubscriptionEnabled = options.rulesSubscriptionEnabled;
+  });
+  const p2 = chrome.storage.local.get("sniffRules").then(localData => {
+    if (localData.sniffRules && localData.sniffRules.platforms) {
+      cachedSniffRules = localData.sniffRules;
+    }
+  });
+  configLoadedPromise = Promise.all([p1, p2]);
+  return configLoadedPromise;
+}
+loadCachedConfig();
+
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === "sync") {
+    if (changes.rulesSubscriptionEnabled) {
+      rulesSubscriptionEnabled = changes.rulesSubscriptionEnabled.newValue;
+    }
+  }
+  if (area === "local" && changes.sniffRules) {
+    cachedSniffRules = changes.sniffRules.newValue;
+  }
+});
+
+function wildcardToRegExp(wildcard) {
+  let pattern = wildcard;
+  let makeSubdomainOptional = false;
+  if (pattern.includes("://*.")) {
+    pattern = pattern.replace("://*.", "://");
+    makeSubdomainOptional = true;
+  }
+  
+  let regexStr = '^' + pattern
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&') // escape regex chars
+    .replace(/\*/g, '.*')
+    .replace(/\?/g, '.') + '$';
+    
+  if (makeSubdomainOptional) {
+    regexStr = regexStr.replace(":\\/\\/", ":\\/\\/(?:.*\\.)?");
+  }
+  
+  return new RegExp(regexStr, 'i');
+}
+
+function matchesAnyRule(url, rulesList) {
+  for (const rule of rulesList) {
+    try {
+      const regex = wildcardToRegExp(rule);
+      if (regex.test(url)) {
+        return true;
+      }
+    } catch (e) {
+      // ignore regex error
+    }
+  }
+  return false;
+}
+
+export function shouldInterceptUrlSync(url) {
+  if (rulesSubscriptionEnabled && cachedSniffRules && cachedSniffRules.platforms) {
+    const allUrls = Object.values(cachedSniffRules.platforms).flatMap(p => p.urls || []);
+    return matchesAnyRule(url, allUrls);
+  }
+  const builtInUrls = Object.values(PLATFORMS).flatMap(p => p.urls);
+  return matchesAnyRule(url, builtInUrls);
+}
+
+export function handleShouldSniffPage(message, sendResponse) {
+  configLoadedPromise.then(() => {
+    const shouldSniff = shouldInterceptUrlSync(message.url);
+    sendResponse({ shouldSniff });
+  }).catch(err => {
+    console.error("Failed to load configuration before checking page eligibility", err);
+    sendResponse({ shouldSniff: false });
+  });
+  return true; // Keep message channel open for async sendResponse
+}
+
 export function initVideoSniffer() {
   // Capture outgoing request headers for Twitter/X media streams
   chrome.webRequest.onSendHeaders.addListener(
     (details) => {
+      const url = details.url;
+      if (!shouldInterceptUrlSync(url)) return;
+
       const headers = {};
       for (const h of (details.requestHeaders || [])) {
         const name = h.name.toLowerCase();
@@ -173,7 +260,7 @@ export function initVideoSniffer() {
       }
     },
     {
-      urls: ALL_INTERCEPT_URLS
+      urls: ["http://*/*", "https://*/*"]
     },
     ['requestHeaders', 'extraHeaders']
   );
@@ -183,6 +270,8 @@ export function initVideoSniffer() {
     (details) => {
       if (details.tabId < 0) return;
       const url = details.url;
+      if (!shouldInterceptUrlSync(url)) return;
+
       if (url.includes(".m3u8") || url.includes(".mp4")) {
         let size = null;
         if (details.responseHeaders) {
@@ -233,7 +322,7 @@ export function initVideoSniffer() {
       }
     },
     {
-      urls: ALL_INTERCEPT_URLS
+      urls: ["http://*/*", "https://*/*"]
     },
     ["responseHeaders"]
   );

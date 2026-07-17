@@ -163,6 +163,33 @@
           </div>
         </div>
 
+        <!-- Card 5: 网页视频嗅探订阅 -->
+        <div class="card">
+          <div class="card-title">网页视频嗅探规则订阅</div>
+
+          <div class="row">
+            <div class="label">
+              启用规则订阅
+              <small>开启后将通过订阅链接拉取最新的视频嗅探匹配规则</small>
+            </div>
+            <label class="switch">
+              <input id="rulesSubscriptionEnabled" type="checkbox" />
+              <span class="slider"></span>
+            </label>
+          </div>
+
+          <div class="field" id="rulesUrlField" style="display: none;">
+            <label>订阅链接</label>
+            <input id="rulesSubscriptionUrl" type="text" placeholder="https://example.com/rules.json" />
+          </div>
+
+          <div class="field" id="rulesStatusField" style="display: none;">
+            <label>规则状态</label>
+            <div id="rules-status-text" style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">未加载任何订阅规则</div>
+            <button class="btn btn-secondary" type="button" id="update-rules-btn" style="width: 100%;">立即更新订阅规则</button>
+          </div>
+        </div>
+
         <!-- Card 4: 关于与保存 -->
         <div class="card">
           <div class="card-title">关于与控制</div>
@@ -187,9 +214,8 @@
           </div>
 
           <div class="button-group control-group">
-            <button class="btn btn-secondary" type="button" id="open-client">打开客户端</button>
-            <button class="btn btn-secondary" type="button" id="official-site">官方网站</button>
-            <button class="btn btn-primary btn-save" type="submit">保存设置</button>
+            <button class="btn btn-secondary" type="button" id="open-client" style="flex: 1;">打开客户端</button>
+            <button class="btn btn-secondary" type="button" id="official-site" style="flex: 1;">官方网站</button>
           </div>
         </div>
       </form>

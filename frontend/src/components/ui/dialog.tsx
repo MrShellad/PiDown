@@ -96,7 +96,7 @@ function DialogOverlay({
       <motion.div
         data-slot="dialog-overlay"
         className={cn(
-          "fixed inset-0 isolate z-[150] bg-black/10 backdrop-blur-xs",
+          "fixed inset-0 isolate z-[150] bg-black/10 backdrop-blur-xs top-10",
           className
         )}
         style={{ willChange: "opacity" }}
