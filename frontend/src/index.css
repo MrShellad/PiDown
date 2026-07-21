@@ -262,7 +262,7 @@
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
+    --muted-foreground: oklch(0.38 0 0);
     --accent: oklch(0.97 0 0);
     --accent-foreground: oklch(0.205 0 0);
     --destructive: oklch(0.577 0.245 27.325);
@@ -360,7 +360,7 @@
     --secondary: oklch(0.269 0 0);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
+    --muted-foreground: oklch(0.85 0 0);
     --accent: oklch(0.269 0 0);
     --accent-foreground: oklch(0.985 0 0);
     --destructive: oklch(0.704 0.191 22.216);
@@ -538,13 +538,14 @@
 }
 
 .theme-transitioning,
-.theme-transitioning * {
-  transition: background-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              color 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              fill 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              stroke 300ms cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 300ms cubic-bezier(0.4, 0, 0.2, 1) !important;
+.theme-transitioning body,
+.theme-transitioning #root,
+.theme-transitioning .window-frame,
+.theme-transitioning [data-slot="page-header-toolbar"],
+.theme-transitioning [data-slot="task-table-row"] {
+  transition: background-color 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 220ms cubic-bezier(0.4, 0, 0.2, 1),
+              color 220ms cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .window-frame {

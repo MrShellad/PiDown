@@ -45,7 +45,7 @@ function SunMoonAnimation({ targetIsDark, stage }: SunMoonAnimationProps) {
               cy: isDarkState ? 68 : 30,
               r: isDarkState ? 26 : 0,
             }}
-            transition={{ duration: 0.55, ease: "easeInOut" }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
             fill="black"
           />
         </mask>
@@ -61,13 +61,13 @@ function SunMoonAnimation({ targetIsDark, stage }: SunMoonAnimationProps) {
         r="70"
         fill="url(#nightSky)"
         animate={{ opacity: isDarkState ? 1 : 0 }}
-        transition={{ duration: 0.55, ease: "easeInOut" }}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
       />
 
       {/* Twinkling Stars (Night Only) */}
       <motion.g
         animate={{ opacity: isDarkState ? 1 : 0, scale: isDarkState ? 1 : 0.8 }}
-        transition={{ duration: 0.45, ease: "easeOut" }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
       >
         <circle cx="45" cy="55" r="1.5" fill="white" className="animate-pulse" style={{ animationDuration: "1.5s" }} />
         <circle cx="115" cy="45" r="2" fill="white" className="animate-pulse" style={{ animationDuration: "2s" }} />
@@ -83,7 +83,7 @@ function SunMoonAnimation({ targetIsDark, stage }: SunMoonAnimationProps) {
           rotate: isDarkState ? 45 : 0,
           scale: isDarkState ? 0.5 : 1,
         }}
-        transition={{ duration: 0.55, ease: "easeInOut" }}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
         style={{ originX: "80px", originY: "80px" }}
       >
         {[...Array(8)].map((_, i) => {
@@ -114,7 +114,7 @@ function SunMoonAnimation({ targetIsDark, stage }: SunMoonAnimationProps) {
         r="26"
         mask="url(#moonMask)"
         animate={{ fill: isDarkState ? "#f1f5f9" : "#f59e0b" }}
-        transition={{ duration: 0.55, ease: "easeInOut" }}
+        transition={{ duration: 0.35, ease: "easeInOut" }}
       />
     </svg>
   );
@@ -150,7 +150,7 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
     if (effectsEnabled) {
       const timer = setTimeout(() => {
         document.documentElement.classList.remove("theme-transitioning");
-      }, 500);
+      }, 260);
       return () => clearTimeout(timer);
     }
   }, [colorMode, fontId, theme, effectsEnabled]);
@@ -198,7 +198,7 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
       <motion.div
         initial={effectsEnabled ? { opacity: 0.95 } : false}
         animate={{ opacity: 1 }}
-        transition={{ duration: 0.35, ease: "easeInOut" }}
+        transition={{ duration: 0.25, ease: "easeInOut" }}
         className="h-full w-full"
       >
         {children}
@@ -210,8 +210,8 @@ export default function ThemeProvider({ children, taskRuntime = false }: ThemePr
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25, ease: "easeInOut" }}
-            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-auto"
+            transition={{ duration: 0.18, ease: "easeInOut" }}
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center pointer-events-auto will-change-[opacity] transform-gpu"
             style={{
               backgroundColor: "var(--background)",
             }}

@@ -5,12 +5,13 @@ import { UI_TEXT } from "@/core/locale";
 import { useThemeStore } from "@/core/store/useThemeStore";
 import { UI_TOKENS } from "@/core/ui-tokens";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Download, FolderOpen, Info, Menu, Minus, Moon, Settings, Square, Sun, X } from "lucide-react";
+import { Download, FolderOpen, Info, Menu, Minus, Moon, Settings, Square, Sun, X, Copy } from "lucide-react";
 
 interface WindowFrameProps {
   title: string;
   showMenu?: boolean;
   showSettingsButton?: boolean;
+  isMaximized?: boolean;
   onOpenSettings?: () => void;
   onClose?: () => void;
 }
@@ -80,6 +81,7 @@ export default function WindowFrame({
   title,
   showMenu = false,
   showSettingsButton = true,
+  isMaximized = false,
   onOpenSettings,
   onClose,
 }: WindowFrameProps) {
@@ -173,8 +175,9 @@ export default function WindowFrame({
 
         <div
           data-tauri-drag-region="true"
-          className="pointer-events-auto absolute inset-0 flex items-center justify-center"
-          style={{ cursor: "move" }}
+          onDoubleClick={handleMaximize}
+          className="pointer-events-auto absolute inset-0 flex items-center justify-center select-none"
+          style={{ cursor: "default" }}
         >
           <div className="pointer-events-none flex items-center gap-2">
             <div className="h-2.5 w-2.5 rounded-full bg-gradient-to-r from-primary to-sidebar" />
@@ -229,7 +232,7 @@ export default function WindowFrame({
               className={buttonClass}
               aria-label={UI_TEXT.windowFrame.maximize}
             >
-              <Square size={12} />
+              {isMaximized ? <Copy size={11} className="-scale-x-100" /> : <Square size={12} />}
             </button>
           </TitlebarTooltip>
           <TitlebarTooltip label={UI_TEXT.windowFrame.close}>

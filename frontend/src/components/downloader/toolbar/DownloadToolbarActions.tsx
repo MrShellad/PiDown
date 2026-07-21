@@ -126,7 +126,7 @@ export function DownloadToolbarActions({
     <>
       <div
         ref={containerRef}
-        className="relative flex items-stretch"
+        className="relative flex h-full self-stretch items-stretch"
         onBlur={(e) => {
           if (
             isExpanded &&
@@ -143,8 +143,8 @@ export function DownloadToolbarActions({
           actionIcon={<CloudDownload />}
           aria-label={UI_TEXT.dashboard.newDownload}
           className={cn(
-            "cursor-pointer transition-all duration-200 z-30",
-            isExpanded && "bg-muted/80 ring-1 ring-primary/30"
+            "cursor-pointer transition-colors duration-200 z-30",
+            isExpanded && "text-primary"
           )}
         >
           {UI_TEXT.dashboard.newDownload}
@@ -157,20 +157,20 @@ export function DownloadToolbarActions({
               animate="visible"
               exit="hidden"
               variants={slideVariants}
-              transition={{ type: "spring", stiffness: 350, damping: 30 }}
-              className="absolute left-full top-0 bottom-0 z-20 flex items-center gap-3 bg-card pl-3 pr-5 overflow-hidden border-l border-r border-border/50 rounded-r-lg shadow-lg"
+              transition={{ type: "spring", stiffness: 380, damping: 32 }}
+              className="absolute left-full inset-y-0 z-40 flex items-center gap-3 bg-toolbar px-4 border-l border-border/40 overflow-hidden"
               style={{ whiteSpace: "nowrap" }}
             >
               {/* Custom integrated input box */}
               <div
                 className={cn(
-                  "group flex items-stretch overflow-hidden rounded-lg border bg-background/90 text-foreground shadow-surface-inset transition focus-within:ring-2 focus-within:border-ring focus-within:ring-ring/30",
-                  "h-10 border-input w-[380px] shrink-0"
+                  "group flex items-center overflow-hidden rounded-md border border-border/60 bg-background/80 text-foreground transition focus-within:ring-2 focus-within:border-primary/50 focus-within:ring-primary/20",
+                  "h-8.5 w-[360px] shrink-0"
                 )}
               >
                 {/* Leading link icon */}
-                <div className="grid w-10 shrink-0 place-items-center border-r border-border/70 text-muted-foreground transition-colors group-focus-within:text-primary [&_svg]:size-4">
-                  <Link className="size-4" />
+                <div className="grid w-8 shrink-0 place-items-center border-r border-border/50 text-muted-foreground transition-colors group-focus-within:text-primary [&_svg]:size-3.5">
+                  <Link className="size-3.5" />
                 </div>
 
                 {/* Input control */}
@@ -186,7 +186,7 @@ export function DownloadToolbarActions({
                       setIsExpanded(false)
                     }
                   }}
-                  className="min-w-0 flex-1 bg-transparent px-3 text-xs outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed font-mono"
+                  className="min-w-0 flex-1 bg-transparent px-2.5 text-xs outline-none placeholder:text-muted-foreground/60 disabled:cursor-not-allowed font-mono"
                   autoFocus
                 />
 
@@ -197,9 +197,9 @@ export function DownloadToolbarActions({
                       type="button"
                       aria-label="从剪贴板粘贴"
                       onClick={handlePaste}
-                      className="grid w-10 shrink-0 place-items-center border-l border-border/70 bg-muted/35 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 cursor-pointer [&_svg]:size-4"
+                      className="grid size-8 shrink-0 place-items-center border-l border-border/50 bg-muted/20 text-muted-foreground transition-colors hover:text-primary cursor-pointer [&_svg]:size-3.5"
                     >
-                      <Clipboard className="size-4" />
+                      <Clipboard className="size-3.5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">粘贴链接</TooltipContent>
@@ -212,9 +212,9 @@ export function DownloadToolbarActions({
                       type="button"
                       aria-label="上传种子"
                       onClick={handlePickTorrent}
-                      className="grid w-10 shrink-0 place-items-center border-l border-border/70 bg-muted/35 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 cursor-pointer [&_svg]:size-4"
+                      className="grid size-8 shrink-0 place-items-center border-l border-border/50 bg-muted/20 text-muted-foreground transition-colors hover:text-primary cursor-pointer [&_svg]:size-3.5"
                     >
-                      <Upload className="size-4" />
+                      <Upload className="size-3.5" />
                     </button>
                   </TooltipTrigger>
                   <TooltipContent side="bottom">选择种子文件</TooltipContent>
@@ -225,12 +225,12 @@ export function DownloadToolbarActions({
               <Button
                 type="button"
                 size="sm"
-                className="h-10 px-4 flex items-center justify-center gap-1.5 cursor-pointer shadow-button-glow shrink-0 rounded-lg text-xs font-semibold"
+                className="h-8.5 px-3 flex items-center justify-center gap-1.5 cursor-pointer shrink-0 rounded-md text-xs font-semibold"
                 onClick={handleSubmit}
                 disabled={!url.trim()}
               >
-                <ArrowRight className="size-4" />
                 <span>下一步</span>
+                <ArrowRight className="size-3.5" />
               </Button>
             </motion.div>
           )}

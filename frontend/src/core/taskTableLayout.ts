@@ -1,6 +1,6 @@
 import type { TaskTableColumnState } from "@/core/store/useTaskTableStore"
 
-export const TASK_TABLE_SELECT_COLUMN_WIDTH = 72
+export const TASK_TABLE_SELECT_COLUMN_WIDTH = 48
 export const TASK_TABLE_SETTINGS_COLUMN_WIDTH = 44
 export const TASK_LIST_EDGE_SAFE_PADDING = 12
 

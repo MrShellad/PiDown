@@ -69,6 +69,100 @@ function statusText(status: Task["status"]) {
   }
 }
 
+function DownloadingStatusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="size-4 shrink-0 stroke-primary">
+      <motion.path
+        d="M2 12C5 9 7 15 10 12C13 9 15 15 18 12C20 10 21 11 22 12"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        animate={{
+          d: [
+            "M2 12C5 8.5 7 15.5 10 12C13 8.5 15 15.5 18 12C20 9.5 21 11 22 12",
+            "M2 12C5 15.5 7 8.5 10 12C13 15.5 15 8.5 18 12C20 14.5 21 13 22 12",
+            "M2 12C5 8.5 7 15.5 10 12C13 8.5 15 15.5 18 12C20 9.5 21 11 22 12",
+          ],
+        }}
+        transition={{
+          duration: 1.6,
+          repeat: Infinity,
+          ease: "easeInOut",
+        }}
+      />
+    </svg>
+  )
+}
+
+function SvgTaskProgressWave({
+  progressTint,
+  isDownloading,
+}: {
+  progressTint: string
+  isDownloading: boolean
+}) {
+  return (
+    <div className="pointer-events-none relative h-full w-10 overflow-hidden flex items-center justify-center">
+      <svg
+        viewBox="0 0 40 100"
+        preserveAspectRatio="none"
+        className="h-full w-full opacity-90"
+      >
+        <motion.path
+          fill="color-mix(in srgb, var(--task-progress-tint) 65%, transparent)"
+          style={{ ["--task-progress-tint" as string]: progressTint }}
+          animate={
+            isDownloading
+              ? {
+                  d: [
+                    "M 0,0 Q 20,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                    "M 0,0 Q -20,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                    "M 0,0 Q 20,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                  ],
+                }
+              : { d: "M 0,0 Q 0,25 0,50 T 0,100 L 40,100 L 40,0 Z" }
+          }
+          transition={
+            isDownloading
+              ? {
+                  duration: 2.2,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
+              : { duration: 0.3 }
+          }
+        />
+        <motion.path
+          fill="var(--task-progress-tint)"
+          style={{ ["--task-progress-tint" as string]: progressTint }}
+          opacity={0.8}
+          animate={
+            isDownloading
+              ? {
+                  d: [
+                    "M 0,0 Q -15,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                    "M 0,0 Q 15,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                    "M 0,0 Q -15,25 0,50 T 0,100 L 40,100 L 40,0 Z",
+                  ],
+                }
+              : { d: "M 0,0 Q 0,25 0,50 T 0,100 L 40,100 L 40,0 Z" }
+          }
+          transition={
+            isDownloading
+              ? {
+                  duration: 1.6,
+                  repeat: Infinity,
+                  ease: "easeInOut",
+                }
+              : { duration: 0.3 }
+          }
+        />
+      </svg>
+    </div>
+  )
+}
+
 function PreparingStatus() {
   return (
     <Tooltip>
@@ -144,28 +238,26 @@ function NameCell({
   onSelect?: () => void
   onOpenDetails?: () => void
 }) {
+  const [isHovered, setIsHovered] = useState(false)
   const categoryColor = category?.color ?? "var(--muted-foreground)"
   const stopRowSelection = (event: React.SyntheticEvent) => {
     event.stopPropagation()
   }
 
+  const iconColor = isHovered || detailsOpen ? "var(--primary)" : categoryColor
+
   return (
     <div className="flex min-w-0 flex-1 items-center gap-3">
       <Tooltip>
         <TooltipTrigger asChild>
-          <motion.button
+          <button
             type="button"
-            layout
-            className={cn(
-              "flex size-9 shrink-0 items-center justify-center rounded-sm border border-border/60 bg-background/55 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/45",
-              detailsOpen && "border-primary/50 bg-primary/10 shadow-surface-soft"
-            )}
-            style={{ color: categoryColor }}
-            whileHover={{ y: -1, scale: 1.04 }}
-            transition={{ duration: 0.16, ease: "easeOut" }}
+            className="flex size-5 shrink-0 items-center justify-center border-0 bg-transparent p-0 outline-none transition-colors duration-200 cursor-pointer focus-visible:ring-2 focus-visible:ring-ring/45 rounded-sm"
             aria-controls="task-details-sheet"
             aria-expanded={detailsOpen}
             aria-label={`查看任务详情：${task.name}`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             onPointerDown={stopRowSelection}
             onMouseDown={stopRowSelection}
             onDoubleClick={stopRowSelection}
@@ -183,8 +275,8 @@ function NameCell({
               }
             }}
           >
-            <IconPreview value={category?.icon ?? "folder"} color={categoryColor} className="size-5" />
-          </motion.button>
+            <IconPreview value={category?.icon ?? "folder"} color={iconColor} className="size-5 transition-colors duration-200" />
+          </button>
         </TooltipTrigger>
         <TooltipContent>{`查看任务详情：${category?.name ?? "未分类"}`}</TooltipContent>
       </Tooltip>
@@ -255,7 +347,7 @@ function Cell({
       return (
         <span
           className={cn(
-            "truncate font-semibold",
+            "inline-flex items-center gap-1.5 truncate font-semibold",
             task.status === "Downloading" && "text-primary",
             task.status === "Seeding" && "text-status-success",
             task.status === "Paused" && "text-status-warning",
@@ -263,7 +355,8 @@ function Cell({
             task.status === "Failed" && "text-status-danger"
           )}
         >
-          {statusText(task.status)}
+          {task.status === "Downloading" && <DownloadingStatusIcon />}
+          <span>{statusText(task.status)}</span>
         </span>
       )
     case "speed": {
@@ -417,6 +510,18 @@ const TaskTableRow = memo(function TaskTableRow({
         animate={{ scaleX: showProgressOverlay ? safeProgress / 100 : 0 }}
         transition={{ type: "spring", stiffness: 150, damping: 24, mass: 0.7 }}
       />
+      {showProgressOverlay && safeProgress > 0 && safeProgress < 100 && (
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-y-0 z-10 transition-all duration-300 ease-out"
+          style={{ left: `${safeProgress}%`, transform: "translateX(-50%)" }}
+        >
+          <SvgTaskProgressWave
+            progressTint={progressTint}
+            isDownloading={task.status === "Downloading"}
+          />
+        </div>
+      )}
           <motion.div
             aria-hidden="true"
             className="task-selection-overlay pointer-events-none absolute inset-0"
@@ -507,8 +612,8 @@ const TaskTableRow = memo(function TaskTableRow({
               key={colId}
               data-slot="task-table-cell"
               className={cn(
-                "relative flex min-h-[60px] shrink-0 items-center px-4",
-                colId === "name" ? "justify-start" : "justify-center"
+                "relative flex min-h-[60px] shrink-0 items-center",
+                colId === "name" ? "justify-start pl-2.5 pr-4" : "justify-center px-4"
               )}
               style={{
                 flexBasis: width,

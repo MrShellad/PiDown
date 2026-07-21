@@ -120,6 +120,16 @@ pub fn set_window_shadow(window: &tauri::WebviewWindow, disable: bool) -> Result
         if hr != 0 {
             return Err(format!("DwmSetWindowAttribute failed with HRESULT: 0x{:X}", hr));
         }
+
+        // Attribute 33: DWMWA_WINDOW_CORNER_PREFERENCE
+        // DWMWCP_DEFAULT = 0, DWMWCP_DONOTROUND = 1, DWMWCP_ROUND = 2, DWMWCP_ROUNDSMALL = 3
+        let corner_pref: u32 = if disable { 1 } else { 2 }; // DWMWCP_ROUND
+        let _ = DwmSetWindowAttribute(
+            hwnd,
+            33, // DWMWA_WINDOW_CORNER_PREFERENCE
+            &corner_pref as *const u32 as *const std::ffi::c_void,
+            std::mem::size_of::<u32>() as u32,
+        );
     }
 
     Ok(())

@@ -57,13 +57,13 @@ function DownloadSpeedDisplay({
       onKeyDown={handleRootKeyDown}
     >
       <div
-        className="group/speed-display flex h-full w-58 shrink-0 cursor-pointer items-center justify-end gap-3 overflow-hidden border-l border-border/80 bg-background/35 px-4 text-right transition-colors hover:bg-muted/60"
+        className="group/speed-display flex h-full w-58 shrink-0 cursor-pointer items-center justify-end gap-3 overflow-hidden border-l border-border/30 bg-transparent px-4 text-right transition-colors"
       >
         <Tooltip>
           <TooltipTrigger asChild>
             <button
               type="button"
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition-colors hover:bg-primary/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 group-hover/speed-display:bg-primary/15 [&_svg]:size-5"
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary transition-all duration-200 hover:bg-primary/20 group-hover/speed-display:scale-105 group-hover/speed-display:bg-primary/18 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 [&_svg]:size-5"
               onClick={(event) => {
                 event.stopPropagation()
                 onModeClick()

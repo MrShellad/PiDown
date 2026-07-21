@@ -291,6 +291,14 @@ export function getAnimalCrossingThemeStyles(): { dark: Record<string, string>; 
   }
 }
 
+export function getBuiltInThemeStyles(themeId: string): { dark: Record<string, string>; light: Record<string, string> } {
+  if (themeId === "modern") return getModernThemeStyles();
+  if (themeId === "surface") return getSurfaceThemeStyles();
+  if (themeId === "ubuntu") return getUbuntuThemeStyles();
+  if (themeId === "animal-crossing") return getAnimalCrossingThemeStyles();
+  return { dark: {}, light: {} };
+}
+
 
 
 // Helpers for ZIP Parsing
@@ -535,28 +543,16 @@ export function applyThemeToDocument({
   const resolvedThemes = customThemes || (typeof useThemeStore !== "undefined" ? useThemeStore.getState().customThemes : []) || [];
   const customTheme = resolvedThemes.find((t) => t.id === theme);
   
+  root.setAttribute("data-theme", theme);
+  root.setAttribute("data-color-mode", colorMode);
+  
+  let fontStack = "'Microsoft YaHei UI', sans-serif";
+  let fontFaceString = "";
+  let themeStyles: Record<string, string> = {};
+  
   if (customTheme) {
-    root.setAttribute("data-theme", customTheme.id);
-    root.setAttribute("data-color-mode", colorMode);
-    
-    const fontStack = customTheme.font?.stack || "'Microsoft YaHei UI', sans-serif";
-    root.style.setProperty("--font-ui", fontStack);
-    root.style.setProperty("--font-heading", fontStack);
-    
-    let styleEl = document.getElementById("pidownloader-custom-theme-style");
-    if (!styleEl) {
-      styleEl = document.createElement("style");
-      styleEl.id = "pidownloader-custom-theme-style";
-      document.head.appendChild(styleEl);
-    }
-    
-    const themeStyles = customTheme.styles[colorMode] || {};
-    const stylesString = Object.entries(themeStyles)
-      .map(([key, value]) => `${key}: ${value} !important;`)
-      .join("\n");
-      
-    // Dynamically resolve absolute path to localhost asset URL using convertFileSrc
-    const fontFaceString = customTheme.font?.path
+    fontStack = customTheme.font?.stack || fontStack;
+    fontFaceString = customTheme.font?.path
       ? `@font-face {
           font-family: '${customTheme.font.name}';
           src: url('${convertFileSrc(customTheme.font.path)}') format('${customTheme.font.path.split(".").pop() || "woff2"}');
@@ -565,27 +561,37 @@ export function applyThemeToDocument({
           font-display: swap;
         }`
       : customTheme.font?.fontFace || "";
-    
-    styleEl.textContent = `
-      ${fontFaceString}
-      :root {
-        ${stylesString}
-      }
-    `;
+    themeStyles = customTheme.styles[colorMode] || {};
   } else {
-    root.setAttribute("data-theme", theme);
-    root.setAttribute("data-color-mode", colorMode);
-    
     const font = getThemeFontOption(fontId);
     root.setAttribute("data-font", font.id);
-    root.style.setProperty("--font-ui", font.stack);
-    root.style.setProperty("--font-heading", font.stack);
+    fontStack = font.stack;
     
-    const styleEl = document.getElementById("pidownloader-custom-theme-style");
-    if (styleEl) {
-      styleEl.textContent = "";
-    }
+    // Unify built-in theme loading by dynamically extracting styles and injecting them into :root
+    const builtIn = getBuiltInThemeStyles(theme);
+    themeStyles = builtIn[colorMode] || {};
   }
+  
+  root.style.setProperty("--font-ui", fontStack);
+  root.style.setProperty("--font-heading", fontStack);
+  
+  let styleEl = document.getElementById("pidownloader-custom-theme-style");
+  if (!styleEl) {
+    styleEl = document.createElement("style");
+    styleEl.id = "pidownloader-custom-theme-style";
+    document.head.appendChild(styleEl);
+  }
+  
+  const stylesString = Object.entries(themeStyles)
+    .map(([key, value]) => `${key}: ${value} !important;`)
+    .join("\n");
+  
+  styleEl.textContent = `
+    ${fontFaceString}
+    :root {
+      ${stylesString}
+    }
+  `;
   
   if (colorMode === "dark") {
     root.classList.add("dark");
@@ -647,10 +653,8 @@ export const useThemeStore = create<ThemeState>()(
           targetColorMode: get().colorMode,
         });
 
-        // 2. Wait for overlay to fade in (250ms)
+        // 2. Wait for overlay to fade in (180ms)
         setTimeout(() => {
-          // 3. Overlay is fully opaque: switch the actual theme state immediately!
-          // This updates the document classes, background CSS vars and triggers all components to re-render in the dark.
           set({
             theme: newTheme,
             themeTransitionStage: "morph",
@@ -658,19 +662,19 @@ export const useThemeStore = create<ThemeState>()(
           window.queueMicrotask(broadcastThemeSync);
           saveThemeSettingsToBackend({ theme: newTheme });
 
-          // 4. Play the Sun/Moon morph animation (580ms) against the new theme background
+          // 3. Play Sun/Moon morph animation (360ms)
           setTimeout(() => {
             set({ themeTransitionStage: "outro" });
 
-            // 5. Hold brief reflow pause, then fade out overlay
+            // 4. Fade out overlay (60ms)
             setTimeout(() => {
               set({
                 themeTransitionActive: false,
                 themeTransitionStage: "idle",
               });
-            }, 100);
-          }, 580);
-        }, 250);
+            }, 60);
+          }, 360);
+        }, 180);
       },
       setColorMode: (newColorMode) => {
         const { colorMode, effectsEnabled } = get();
@@ -691,10 +695,8 @@ export const useThemeStore = create<ThemeState>()(
           targetTheme: get().theme,
         });
 
-        // 2. Wait for overlay to fade in (250ms)
+        // 2. Wait for overlay to fade in (180ms)
         setTimeout(() => {
-          // 3. Overlay is fully opaque: switch the actual colorMode state immediately!
-          // This updates the document classes, background CSS vars and triggers all components to re-render in the dark.
           set({
             colorMode: newColorMode,
             themeTransitionStage: "morph",
@@ -702,19 +704,19 @@ export const useThemeStore = create<ThemeState>()(
           window.queueMicrotask(broadcastThemeSync);
           saveThemeSettingsToBackend({ colorMode: newColorMode });
 
-          // 4. Play the Sun/Moon morph animation (580ms) against the new theme background
+          // 3. Play Sun/Moon morph animation (360ms)
           setTimeout(() => {
             set({ themeTransitionStage: "outro" });
 
-            // 5. Hold brief reflow pause, then fade out overlay
+            // 4. Fade out overlay (60ms)
             setTimeout(() => {
               set({
                 themeTransitionActive: false,
                 themeTransitionStage: "idle",
               });
-            }, 100);
-          }, 580);
-        }, 250);
+            }, 60);
+          }, 360);
+        }, 180);
       },
       setFontId: (fontId) => {
         set({ fontId });

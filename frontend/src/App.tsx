@@ -1,6 +1,7 @@
 import "./core/i18n"; // Initialize i18next before any UI_TEXT access
 import { useEffect, useState, lazy, Suspense } from "react";
 import { LoaderCircle } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import NewTaskModal from "./components/downloader/NewTaskModal";
 import { useEvent } from "./core/eventBus";
 import type { ExternalDownloadRequest } from "./core/bridge/external-download";
@@ -8,10 +9,8 @@ import ThemeProvider from "./components/layout/ThemeProvider";
 import ActiveBackground from "./components/layout/ActiveBackground";
 import WindowFrame from "./components/layout/WindowFrame";
 import NavSidebar from "./components/layout/NavSidebar";
-import { Dialog, DialogContent, DialogTitle } from "./components/ui/dialog";
 import { TooltipProvider } from "./components/ui/tooltip";
 import { useDownloadStore } from "./core/store/useDownloadStore";
-import { UI_TEXT } from "./core/locale";
 import { UI_TOKENS } from "./core/ui-tokens";
 import { parseNavFilter, type NavFilter } from "./core/taskFilters";
 import { useAppSettingsStore } from "./core/store/useAppSettingsStore";
@@ -21,7 +20,7 @@ import ExtensionGuideDialog from "./components/downloader/ExtensionGuideDialog";
 import CloseConfirmDialog from "./components/downloader/CloseConfirmDialog";
 import { useThemeStore } from "./core/store/useThemeStore";
 import AnimalCursor from "./components/layout/AnimalCursor";
-
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { WebDavDevice } from "./core/bridge/tauri-commands";
 
 const TaskListDashboard = lazy(() => import("./components/downloader/TaskListDashboard"));
@@ -70,6 +69,38 @@ export default function App() {
     }
   }, [path, activeTheme]);
 
+  const [isMaximized, setIsMaximized] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    let unlistenResize: (() => void) | undefined;
+
+    const setupListeners = async () => {
+      try {
+        const appWindow = getCurrentWindow();
+        const initialMax = await appWindow.isMaximized();
+        if (active) setIsMaximized(initialMax);
+
+        const unlisten = await appWindow.onResized(async () => {
+          const max = await appWindow.isMaximized();
+          if (active) setIsMaximized(max);
+        });
+        unlistenResize = unlisten;
+      } catch (e) {
+        console.warn("Failed to subscribe to window resize events:", e);
+      }
+    };
+
+    setupListeners();
+
+    return () => {
+      active = false;
+      if (unlistenResize) {
+        unlistenResize();
+      }
+    };
+  }, []);
+
   useEvent("app:request-close", () => {
     setClosePromptOpen(true);
   });
@@ -94,23 +125,26 @@ export default function App() {
   }
 
   const content = (
-    <div className={`relative flex h-screen flex-col overflow-hidden bg-transparent ${hideBorderAndBg ? "" : "border border-border/40"}`}>
+    <div className={`relative flex h-screen flex-col overflow-hidden bg-transparent ${hideBorderAndBg || isMaximized ? "" : "border border-border/40"}`}>
       <ActiveBackground />
       {!hideBorderAndBg && (
-        <WindowFrame title={windowTitle} onOpenSettings={() => setSettingsOpen(true)} />
+        <WindowFrame title={windowTitle} isMaximized={isMaximized} onOpenSettings={() => setSettingsOpen(true)} />
       )}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <NavSidebar
-          activeFilter={visibleFilter}
-          onFilterChange={(filter) => {
-            setActiveFilter(filter);
-            // Clear browsing device when navigating away
-            if (filter !== "devices") {
-              setActiveBrowsingDevice(null);
-            }
-          }}
-          onOpenSettings={() => setSettingsOpen(true)}
-        />
+      <div className="flex min-h-0 flex-1 overflow-hidden relative">
+        <div className="relative z-20 shrink-0" style={{ width: UI_TOKENS.sidebarWidth, minWidth: UI_TOKENS.sidebarWidth }}>
+          <NavSidebar
+            activeFilter={visibleFilter}
+            onFilterChange={(filter) => {
+              setActiveFilter(filter);
+              if (filter !== "devices") {
+                setActiveBrowsingDevice(null);
+              }
+              // Auto-close settings when navigating
+              setSettingsOpen(false);
+            }}
+            onOpenSettings={() => setSettingsOpen((prev) => !prev)}
+          />
+        </div>
         <div className={`flex-1 flex min-h-0 ${visibleFilter === "devices" ? "" : "hidden"}`}>
           <Suspense fallback={
             <div className="flex h-full w-full items-center justify-center">
@@ -132,33 +166,33 @@ export default function App() {
             <TaskListDashboard activeFilter={visibleFilter} />
           </Suspense>
         </div>
-      </div>
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent
-          size="full"
-          showCloseButton={false}
-          className="border border-border bg-card p-0 shadow-surface-strong"
-          overlayClassName="bg-black/45 backdrop-blur-none"
-          style={{
-            width: `min(${UI_TOKENS.settingsDialog.width}, ${UI_TOKENS.settingsDialog.maxWidth})`,
-            height: `min(${UI_TOKENS.settingsDialog.height}, calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem))`,
-            top: `calc(50vh + ${UI_TOKENS.frameHeights.modern} / 2)`,
-            maxWidth: UI_TOKENS.settingsDialog.maxWidth,
-            maxHeight: `calc(100vh - ${UI_TOKENS.frameHeights.modern} - 2rem)`,
-          }}
-        >
-          <div className="flex h-full min-h-0 flex-col overflow-hidden">
-            <DialogTitle className="sr-only">{UI_TEXT.settings.title}</DialogTitle>
-            <Suspense fallback={
-              <div className="flex h-full w-full items-center justify-center bg-card">
-                <LoaderCircle className="size-6 animate-spin text-primary" />
+
+        {/* Settings Drawer sliding out from behind the sidebar */}
+        <AnimatePresence>
+          {settingsOpen && (
+            <motion.div
+              initial={{ x: -120, opacity: 0, scale: 0.96 }}
+              animate={{ x: 0, opacity: 1, scale: 1 }}
+              exit={{ x: -120, opacity: 0, scale: 0.96 }}
+              transition={{ type: "spring", damping: 26, stiffness: 200 }}
+              className="absolute top-0 bottom-0 right-0 pt-3 pb-6 pr-6 pl-3 z-10 [will-change:transform,opacity] [transform:translate3d(0,0,0)]"
+              style={{
+                left: UI_TOKENS.sidebarWidth,
+              }}
+            >
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg bg-card border border-border/40 shadow-surface-strong">
+                <Suspense fallback={
+                  <div className="flex h-full w-full items-center justify-center bg-card">
+                    <LoaderCircle className="size-6 animate-spin text-primary" />
+                  </div>
+                }>
+                  <SettingsWindow onClose={() => setSettingsOpen(false)} />
+                </Suspense>
               </div>
-            }>
-              <SettingsWindow onClose={() => setSettingsOpen(false)} />
-            </Suspense>
-          </div>
-        </DialogContent>
-      </Dialog>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
       <ThemeEditorDialog />
       <ExtensionGuideDialog />
       <CloseConfirmDialog open={closePromptOpen} onOpenChange={setClosePromptOpen} />

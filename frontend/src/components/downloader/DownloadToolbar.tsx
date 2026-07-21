@@ -99,7 +99,6 @@ export default function DownloadToolbar({
     <PageHeaderToolbar
       className={className}
       aria-label="下载任务工具栏"
-      expandedSearchClassName="right-[248px] border-r border-border/40"
       leftActions={
         <DownloadToolbarActions
           selectedTaskCount={selectedTaskCount}

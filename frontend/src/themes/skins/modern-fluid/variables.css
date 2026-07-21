@@ -1,41 +1,57 @@
 html[data-theme="modern"] {
-    --background: oklch(0.16 0.015 280 / 0.75); /* Deep slate-blue half-transparent (slightly lighter for readability) */
-    --foreground: oklch(0.98 0.005 280);
+    /* ==========================================================================
+       GLOBAL BASE TOKENS (PRIMITIVES)
+       ========================================================================== */
+    --base-dark-bg: oklch(0.16 0.015 280);
+    --base-dark-fg: oklch(0.98 0.005 280);
+    --base-dark-muted: oklch(0.85 0.01 280);
+    --base-violet-primary: oklch(0.65 0.22 290);
+    --base-violet-accent: oklch(0.65 0.22 290 / 0.15);
+    --base-destructive-red: oklch(0.6 0.21 20);
+    --base-border-dark: oklch(0.30 0.015 280 / 0.65);
+
+    /* ==========================================================================
+       SEMANTIC / ALIAS TOKENS (DARK MODE DEFAULT)
+       ========================================================================== */
+    --background: oklch(0.16 0.015 280 / 0.90); /* Increased opacity (0.75 -> 0.90) for WCAG AA readability */
+    --foreground: var(--base-dark-fg);
     --card: oklch(0.22 0.015 280 / 0.88);
-    --card-foreground: oklch(0.98 0.005 280);
+    --card-foreground: var(--base-dark-fg);
     --toolbar-bg: oklch(0.25 0.015 280 / 0.95);
-    --table-header-bg: oklch(0.20 0.012 280 / 0.60);
+    --table-header-bg: oklch(0.20 0.012 280 / 0.85); /* Increased opacity for scrolling rows occlusion */
     --task-row-bg: oklch(0.22 0.015 280 / 0.88);
     --task-row-hover-bg: oklch(0.24 0.015 280);
     --popover: oklch(0.22 0.015 280);
-    --popover-foreground: oklch(0.98 0.005 280);
+    --popover-foreground: var(--base-dark-fg);
     
-    --primary: oklch(0.65 0.22 290); /* Vibrant violet */
+    --primary: var(--base-violet-primary);
     --primary-foreground: oklch(0.99 0.01 290);
     
     --secondary: oklch(0.26 0.015 280 / 0.75);
     --secondary-foreground: oklch(0.94 0.01 280);
     
     --muted: oklch(0.24 0.015 280 / 0.65);
-    --muted-foreground: oklch(0.81 0.01 280); /* Significantly brighter muted-foreground for contrast */
+    --muted-foreground: var(--base-dark-muted); /* WCAG compliance: brighter muted-foreground on dark bg */
     
-    --accent: oklch(0.65 0.22 290 / 0.15);
-    --accent-foreground: oklch(0.65 0.22 290);
+    --accent: var(--base-violet-accent);
+    --accent-foreground: var(--base-violet-primary);
     
-    --destructive: oklch(0.6 0.21 20);
+    --destructive: var(--base-destructive-red);
     --destructive-foreground: oklch(0.98 0.01 20);
     
-    --border: oklch(0.30 0.015 280 / 0.65);
-    --input: oklch(0.30 0.015 280 / 0.65);
-    --ring: oklch(0.65 0.22 290);
-    --theme-static-background: oklch(0.16 0.015 280);
+    --border: var(--base-border-dark);
+    --input: var(--base-border-dark);
+    --ring: var(--base-violet-primary);
+    --theme-static-background: var(--base-dark-bg);
     --aurora-blob-primary: oklch(0.65 0.22 290 / 0.58);
     --aurora-blob-secondary: oklch(0.78 0.14 210 / 0.4);
     --aurora-blob-tertiary: oklch(0.7 0.22 350 / 0.32);
     
     --radius: 12px;
     
-    /* Custom Glow effect */
+    /* ==========================================================================
+       VISUAL SHADOWS & GLOWS (DARK MODE DEFAULT)
+       ========================================================================== */
     --glow-effect: 0 0 8px oklch(0.65 0.22 290 / 0.25);
     --button-glow: 0 4px 10px oklch(0.65 0.22 290 / 0.3);
     --surface-shadow-raised: 0 6px 16px oklch(0 0 0 / 0.16), inset 0 1px 0 oklch(1 0 0 / 0.06);
@@ -44,6 +60,10 @@ html[data-theme="modern"] {
     --surface-shadow-divider: 0 0 8px oklch(1 0 0 / 0.08);
     --dialog-header-shadow: 0 10px 24px oklch(0 0 0 / 0.12);
     --dialog-footer-shadow: 0 -10px 24px oklch(0 0 0 / 0.12);
+
+    /* ==========================================================================
+       COMPONENT OVERRIDES (DARK MODE DEFAULT)
+       ========================================================================== */
     --switch-track-off: var(--muted);
     --switch-track-off-hover: color-mix(in oklch, var(--muted), var(--foreground) 10%);
     --switch-track-on: var(--primary);
@@ -79,48 +99,68 @@ html[data-theme="modern"] {
 }
 
 html[data-theme="modern"][data-color-mode="light"] {
+    /* ==========================================================================
+       GLOBAL BASE TOKENS (PRIMITIVES - LIGHT MODE)
+       ========================================================================== */
+    --base-light-bg: oklch(0.985 0.014 235);
+    --base-light-fg: oklch(0.2 0.055 255);
+    --base-light-muted: oklch(0.38 0.04 252); /* Darkened to meet WCAG AA 4.5:1 ratio on light bg */
+    --base-blue-primary: oklch(0.58 0.2 252);
+    --base-blue-accent: oklch(0.7 0.16 220 / 0.18);
+    --base-border-light: oklch(0.86 0.02 240); /* Cleaner defined border color */
+
+    /* ==========================================================================
+       SEMANTIC / ALIAS TOKENS (LIGHT MODE OVERRIDES)
+       ========================================================================== */
     --background: oklch(0.985 0.014 235 / 0.92);
-    --foreground: oklch(0.2 0.055 255);
+    --foreground: var(--base-light-fg);
     --card: oklch(0.995 0.008 235 / 0.88);
-    --card-foreground: oklch(0.2 0.055 255);
+    --card-foreground: var(--base-light-fg);
     --toolbar-bg: oklch(0.965 0.012 235 / 0.96);
-    --table-header-bg: oklch(0.94 0.015 235 / 0.60);
+    --table-header-bg: oklch(0.94 0.015 235 / 0.92); /* Higher opacity to prevent occlusion overlap */
     --task-row-bg: oklch(0.995 0.008 235 / 0.90);
     --task-row-hover-bg: oklch(0.98 0.01 235 / 0.95);
     --popover: oklch(0.995 0.008 235 / 0.96);
-    --popover-foreground: oklch(0.2 0.055 255);
+    --popover-foreground: var(--base-light-fg);
 
-    --primary: oklch(0.58 0.2 252);
+    --primary: var(--base-blue-primary);
     --primary-foreground: oklch(0.99 0.01 245);
 
     --secondary: oklch(0.93 0.025 240 / 0.78);
     --secondary-foreground: oklch(0.24 0.06 250);
 
     --muted: oklch(0.93 0.022 240 / 0.72);
-    --muted-foreground: oklch(0.5 0.055 252);
+    --muted-foreground: var(--base-light-muted);
 
-    --accent: oklch(0.7 0.16 220 / 0.18);
+    --accent: var(--base-blue-accent);
     --accent-foreground: oklch(0.42 0.16 245);
 
     --destructive: oklch(0.58 0.21 25);
     --destructive-foreground: oklch(0.99 0.01 25);
 
-    --border: oklch(0.78 0.045 240 / 0.62);
-    --input: oklch(0.82 0.04 240 / 0.62);
-    --ring: oklch(0.58 0.2 252);
-    --theme-static-background: oklch(0.965 0.025 238);
+    --border: var(--base-border-light);
+    --input: var(--base-border-light);
+    --ring: var(--base-blue-primary);
+    --theme-static-background: var(--base-light-bg);
     --aurora-blob-primary: oklch(0.58 0.2 252 / 0.24);
     --aurora-blob-secondary: oklch(0.76 0.14 220 / 0.2);
     --aurora-blob-tertiary: oklch(0.7 0.16 200 / 0.16);
 
-    --glow-effect: 0 0 10px oklch(0.58 0.2 252 / 0.15);
-    --button-glow: 0 4px 12px oklch(0.58 0.2 252 / 0.15);
-    --surface-shadow-raised: 0 6px 16px oklch(0.42 0.08 252 / 0.1), inset 0 1px 0 oklch(1 0 0 / 0.75);
-    --surface-shadow-strong: 0 8px 24px oklch(0.38 0.08 252 / 0.12), inset 0 1px 0 oklch(1 0 0 / 0.82);
-    --surface-shadow-inset: inset 0 1px 0 oklch(1 0 0 / 0.85);
-    --surface-shadow-divider: 0 0 8px oklch(0.58 0.2 252 / 0.16);
-    --dialog-header-shadow: 0 10px 24px oklch(0.42 0.08 252 / 0.1);
-    --dialog-footer-shadow: 0 -10px 24px oklch(0.42 0.08 252 / 0.1);
+    /* ==========================================================================
+       VISUAL SHADOWS & GLOWS (LIGHT MODE - NO NEON GLOWS, STRICT ASYMMETRY)
+       ========================================================================== */
+    --glow-effect: none; /* Stripped glow effect */
+    --button-glow: none; /* Stripped button glow */
+    --surface-shadow-raised: 0 2px 8px oklch(0.2 0.055 255 / 0.06), 0 1px 2px oklch(0.2 0.055 255 / 0.04);
+    --surface-shadow-strong: 0 8px 20px oklch(0.2 0.055 255 / 0.08), 0 2px 6px oklch(0.2 0.055 255 / 0.04);
+    --surface-shadow-inset: inset 0 1.5px 0 oklch(1 0 0 / 0.95);
+    --surface-shadow-divider: none; /* Clean flat layout divider */
+    --dialog-header-shadow: 0 4px 12px oklch(0.2 0.055 255 / 0.05);
+    --dialog-footer-shadow: 0 -4px 12px oklch(0.2 0.055 255 / 0.05);
+
+    /* ==========================================================================
+       COMPONENT OVERRIDES (LIGHT MODE OVERRIDES)
+       ========================================================================== */
     --switch-track-off: var(--muted);
     --switch-track-off-hover: color-mix(in oklch, var(--muted), var(--foreground) 8%);
     --switch-track-on: var(--primary);
@@ -128,8 +168,8 @@ html[data-theme="modern"][data-color-mode="light"] {
     --switch-thumb: var(--background);
     --switch-icon-off: var(--muted-foreground);
     --switch-press-ring: color-mix(in oklch, var(--primary), transparent 78%);
-    --switch-thumb-shadow-on: 0 3px 10px oklch(0.32 0.08 252 / 0.2);
-    --switch-thumb-shadow-off: 0 1px 4px oklch(0.32 0.08 252 / 0.16);
+    --switch-thumb-shadow-on: 0 2px 4px oklch(0.2 0.055 255 / 0.1);
+    --switch-thumb-shadow-off: 0 1px 3px oklch(0.2 0.055 255 / 0.08);
     --status-success: oklch(0.58 0.16 155);
     --status-warning: oklch(0.68 0.16 78);
     --status-danger: var(--destructive);
@@ -552,47 +592,59 @@ html[data-theme="ubuntu"][data-color-mode="light"] {
 }
 
 html[data-theme="animal-crossing"] {
-    --background: #1e2f27;
-    --foreground: #e6f2ec;
+    /* ==========================================================================
+       GLOBAL BASE TOKENS (PRIMITIVES)
+       ========================================================================== */
+    --base-ac-dark-bg: #1e2f27;
+    --base-ac-dark-fg: #e6f2ec;
+    --base-ac-dark-muted: #a6c4b5;
+    --base-ac-teal-primary: #19c8b9;
+    --base-ac-border-dark: #355243;
+
+    /* ==========================================================================
+       SEMANTIC / ALIAS TOKENS (DARK MODE)
+       ========================================================================== */
+    --background: var(--base-ac-dark-bg);
+    --foreground: var(--base-ac-dark-fg);
     --card: #243b31;
-    --card-foreground: #e6f2ec;
+    --card-foreground: var(--base-ac-dark-fg);
     --toolbar-bg: #1a2b23;
     --table-header-bg: rgb(26, 43, 35);
     --task-row-bg: rgba(36, 59, 49, 0.95);
     --task-row-hover-bg: #2c473b;
     --popover: #243b31;
-    --popover-foreground: #e6f2ec;
+    --popover-foreground: var(--base-ac-dark-fg);
 
-    --primary: #19c8b9;
+    --primary: var(--base-ac-teal-primary);
     --primary-foreground: #ffffff;
 
     --secondary: #1a2b23;
-    --secondary-foreground: #e6f2ec;
+    --secondary-foreground: var(--base-ac-dark-fg);
 
     --muted: #2d473a;
-    --muted-foreground: #9fbaab;
+    --muted-foreground: var(--base-ac-dark-muted);
 
     --accent: rgba(25, 200, 185, 0.2);
-    --accent-foreground: #19c8b9;
+    --accent-foreground: var(--base-ac-teal-primary);
 
     --destructive: #e05a5a;
     --destructive-foreground: #ffffff;
 
-    --border: #355243;
-    --input: #355243;
-    --ring: #19c8b9;
+    --border: var(--base-ac-border-dark);
+    --input: var(--base-ac-border-dark);
+    --ring: var(--base-ac-teal-primary);
 
     --radius: 18px;
 
     /* Sidebar */
     --sidebar: #13221b;
-    --sidebar-foreground: #9fbaab;
-    --sidebar-primary: #19c8b9;
+    --sidebar-foreground: var(--base-ac-dark-muted);
+    --sidebar-primary: var(--base-ac-teal-primary);
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: #243b31;
-    --sidebar-accent-foreground: #19c8b9;
-    --sidebar-border: #1e2f27;
-    --sidebar-ring: #19c8b9;
+    --sidebar-accent-foreground: var(--base-ac-teal-primary);
+    --sidebar-border: var(--base-ac-dark-bg);
+    --sidebar-ring: var(--base-ac-teal-primary);
 
     /* Shadows and buttons */
     --glow-effect: 0 0 10px rgba(25, 200, 185, 0.15);
@@ -610,7 +662,7 @@ html[data-theme="animal-crossing"] {
     --switch-track-on: #6fba2c;
     --switch-track-on-hover: #85cc45;
     --switch-thumb: #ffffff;
-    --switch-icon-off: #9fbaab;
+    --switch-icon-off: var(--base-ac-dark-muted);
     --switch-press-ring: rgba(25, 200, 185, 0.4);
     --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.3);
     --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -653,57 +705,69 @@ html[data-theme="animal-crossing"] {
 }
 
 html[data-theme="animal-crossing"][data-color-mode="light"] {
-    --background: #f8f8f0;
-    --foreground: #794f27;
+    /* ==========================================================================
+       GLOBAL BASE TOKENS (PRIMITIVES - LIGHT MODE)
+       ========================================================================== */
+    --base-ac-light-bg: #f8f8f0;
+    --base-ac-light-fg: #794f27;
+    --base-ac-light-muted: #644d37; /* Darkened (was #9f927d) to achieve WCAG AA contrast ratio (>4.5:1) on sand bg */
+    --base-ac-teal-light: #19c8b9;
+    --base-ac-border-light: #c4bcae;
+
+    /* ==========================================================================
+       SEMANTIC / ALIAS TOKENS (LIGHT MODE)
+       ========================================================================== */
+    --background: var(--base-ac-light-bg);
+    --foreground: var(--base-ac-light-fg);
     --card: #fafaf6;
-    --card-foreground: #794f27;
+    --card-foreground: var(--base-ac-light-fg);
     --toolbar-bg: #f0e8d8;
     --table-header-bg: rgb(240, 232, 216);
     --task-row-bg: rgba(251, 251, 250, 0.95);
     --task-row-hover-bg: #f5ecd8;
     --popover: #fafaf6;
-    --popover-foreground: #794f27;
+    --popover-foreground: var(--base-ac-light-fg);
 
-    --primary: #19c8b9;
+    --primary: var(--base-ac-teal-light);
     --primary-foreground: #ffffff;
 
     --secondary: #f0e8d8;
-    --secondary-foreground: #794f27;
+    --secondary-foreground: var(--base-ac-light-fg);
 
     --muted: #f0ece2;
-    --muted-foreground: #9f927d;
+    --muted-foreground: var(--base-ac-light-muted);
 
     --accent: rgba(25, 200, 185, 0.12);
-    --accent-foreground: #19c8b9;
+    --accent-foreground: var(--base-ac-teal-light);
 
     --destructive: #e05a5a;
     --destructive-foreground: #ffffff;
 
-    --border: #aaa69d;
-    --input: #aaa69d;
-    --ring: #19c8b9;
+    --border: var(--base-ac-border-light);
+    --input: var(--base-ac-border-light);
+    --ring: var(--base-ac-teal-light);
 
     --radius: 18px;
 
     /* Sidebar */
     --sidebar: #F8F4E8;
-    --sidebar-foreground: #794f27;
-    --sidebar-primary: #19c8b9;
+    --sidebar-foreground: var(--base-ac-light-fg);
+    --sidebar-primary: var(--base-ac-teal-light);
     --sidebar-primary-foreground: #ffffff;
     --sidebar-accent: #f0ece2;
-    --sidebar-accent-foreground: #19c8b9;
-    --sidebar-border: #aaa69d;
-    --sidebar-ring: #19c8b9;
+    --sidebar-accent-foreground: var(--base-ac-teal-light);
+    --sidebar-border: var(--base-ac-border-light);
+    --sidebar-ring: var(--base-ac-teal-light);
 
-    /* Shadows and buttons */
-    --glow-effect: 0 0 10px rgba(25, 200, 185, 0.08);
-    --button-glow: 0 4px 8px rgba(25, 200, 185, 0.15);
-    --surface-shadow-raised: 0 4px 10px rgba(61, 52, 40, 0.05);
-    --surface-shadow-strong: 0 6px 16px rgba(61, 52, 40, 0.08);
+    /* Shadows and buttons (LIGHT ASYMMETRY: NO NEON GLOWS) */
+    --glow-effect: none;
+    --button-glow: none;
+    --surface-shadow-raised: 0 3px 8px rgba(61, 52, 40, 0.08);
+    --surface-shadow-strong: 0 8px 18px rgba(61, 52, 40, 0.1);
     --surface-shadow-inset: inset 0 2px 4px rgba(61, 52, 40, 0.04);
-    --surface-shadow-divider: 0 1px 2px rgba(61, 52, 40, 0.04);
-    --dialog-header-shadow: 0 4px 6px rgba(0, 0, 0, 0.04);
-    --dialog-footer-shadow: 0 -4px 6px rgba(0, 0, 0, 0.04);
+    --surface-shadow-divider: none;
+    --dialog-header-shadow: 0 3px 8px rgba(61, 52, 40, 0.06);
+    --dialog-footer-shadow: 0 -3px 8px rgba(61, 52, 40, 0.06);
 
     /* Switch */
     --switch-track-off: #e6f9f6;
@@ -711,10 +775,10 @@ html[data-theme="animal-crossing"][data-color-mode="light"] {
     --switch-track-on: #6fba2c;
     --switch-track-on-hover: #85cc45;
     --switch-thumb: #ffffff;
-    --switch-icon-off: #aaa69d;
+    --switch-icon-off: var(--base-ac-border-light);
     --switch-press-ring: rgba(25, 200, 185, 0.25);
-    --switch-thumb-shadow-on: 0 2px 4px rgba(0, 0, 0, 0.15);
-    --switch-thumb-shadow-off: 0 1px 2px rgba(0, 0, 0, 0.1);
+    --switch-thumb-shadow-on: 0 2px 4px rgba(61, 52, 40, 0.15);
+    --switch-thumb-shadow-off: 0 1px 2px rgba(61, 52, 40, 0.1);
 
     /* Statuses */
     --status-success: #6fba2c;
@@ -735,11 +799,11 @@ html[data-theme="animal-crossing"][data-color-mode="light"] {
     --float-disc-bg-start: #f0e8d8;
     --float-disc-bg-end: #f8f8f0;
     --float-disc-backdrop: blur(12px);
-    --float-disc-border: 1px solid #aaa69d;
-    --float-disc-shadow: 0 10px 30px rgba(61, 52, 40, 0.15);
-    --float-disc-color: #794f27;
-    --float-disc-drag-border: 1px solid #19c8b9;
-    --float-disc-drag-shadow: 0 4px 14px rgba(25, 200, 185, 0.3);
+    --float-disc-border: 1px solid var(--border);
+    --float-disc-shadow: var(--surface-shadow-strong);
+    --float-disc-color: var(--foreground);
+    --float-disc-drag-border: 1px solid var(--primary);
+    --float-disc-drag-shadow: 0 4px 12px rgba(25, 200, 185, 0.25);
     --float-disc-wave-accent: #f0ece2;
     --float-disc-scanline: #19c8b9;
     --float-disc-ring-track: #f0ece2;

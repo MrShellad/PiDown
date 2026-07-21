@@ -240,7 +240,7 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           state.activeDownloadingGids.forEach((gid) => {
             if (!payloadActiveGids.has(gid)) {
               const existing = state.tasks[gid];
-              if (existing && (
+              if (existing && existing.status !== "Downloading" && (
                 existing.speed !== "0 B/s" ||
                 existing.speedBps !== 0 ||
                 existing.eta !== "--:--:--" ||
@@ -308,15 +308,22 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
             }
 
             const incomingConnections = activeTask.connections ?? existing?.connections ?? 0;
+            // Guarantee monotonic progress to avoid backward jumps
+            const safeDownloaded = Math.max(existing ? existing.downloadedBytes || 0 : 0, activeTask.downloaded_bytes || 0);
+            const safeTotal = activeTask.total_bytes > 0 ? activeTask.total_bytes : (existing ? existing.totalBytes || 0 : 0);
+            const safeProgress = safeTotal > 0
+              ? Math.min(100, Math.max(existing ? existing.progress || 0 : 0, activeTask.progress || 0, (safeDownloaded / safeTotal) * 100))
+              : Math.max(existing ? existing.progress || 0 : 0, activeTask.progress || 0);
+
             const needsUpdate = !existing ||
               existing.status !== status ||
               existing.speed !== activeTask.speed ||
-              existing.progress !== activeTask.progress ||
+              existing.progress !== safeProgress ||
               existing.eta !== activeTask.eta ||
               existing.speedBps !== (activeTask.speed_bps ?? 0) ||
               existing.etaSeconds !== (activeTask.eta_seconds ?? null) ||
-              existing.downloadedBytes !== activeTask.downloaded_bytes ||
-              existing.totalBytes !== activeTask.total_bytes ||
+              existing.downloadedBytes !== safeDownloaded ||
+              existing.totalBytes !== safeTotal ||
               existing.startedAt !== startedAt ||
               existing.completedAt !== completedAt ||
               existing.uploadSpeed !== activeTask.upload_speed ||
@@ -333,12 +340,12 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
                 url: existing ? existing.url : "",
                 status,
                 speed: activeTask.speed,
-                progress: activeTask.progress,
+                progress: safeProgress,
                 eta: activeTask.eta,
                 speedBps: activeTask.speed_bps ?? 0,
                 etaSeconds: activeTask.eta_seconds ?? null,
-                downloadedBytes: activeTask.downloaded_bytes,
-                totalBytes: activeTask.total_bytes,
+                downloadedBytes: safeDownloaded,
+                totalBytes: safeTotal,
                 createdAt: existing ? existing.createdAt : undefined,
                 startedAt,
                 completedAt,
@@ -525,14 +532,43 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
       fetchTasks: async () => {
         try {
           const backendTasks = await get().apiService.getActiveTasks();
+          const currentTasks = get().tasks;
           const mappedTasks: Record<string, Task> = {};
           const newActiveGids = new Set<string>();
-          backendTasks.forEach((task) => {
-            mappedTasks[task.gid] = mapTask(task);
-            if (task.status === "Downloading") {
-              newActiveGids.add(task.gid);
+
+          backendTasks.forEach((bTask) => {
+            const mapped = mapTask(bTask);
+            const existing = currentTasks[bTask.gid];
+
+            if (bTask.status === "Downloading" || bTask.status === "Seeding") {
+              newActiveGids.add(bTask.gid);
+            }
+
+            if (existing) {
+              const isCurrentlyDownloading = existing.status === "Downloading" || bTask.status === "Downloading";
+              const safeDownloadedBytes = Math.max(mapped.downloadedBytes || 0, existing.downloadedBytes || 0);
+              const safeTotalBytes = mapped.totalBytes > 0 ? mapped.totalBytes : (existing.totalBytes || 0);
+              const safeProgress = safeTotalBytes > 0 
+                ? Math.min(100, Math.max(existing.progress || 0, mapped.progress || 0, (safeDownloadedBytes / safeTotalBytes) * 100))
+                : Math.max(existing.progress || 0, mapped.progress || 0);
+
+              mappedTasks[bTask.gid] = {
+                ...mapped,
+                speed: isCurrentlyDownloading && existing.speed && existing.speed !== "0 B/s" ? existing.speed : mapped.speed,
+                speedBps: isCurrentlyDownloading && existing.speedBps > 0 ? existing.speedBps : mapped.speedBps,
+                progress: safeProgress,
+                downloadedBytes: safeDownloadedBytes,
+                totalBytes: safeTotalBytes,
+                uploadSpeed: isCurrentlyDownloading && existing.uploadSpeed ? existing.uploadSpeed : mapped.uploadSpeed,
+                eta: isCurrentlyDownloading && existing.eta && existing.eta !== "--:--:--" ? existing.eta : mapped.eta,
+                etaSeconds: isCurrentlyDownloading && existing.etaSeconds != null ? existing.etaSeconds : mapped.etaSeconds,
+                connections: existing.connections || mapped.connections,
+              };
+            } else {
+              mappedTasks[bTask.gid] = mapped;
             }
           });
+
           set({ tasks: mappedTasks, activeDownloadingGids: newActiveGids });
         } catch (e) {
           console.error("Failed to fetch tasks from backend", e);

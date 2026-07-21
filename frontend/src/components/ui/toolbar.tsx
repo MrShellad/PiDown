@@ -90,7 +90,7 @@ function ToolbarButton({
       type="button"
       disabled={disabled}
       className={cn(
-        "group/toolbar-button flex min-w-22 items-center justify-center gap-2 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40",
+        "group/toolbar-button flex min-w-22 items-center justify-center gap-2 px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-40",
         className
       )}
       {...props}
@@ -98,7 +98,7 @@ function ToolbarButton({
       {icon ? (
         <span
           data-slot="toolbar-button-icon"
-          className="flex size-5 items-center justify-center text-muted-foreground transition-colors group-hover/toolbar-button:text-foreground [&_svg]:size-5"
+          className="flex size-5 items-center justify-center text-muted-foreground transition-colors group-hover/toolbar-button:text-primary [&_svg]:size-5"
           aria-hidden="true"
         >
           {icon}
@@ -136,7 +136,7 @@ function ToolbarPrimaryButton({
       type="button"
       disabled={disabled}
       className={cn(
-        "flex min-w-44 items-center justify-between gap-3 bg-muted/55 px-4 text-sm font-medium text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50",
+        "group/toolbar-primary-button flex min-w-44 items-center justify-between gap-3 bg-transparent px-4 text-sm font-medium text-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:pointer-events-none disabled:opacity-50",
         className
       )}
       {...props}
@@ -145,7 +145,7 @@ function ToolbarPrimaryButton({
         {icon ? (
           <span
             data-slot="toolbar-primary-icon"
-            className="grid size-8 shrink-0 place-items-center text-foreground [&_svg]:size-5"
+            className="grid size-8 shrink-0 place-items-center text-muted-foreground transition-colors group-hover/toolbar-primary-button:text-primary [&_svg]:size-5"
             aria-hidden="true"
           >
             {icon}
@@ -158,7 +158,7 @@ function ToolbarPrimaryButton({
       {actionIcon ? (
         <span
           data-slot="toolbar-primary-action"
-          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground [&_svg]:size-4"
+          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-transform group-hover/toolbar-primary-button:scale-105 [&_svg]:size-4"
           aria-hidden="true"
         >
           {actionIcon}
@@ -206,13 +206,13 @@ function PageHeaderToolbar({
       data-slot="page-header-toolbar"
       role="toolbar"
       className={cn(
-        "flex min-h-17 w-full shrink-0 items-stretch overflow-hidden rounded-lg bg-toolbar text-card-foreground shadow-toolbar-glow border border-border/30 relative",
+        "flex min-h-17 w-full shrink-0 items-center justify-between overflow-hidden rounded-lg bg-toolbar text-card-foreground shadow-toolbar-glow border border-border/30 relative gap-3",
         className
       )}
       {...props}
     >
       {/* Left section */}
-      <div className="flex items-stretch min-w-0">
+      <div className="flex items-stretch min-w-0 shrink-0 self-stretch">
         {title && (
           <div className={cn(
             "flex flex-col justify-center px-5 py-2 min-w-0 shrink-0",
@@ -231,41 +231,52 @@ function PageHeaderToolbar({
         {leftActions}
       </div>
 
-      {/* Middle section: Search Input */}
+      {/* Middle section: Search Input (expands left) */}
       {onSearchQueryChange !== undefined && (
-        <div
-          className={cn(
-            "transition-all duration-300 self-stretch relative flex items-center justify-end px-3 ml-auto",
-            isExpanded ? "w-64 sm:w-80" : "w-36"
-          )}
-        >
-          <div className="relative w-full flex items-center group">
-            <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
-            <input
-              type="text"
-              placeholder={searchPlaceholder}
-              value={searchQuery || ""}
-              onFocus={() => setIsSearchFocused(true)}
-              onBlur={() => setIsSearchFocused(false)}
-              onChange={(e) => onSearchQueryChange(e.target.value)}
-              className="w-full h-9 pl-9 pr-8 rounded-md border border-border/80 bg-background/50 hover:bg-background/80 focus:bg-background focus:border-primary/50 focus:ring-2 focus:ring-primary/20 text-xs outline-none transition placeholder:text-muted-foreground/60 text-foreground"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => onSearchQueryChange("")}
-                className="absolute right-2.5 p-0.5 rounded hover:bg-muted text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer"
-                aria-label="清空搜索"
-              >
-                <X className="size-3.5" />
-              </button>
+        <div className="flex items-center justify-end flex-1 min-w-0 px-2 overflow-hidden self-stretch">
+          <div
+            className={cn(
+              "transition-all duration-300 ease-out relative flex items-center justify-end",
+              isExpanded
+                ? "w-full max-w-sm sm:max-w-md md:max-w-lg"
+                : "w-36 sm:w-44",
+              expandedSearchClassName
             )}
+          >
+            <div className="relative w-full flex items-center group">
+              <Search className="absolute left-3 size-4 text-muted-foreground/60 group-focus-within:text-primary transition-colors pointer-events-none" />
+              <input
+                type="text"
+                placeholder={searchPlaceholder}
+                value={searchQuery || ""}
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                onChange={(e) => onSearchQueryChange(e.target.value)}
+                className="w-full h-9 pl-9 pr-8 rounded-md border border-border/50 bg-muted/25 hover:bg-muted/40 focus:bg-background/80 focus:border-primary/50 focus:ring-2 focus:ring-primary/20 text-xs outline-none transition placeholder:text-muted-foreground/60 text-foreground"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => onSearchQueryChange("")}
+                  className="absolute right-2.5 p-0.5 rounded hover:bg-muted text-muted-foreground/80 hover:text-foreground transition-colors cursor-pointer"
+                  aria-label="清空搜索"
+                >
+                  <X className="size-3.5" />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
 
-      {/* Right section */}
-      {rightActions}
+      {/* Far Right section: Speed Display (pinned to right) */}
+      {rightActions && (
+        <div className="flex items-stretch shrink-0 self-stretch pr-3">
+          {rightActions}
+        </div>
+      )}
+
       {children}
     </div>
   )

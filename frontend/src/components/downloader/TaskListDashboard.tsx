@@ -12,7 +12,6 @@ import type { Task, Category, Tag } from "@/core/store/useDownloadStore";
 import { useAppSettingsStore } from "@/core/store/useAppSettingsStore";
 import type { TaskTableColumnId } from "@/core/store/useTaskTableStore";
 import { useTaskTableStore } from "@/core/store/useTaskTableStore";
-import { useThemeStore } from "@/core/store/useThemeStore";
 import { useReactTable, getCoreRowModel, type ColumnDef } from "@tanstack/react-table";
 import { useShallow } from "zustand/react/shallow";
 import { IconPreview } from "@/components/ui/icon-picker";
@@ -227,7 +226,6 @@ interface Particle {
 }
 
 export default function TaskListDashboard({ activeFilter }: TaskListDashboardProps) {
-  const theme = useThemeStore((state) => state.theme);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
@@ -942,7 +940,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                 }}
               >
                 <div
-                  className="absolute top-0 z-20"
+                  className="absolute top-2 z-20"
                   style={{
                     left: 12,
                     right: 12,
@@ -953,6 +951,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     checked={headerChecked}
                     disabled={filteredGids.length === 0}
                     embedded
+                    isScrolled={scrollTop > 0}
                     onCheckedChange={toggleAllFilteredTasks}
                     table={table}
                   />
@@ -968,17 +967,16 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                     style={{
                       width: "100%",
                       minWidth: `${tableWidth + 12}px`,
+                      clipPath: "inset(8px 0px 0px 0px round 8px 8px 8px 8px)",
                       marginBottom: 8,
-                      clipPath: "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
                     }}
                     viewportClassName={`relative pb-[46px] pt-0 scroll-smooth rounded-b-lg flex flex-col`}
                     viewportStyle={{
                       paddingLeft: 0,
                       paddingRight: 12,
-                      clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : undefined,
                     }}
                   >
-                    <div className="h-[52px] shrink-0" />
+                    <div className="h-[60px] shrink-0" />
                     <div className="h-2 shrink-0" />
                     <motion.div
                       className="flex flex-1 flex-col items-center justify-center gap-5 p-8 text-center"
@@ -1023,7 +1021,7 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                       height: `${viewportHeight || 500}px`,
                       width: "100%",
                       minWidth: `${tableWidth + 12}px`,
-                      clipPath: theme === "animal-crossing" ? "inset(28px 0px 0px 0px)" : "inset(0px 0px 0px 0px round 0px 0px 8px 8px)",
+                      clipPath: "inset(8px 0px 0px 0px round 8px 8px 8px 8px)",
                       marginBottom: 8,
                     }}
                     onScroll={(e) => {
@@ -1035,10 +1033,10 @@ export default function TaskListDashboard({ activeFilter }: TaskListDashboardPro
                         position: "relative",
                         width: "100%",
                         minWidth: `${tableWidth}px`,
-                        height: `${rowVirtualizer.getTotalSize() + 60 + 46}px`, // 60px top spacer + 46px bottom padding
+                        height: `${rowVirtualizer.getTotalSize() + 68 + 46}px`, // 68px top spacer (16px padding below header) + 46px bottom padding
                       }}
                     >
-                      <div style={{ transform: "translateY(60px)" }}>
+                      <div style={{ transform: "translateY(68px)" }}>
                         {rowVirtualizer.getVirtualItems().map((virtualRow) => (
                           <Row
                             key={virtualRow.key}

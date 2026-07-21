@@ -29,6 +29,7 @@ interface TaskListHeaderProps {
   className?: string
   disabled?: boolean
   embedded?: boolean
+  isScrolled?: boolean
   onCheckedChange?: (checked: boolean) => void
   table: Table<Task>
 }
@@ -107,8 +108,8 @@ function HeaderCell({
     <div
       data-slot="task-list-header-cell"
       className={cn(
-        "group/header-cell relative flex h-full shrink-0 select-none items-center px-4 text-sm font-semibold leading-5 text-foreground/85 transition-colors",
-        column.id === "name" ? "justify-start" : "justify-center",
+        "group/header-cell relative flex h-full shrink-0 select-none items-center text-sm font-semibold leading-5 text-foreground/85 transition-colors",
+        column.id === "name" ? "justify-start pl-2.5 pr-4" : "justify-center px-4",
         "hover:bg-muted/35 hover:text-foreground"
       )}
       style={{
@@ -154,6 +155,7 @@ export default function TaskListHeader({
   className,
   disabled,
   embedded = false,
+  isScrolled = false,
   onCheckedChange,
   table,
 }: TaskListHeaderProps) {
@@ -279,8 +281,11 @@ export default function TaskListHeader({
     <div
       data-slot="task-list-header"
       className={cn(
-        "flex h-13 shrink-0 items-center overflow-hidden",
-        embedded ? "rounded-lg bg-table-header backdrop-blur-md border border-border/30" : "rounded-lg bg-table-header border border-border/40",
+        "flex h-13 shrink-0 items-center overflow-hidden transition-all duration-200 select-none rounded-lg",
+        embedded
+          ? "bg-table-header backdrop-blur-md border border-border/30"
+          : "bg-table-header border border-border/40",
+        isScrolled && "shadow-md border-border/60 bg-table-header/98 backdrop-blur-xl",
         className
       )}
       style={{ width: "100%", minWidth: `${tableWidth}px` }}
